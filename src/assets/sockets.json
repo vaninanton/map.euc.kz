@@ -65,6 +65,19 @@
                 "type": "Point",
                 "coordinates": [77.074944, 43.133556]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "lit-service",
+                "type": "socket",
+                "name": "Lit Service",
+                "description": "Сервис по ремонту моноколёс и другого электротранспорта. В рабочее время всегда можно зарядиться. Работает с 10 до 22, воскресенье - выходной."
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.884675, 43.251429]
+            }
         }
     ]
 }
