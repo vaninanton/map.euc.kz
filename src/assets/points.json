@@ -221,6 +221,19 @@
                 "type": "Point",
                 "coordinates": [76.932896, 43.219106]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 18,
+                "type": "point",
+                "name": "Смотровая площадка Горный гигант",
+                "description": "Вид на город"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.946536, 43.184724]
+            }
         }
     ]
 }
