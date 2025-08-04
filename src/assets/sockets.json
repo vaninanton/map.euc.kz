@@ -78,6 +78,19 @@
                 "type": "Point",
                 "coordinates": [76.884675, 43.251429]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 6,
+                "type": "socket",
+                "name": "на плотине Медео",
+                "description": "Розетка в электрощите справа от бинокля, за бортиком"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [77.062469, 43.150624]
+            }
         }
     ]
 }
