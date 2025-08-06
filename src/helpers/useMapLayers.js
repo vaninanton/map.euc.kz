@@ -56,6 +56,7 @@ export const createBikelanesLayer = () => {
     const veloGeoJson = velojol2geojson(velojolAlmaty, ['alm84', 'alm85', 'alm86', 'alm89'])
     return L.geoJSON(veloGeoJson, {
         pmIgnore: true,
+        attribution: 'Велодорожки: <a href="https://velojol.kz" target="_blank">velojol.kz</a>',
         style: { color: 'green', weight: 3, dashArray: '6, 6' },
         onEachFeature: (feature, layer) => {
             createTooltip(feature, layer, 'bikelane')

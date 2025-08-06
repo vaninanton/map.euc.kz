@@ -7,6 +7,9 @@ import 'leaflet-providers/leaflet-providers'
 import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 
+import { LocateControl } from "leaflet.locatecontrol";
+import "leaflet.locatecontrol/dist/L.Control.Locate.min.css";
+
 import { createPointsLayer, createSocketsLayer, createRoutesLayer, createBikelanesLayer } from '../helpers/useMapLayers'
 
 import { decode } from 'js-base64'
@@ -40,7 +43,7 @@ const initBaseLayers = () => {
     return {
         osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution:
-                '&copy; OpenStreetMap, TG: <a href="https://t.me/+m9ifLDAQddM5ZDEy" target="_blank">Электроклуб Алматы</a>, Велодорожки: <a href="https://velojol.kz" target="_blank">velojol.kz</a>',
+                '&copy; OpenStreetMap, TG: <a href="https://t.me/+m9ifLDAQddM5ZDEy" target="_blank">Электроклуб Алматы</a>',
         }),
         mapbox: L.tileLayer.provider('MapBox', {
             id: 'vanton/cmcw742a0002m01s945vc1s0n',
@@ -91,7 +94,6 @@ const focusLayerById = function (id, type, setView = true) {
             layer.fire('click')
         }
     })
-
 }
 
 const parseHash = () => {
@@ -182,6 +184,32 @@ onMounted(() => {
     }
 
     L.control.layers(controlBaseLayers, controlOverlays, { collapsed: false }).addTo(map.value)
+
+    const locateControl = new LocateControl({
+        position: 'bottomright',
+        keepCurrentZoomLevel: true,
+        drawCircle: false,
+        showPopup: false,
+        strings: {
+            title: 'Показать моё местоположение',
+        },
+        locateOptions: {
+            enableHighAccuracy: true,
+        },
+    })
+
+    locateControl.addTo(map.value)
+    // L.control
+    //     .locate({
+    //         position: 'topleft',
+    //         strings: {
+    //             title: 'Показать моё местоположение',
+    //         },
+    //         locateOptions: {
+    //             enableHighAccuracy: true,
+    //         },
+    //     })
+    //     .addTo(map.value)
 
     map.value.on('pm:create', (e) => {
         currentLayer.value = e.layer
