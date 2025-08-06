@@ -247,6 +247,19 @@
                 "type": "Point",
                 "coordinates": [76.947816, 43.296191]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 20,
+                "type": "point",
+                "name": "Экопост",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.91127, 43.118476]
+            }
         }
     ]
 }
