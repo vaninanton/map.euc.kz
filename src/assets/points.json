@@ -234,6 +234,19 @@
                 "type": "Point",
                 "coordinates": [76.946536, 43.184724]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 19,
+                "type": "point",
+                "name": "Роща Баума",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.947816, 43.296191]
+            }
         }
     ]
 }
