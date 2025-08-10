@@ -260,6 +260,32 @@
                 "type": "Point",
                 "coordinates": [76.91127, 43.118476]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 21,
+                "type": "point",
+                "name": "Озеро Маншук Маметовой",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [77.099861, 43.079043]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 22,
+                "type": "point",
+                "name": "Хижина конечная морена ледника Туйык су",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [77.083496, 43.06093]
+            }
         }
     ]
 }
