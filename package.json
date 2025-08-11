@@ -12,17 +12,17 @@
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.18.3",
     "@tailwindcss/vite": "^4.1.11",
-    "js-base64": "^3.7.7",
+    "js-base64": "^3.7.8",
     "leaflet": "^1.9.4",
     "leaflet-color-markers": "^0.1.0",
     "leaflet-providers": "^2.0.0",
     "leaflet.locatecontrol": "^0.84.2",
     "tailwindcss": "^4.1.11",
-    "vue": "^3.5.17"
+    "vue": "^3.5.18"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.0",
+    "@vitejs/plugin-vue": "^6.0.1",
     "prettier": "^3.6.2",
-    "vite": "^7.0.5"
+    "vite": "^7.1.1"
   }
 }
