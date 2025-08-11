@@ -286,6 +286,19 @@
                 "type": "Point",
                 "coordinates": [77.083496, 43.06093]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 23,
+                "type": "point",
+                "name": "БАО, Платформа для отдыха",
+                "description": "Платформа около БАО"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [43.055303, 76.976535]
+            }
         }
     ]
 }
