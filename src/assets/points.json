@@ -299,6 +299,19 @@
                 "type": "Point",
                 "coordinates": [76.976535, 43.055303]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 24,
+                "type": "point",
+                "name": "Плотина около звездной поляны",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.866054, 43.137575]
+            }
         }
     ]
 }
