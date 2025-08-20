@@ -183,7 +183,7 @@ onMounted(() => {
         Велодорожки: layers.bikelanes.value,
     }
 
-    L.control.layers(controlBaseLayers, controlOverlays, { collapsed: false }).addTo(map.value)
+    L.control.layers(controlBaseLayers, controlOverlays, { collapsed: true, position: 'bottomleft' }).addTo(map.value)
 
     const locateControl = new LocateControl({
         position: 'bottomright',

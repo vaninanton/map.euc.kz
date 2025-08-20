@@ -13,7 +13,26 @@
 
 body {
     margin: 0;
-    background-color: #00623a;
+}
+
+.leaflet-control-container .leaflet-top {
+    top: env(safe-area-inset-top);
+}
+
+.leaflet-control-container .leaflet-left {
+    left: env(safe-area-inset-left);
+}
+
+.leaflet-control-container .leaflet-right {
+    right: env(safe-area-inset-right);
+}
+
+.leaflet-control-container .leaflet-bottom {
+    bottom: env(safe-area-inset-bottom);
+}
+
+.leaflet-touch .leaflet-control-attribution {
+    display: none;
 }
 
 .leaflet-container a {
@@ -21,6 +40,7 @@ body {
     color: #646cff;
     text-decoration: inherit;
 }
+
 .leaflet-container a:hover {
     color: #535bf2;
 }
