@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.18.3",
-    "@tailwindcss/vite": "^4.1.12",
+    "@tailwindcss/vite": "^4.1.13",
     "js-base64": "^3.7.8",
     "leaflet": "^1.9.4",
     "leaflet-color-markers": "^0.1.0",
