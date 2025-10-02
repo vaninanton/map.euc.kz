@@ -91,6 +91,19 @@
                 "type": "Point",
                 "coordinates": [77.062469, 43.150624]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 7,
+                "type": "socket",
+                "name": "Розетка Баханди",
+                "description": "Бесплатная розетка на стене бургерной"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.951021, 43.24287]
+            }
         }
     ]
 }
