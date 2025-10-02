@@ -95,11 +95,7 @@ const handleClose = () => {
         <div class="share-modal">
             <div class="share-header">
                 <h2>
-                    {{
-                        shareData.typeText
-                            ? `${shareData.typeText.charAt(0).toUpperCase() + shareData.typeText.slice(1)} создан(а)`
-                            : 'Объект создан'
-                    }}
+                    Объект создан!
                 </h2>
                 <button @click="handleClose" class="close-button">&times;</button>
             </div>
@@ -116,8 +112,7 @@ const handleClose = () => {
                 </div>
 
                 <div class="share-link-section">
-                    <h3>Ссылка для публикации:</h3>
-                    <p>Отправь <a href="https://t.me/vanton" target="_blank">@vanton</a> и мы её добавим!</p>
+                    <p>Для публикации отправь эту ссылку в тг <a href="https://t.me/vanton" target="_blank">@vanton</a> и мы её добавим!</p>
                     <div class="link-container">
                         <input type="text" :value="shareUrl" readonly class="share-link-input" />
                         <button @click="copyShareLink" class="copy-button">📋 Копировать</button>
@@ -138,7 +133,7 @@ const handleClose = () => {
 
             <div class="share-actions">
                 <button @click="shareToTelegram" class="btn-telegram" :disabled="showTelegramLink">
-                    <span class="telegram-icon">✈️</span> Поделиться в Telegram
+                    <span class="telegram-icon">✈️</span> Отправить
                 </button>
                 <button @click="handleClose" class="btn-close">Закрыть</button>
             </div>
