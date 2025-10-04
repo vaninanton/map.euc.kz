@@ -312,6 +312,19 @@
                 "type": "Point",
                 "coordinates": [76.866054, 43.137575]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 25,
+                "type": "point",
+                "name": "Геодезическая вышка (Динамо)",
+                "description": "Видовая площадка. Сложность средняя"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.982967, 43.17391]
+            }
         }
     ]
 }
