@@ -351,6 +351,32 @@
                 "type": "Point",
                 "coordinates": [77.061533, 43.201417]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 28,
+                "type": "point",
+                "name": "Кок-Тобе",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.974923, 43.233583]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 29,
+                "type": "point",
+                "name": "Юннатское озеро",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [77.01533, 43.206732]
+            }
         }
     ]
 }
