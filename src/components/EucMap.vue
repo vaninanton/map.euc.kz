@@ -10,7 +10,7 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import { LocateControl } from 'leaflet.locatecontrol'
 import 'leaflet.locatecontrol/dist/L.Control.Locate.min.css'
 
-import { createPointsLayer, createSocketsLayer, createRoutesLayer, createBikelanesLayer } from '../helpers/useMapLayers'
+import { createPointsLayer, createSocketsLayer, createRoutesLayer, createBikelanesLayer } from '../helpers/useMapLayers?version=1'
 
 import { decode } from 'js-base64'
 import { redIcon } from '../helpers/markerIcons'
