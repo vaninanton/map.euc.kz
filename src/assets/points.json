@@ -325,6 +325,32 @@
                 "type": "Point",
                 "coordinates": [76.982967, 43.17391]
             }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 26,
+                "type": "point",
+                "name": "Груши",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [76.974414, 43.179934]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": 27,
+                "type": "point",
+                "name": "Шыбынсай",
+                "description": ""
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [77.056046, 43.20186]
+            }
         }
     ]
 }
