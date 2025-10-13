@@ -4,10 +4,10 @@ import { greenIcon, blueIcon } from './markerIcons'
 import createTooltip from './createTooltip'
 import createPopup from './createPopup'
 
-import pointsGeojson from '../assets/points.json'
-import routesGeojson from '../assets/routes.json'
-import socketsGeojson from '../assets/sockets.json'
-import velojolAlmaty from '../assets/velojol/almaty.json'
+import pointsGeojson from '../assets/points.json?version=1'
+import routesGeojson from '../assets/routes.json?version=1'
+import socketsGeojson from '../assets/sockets.json?version=1'
+import velojolAlmaty from '../assets/velojol/almaty.json?version=1'
 
 export const createPointsLayer = () =>
     L.geoJSON(pointsGeojson, {
