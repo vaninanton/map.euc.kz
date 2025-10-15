@@ -1,6 +1,7 @@
 import calculateRouteDistance from './CalculateRouteDistance'
 import FeatureTypes from './FeatureTypes'
 import ymapsIcon from '../assets/ymaps.svg'
+import guruIcon from '../assets/guru.svg'
 import twoGisIcon from '../assets/2gis.png'
 import shareIcon from '../assets/share.svg'
 
@@ -8,6 +9,7 @@ export default function createPopup(feature, layer) {
     const { type, name, description, id } = feature.properties ?? {}
     const coordinates = feature.geometry.coordinates
     const isPoint = feature.geometry.type === 'Point'
+    const isRoute = feature.geometry.type === 'LineString'
     const webShareSupported = 'canShare' in navigator
 
     let content = []
@@ -48,6 +50,48 @@ export default function createPopup(feature, layer) {
             `<a href="https://2gis.kz/directions/tab/${isMobile2GisType}/points/|${coordinates[0]},${coordinates[1]}" target="_blank" class="text-nowrap">
                 <img src="${twoGisIcon}" class="max-w-4 max-h-4 inline" />
                 2GIS
+            </a>`,
+        )
+        content.push(
+            `<a href="guru://nav?finish=${coordinates[1]},${coordinates[0]}&mode=bicycle" target="_blank" class="text-nowrap">
+                <img src="${guruIcon}" class="max-w-4 max-h-4 inline" />
+                GuruMaps
+            </a>`,
+        )
+        if (webShareSupported) {
+            content.push(
+                `<a href="${window.location.origin}${window.location.pathname}#${type}=${id}" target="_blank" class="text-nowrap js-share">
+                    <img src="${shareIcon}" class="max-w-4 max-h-4 inline" />
+                    Поделиться
+                </a>`,
+            )
+        }
+        content.push('</div>')
+    } else if (isRoute) {
+        content.push('<div class="mt-2 flex flex-wrap gap-2">')
+        const start = coordinates.at(0);
+        const finish = coordinates.at(-1);
+        const steps = 4;
+        const viaPoints = [];
+
+        for (let i = 1; i < steps - 1; i++) {
+            const idx = Math.round((i / (steps - 1)) * (coordinates.length - 1));
+            viaPoints.push(coordinates[idx]);
+        }
+
+        const guruParams = new URLSearchParams({
+            mode: "bicycle",
+            start: start[1] + ',' + start[0],
+            finish: finish[1] + ',' + finish[0]
+        });
+        viaPoints.forEach(v => guruParams.append('via', v[1] + ',' + v[0]));
+
+        const url = `guru://nav?${guruParams.toString()}`;
+
+        content.push(
+            `<a href="${url}" target="_blank" class="text-nowrap">
+                <img src="${guruIcon}" class="max-w-4 max-h-4 inline" />
+                GuruMaps
             </a>`,
         )
         if (webShareSupported) {
