@@ -17,8 +17,22 @@ export default function createPopup(feature, layer) {
     if (name) {
         content.push(`&laquo;<span class="font-bold">${name}</span>&raquo;`)
     }
+    if (type === 'route') {
+        const { distance, gain, loss } = calculateRouteDistance(feature.geometry.coordinates)
+        content.push('<div class="grid grid-cols-3 gap-2 mb-2">')
+        content.push(
+            '<span><span class="block text-gray-500">Расстояние:</span> ' + distance.toFixed(1) + '&nbsp;км</span>',
+        )
+        if (gain > 0) {
+            content.push('<span><span class="block text-gray-500">Подъём:</span> ' + gain.toFixed(0) + '&nbsp;м</span>')
+        }
+        if (loss > 0) {
+            content.push('<span><span class="block text-gray-500">Спуск:</span> ' + loss.toFixed(0) + '&nbsp;м</span>')
+        }
+        content.push('</div>')
+    }
     if (description) {
-        content.push(`<div>${description}</div>`)
+        content.push(`<div class="mb-2">${description}</div>`)
     }
     if (isPoint) {
         content.push('<div class="mt-2 flex flex-wrap gap-2">')

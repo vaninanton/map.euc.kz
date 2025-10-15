@@ -8,9 +8,8 @@ export default function createTooltip(feature, layer, type) {
     } else if (type === 'route') {
         let tooltipContent = []
         tooltipContent.push(feature.properties.name || 'Маршрут')
-        tooltipContent.push(
-            '<span class="text-gray-600">(' + calculateRouteDistance(feature.geometry.coordinates) + ' км)</span>',
-        )
+        const { distance } = calculateRouteDistance(feature.geometry.coordinates)
+        tooltipContent.push('<span class="text-gray-600">(' + distance.toFixed(0) + ' км)</span>')
         layer.bindTooltip(tooltipContent.join(' '))
     }
 }
