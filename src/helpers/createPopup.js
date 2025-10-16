@@ -6,6 +6,7 @@ export default function createPopup(feature, layer) {
     const { type, name, description, id } = feature.properties ?? {}
 
     let content = []
+    content.push(`<div class="w-75">`)
     if (type && FeatureTypes[type]) {
         content.push(`<span class="text-gray-500">${FeatureTypes[type].name}</span> `)
     }
@@ -42,6 +43,7 @@ export default function createPopup(feature, layer) {
         }
     }
 
+    content.push(`</div>`)
     layer.bindPopup(content.join(''))
 
     layer.on('popupopen', (e) => {
