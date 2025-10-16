@@ -4,8 +4,8 @@ import { greenIcon, blueIcon } from './markerIcons'
 import createTooltip from './createTooltip'
 import createPopup from './createPopup'
 
-import routesGeojson from '../assets/routes.json?version=2'
-import velojolAlmaty from '../assets/velojol/almaty.json?version=2'
+import routesGeojson from '../assets/routes.json'
+import velojolAlmaty from '../assets/velojol/almaty.json'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_KEY)
