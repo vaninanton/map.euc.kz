@@ -64,7 +64,7 @@ const linkGuruMaps = (feature: Feature<LineString | Point, Record<string, any>>)
         }
     }
 
-    return `<a href="${url.href}" class="text-nowrap"><img src="${guruIcon}" class="max-w-4 max-h-4 inline" /> GuruMaps</a>`
+    return `<a href="${url.href}" class="text-nowrap"><img src="${guruIcon}" class="max-w-4 max-h-4 inline" /> Guru</a>`
 }
 
 const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any>>): string|null => {
@@ -90,15 +90,11 @@ const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any
 
 }
 
-const linkShare = (feature: Feature<LineString | Point, Record<string, any>>) => {
-    if (feature.geometry.type === 'Point') {
-        const [lon, lat] = feature.geometry.coordinates
-        return `<a href="${window.location.origin}${window.location.pathname}#${feature.properties.type}=${feature.properties.id}" target="_blank" class="text-nowrap js-share">
-            <img src="${shareIcon}" class="max-w-4 max-h-4 inline" />
-            <span class="js-share-text">Поделиться</span>
-        </a>`;
-    }
-    return null
+const linkShare = (feature: Feature<LineString | Point, Record<string, any>>): string => {
+    return `<a href="${window.location.origin}${window.location.pathname}#${feature.properties.type}=${feature.properties.id}" target="_blank" class="text-nowrap js-share">
+        <img src="${shareIcon}" class="max-w-4 max-h-4 inline" />
+        <span class="js-share-text">Поделиться</span>
+    </a>`;
 }
 
 export default function CreateShareLinks(feature: Feature<LineString | Point, Record<string, any>>) {
