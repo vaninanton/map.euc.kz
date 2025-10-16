@@ -76,5 +76,5 @@ export default function createPopup(feature, layer) {
             })
         })
     })
-    layer.on('popupclose', (e) => window.history.replaceState(null, '', '`#`'))
+    layer.on('popupclose', (e) => window.history.replaceState(null, '', '#'))
 }
