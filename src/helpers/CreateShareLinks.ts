@@ -4,11 +4,11 @@ import guruIcon from '../assets/guru.svg'
 import twoGisIcon from '../assets/2gis.png'
 import shareIcon from '../assets/share.svg'
 
-const getViaPoints = (feature: Feature<LineString | Point, Record<string, any>>): Position[] => {
+const getViaPoints = (feature: Feature<LineString | Point, Record<string, any>>, minSteps: number): Position[] => {
     const coords = feature.geometry.coordinates
     if (coords.length <= 2) return []
 
-    const steps = Math.min(4, coords.length - 2)
+    const steps = Math.min(minSteps, coords.length - 2)
     const viaPoints: Position[] = []
 
     for (let i = 1; i <= steps; i++) {
@@ -57,7 +57,7 @@ const linkGuruMaps = (feature: Feature<LineString | Point, Record<string, any>>)
         url.searchParams.append('start', [lon, lat].reverse().join(','))
 
         if (feature.geometry.coordinates.length) {
-            getViaPoints(feature).forEach((v) => url.searchParams.append('via', [v[0], v[1]].reverse().join(',')))
+            getViaPoints(feature, 4).forEach((v) => url.searchParams.append('via', [v[0], v[1]].reverse().join(',')))
 
             const [finishLon, finishLat] = feature.geometry.coordinates[feature.geometry.coordinates.length - 1]
             url.searchParams.append('finish', [finishLon, finishLat].reverse().join(','))
@@ -67,7 +67,30 @@ const linkGuruMaps = (feature: Feature<LineString | Point, Record<string, any>>)
     return `<a href="${url.href}" class="text-nowrap"><img src="${guruIcon}" class="max-w-4 max-h-4 inline" /> GuruMaps</a>`
 }
 
-const linkGeo = (feature: Feature<LineString | Point, Record<string, any>>) => {
+const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any>>): string|null => {
+    if (feature.geometry.type !== 'LineString') {
+        return null;
+    }
+
+    const url = new URL('https://classic-maps.openrouteservice.org/directions')
+    url.searchParams.append('b', '0')
+    url.searchParams.append('c', '0')
+
+    let a = [];
+    if (feature.geometry.coordinates.length) {
+        const [lon, lat] = feature.geometry.coordinates[0]
+        a.push([lon, lat].reverse().join(','))
+        getViaPoints(feature, 40).forEach((v) => a.push([v[0], v[1]].reverse().join(',')))
+
+        const [finishLon, finishLat] = feature.geometry.coordinates[feature.geometry.coordinates.length - 1]
+        a.push([finishLon, finishLat].reverse().join(','))
+    }
+    url.searchParams.append('a', a.join(','));
+    return `<a href="${url.href}" target="_blank" class="text-nowrap">openrouteservice</a>`
+
+}
+
+const linkShare = (feature: Feature<LineString | Point, Record<string, any>>) => {
     if (feature.geometry.type === 'Point') {
         const [lon, lat] = feature.geometry.coordinates
         return `<a href="${window.location.origin}${window.location.pathname}#${feature.properties.type}=${feature.properties.id}" target="_blank" class="text-nowrap js-share">
@@ -79,5 +102,5 @@ const linkGeo = (feature: Feature<LineString | Point, Record<string, any>>) => {
 }
 
 export default function CreateShareLinks(feature: Feature<LineString | Point, Record<string, any>>) {
-    return [linkYandex(feature), link2gis(feature), linkGuruMaps(feature), linkGeo(feature)].filter(Boolean)
+    return [linkYandex(feature), link2gis(feature), linkGuruMaps(feature), linkProjectOsrm(feature), linkShare(feature)].filter(Boolean)
 }

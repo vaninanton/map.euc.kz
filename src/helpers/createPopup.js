@@ -31,13 +31,15 @@ export default function createPopup(feature, layer) {
         content.push(`<div class="mb-2">${description}</div>`)
     }
 
-    const shareLinks = CreateShareLinks(feature)
-    if (shareLinks.length > 0) {
-        content.push('<div class="mt-2 flex flex-wrap gap-2">')
-        CreateShareLinks(feature).forEach((link) => {
-            content.push(link)
-        });
-        content.push('</div>')
+    if (type !== 'bikelane') {
+        const shareLinks = CreateShareLinks(feature)
+        if (shareLinks.length > 0) {
+            content.push('<div class="mt-2 flex flex-wrap gap-2">')
+            CreateShareLinks(feature).forEach((link) => {
+                content.push(link)
+            });
+            content.push('</div>')
+        }
     }
 
     layer.bindPopup(content.join(''))
