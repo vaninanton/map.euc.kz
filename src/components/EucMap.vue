@@ -133,7 +133,7 @@ const parseHash = () => {
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
     map.value = L.map('map').setView([43.226807, 76.904848], 12)
     map.value.pm.setLang('ru')
     map.value.pm.addControls({
@@ -161,8 +161,8 @@ onMounted(() => {
     baseLayers.osm.value = initializedBaseLayers.osm
     baseLayers.mapbox.value = initializedBaseLayers.mapbox
 
-    layers.points.value = createPointsLayer()
-    layers.sockets.value = createSocketsLayer()
+    layers.points.value = await createPointsLayer()
+    layers.sockets.value = await createSocketsLayer()
     layers.routes.value = createRoutesLayer()
     layers.bikelanes.value = createBikelanesLayer()
 
