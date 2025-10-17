@@ -15,7 +15,7 @@ export default function createPopup(feature, layer) {
     }
 
     if (feature.geometry.type === 'LineString') {
-        const { distance, gain, loss } = calculateRouteDistance(feature.geometry.coordinates)
+        const { distance, gain, loss, avgGrade, maxGrade, maxElevation, minElevation, twistiness, difficulty } = calculateRouteDistance(feature)
         content.push('<div class="grid grid-cols-3 gap-2 mb-2">')
         content.push(
             '<span><span class="block text-gray-500">Расстояние:</span> ' + distance.toFixed(1) + '&nbsp;км</span>',
@@ -26,6 +26,13 @@ export default function createPopup(feature, layer) {
         if (loss > 0) {
             content.push('<span><span class="block text-gray-500">Спуск:</span> ' + loss.toFixed(0) + '&nbsp;м</span>')
         }
+        content.push('</div>')
+
+        content.push('<div class="w-full">')
+            content.push('<div>Уклон сред/макс: ' + avgGrade.toFixed(1) + '%/' + maxGrade.toFixed(1) + '%</div> ')
+            content.push('<div>Высота мин/макс: ' + minElevation.toFixed(0) + 'м/' + maxElevation.toFixed(0) + 'м</div> ')
+            content.push('<div>Извилистость: ' + twistiness.toFixed(1) + '</div> ')
+            content.push('<div>Сложность: ' + difficulty + '</div> ')
         content.push('</div>')
     }
     if (description) {
