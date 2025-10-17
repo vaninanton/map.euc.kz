@@ -83,7 +83,6 @@ const handleShareClose = () => {
 const focusLayerById = function (id, type, setView = true) {
     id = parseInt(id, 10)
     const layerGroup = layers[type]?.value
-    console.log(layerGroup)
     if (!layerGroup) return
 
     layerGroup.eachLayer((layer) => {
