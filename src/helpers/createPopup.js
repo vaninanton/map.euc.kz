@@ -61,19 +61,17 @@ export default function createPopup(feature, layer) {
         e.target._popup._container.querySelectorAll('.js-share').forEach((el) => {
             el.addEventListener('click', async (event) => {
                 event.preventDefault()
-                const url = event.target.getAttribute('href')
+                const link = event.currentTarget
+                const url = link.getAttribute('href')
 
-                const webShareSupported = 'canShare' in navigator
-                if (!webShareSupported) return
-
-                if (navigator.canShare()) {
+                if ('canShare' in navigator && navigator.canShare()) {
                     try {
                         await navigator.share({ url })
                     } catch (err) {
                         console.error(err)
                     }
                 } else {
-                    const oldText = el.querySelector('.js-share-text').innerHTML
+                    const oldText = link.querySelector('.js-share-text').innerHTML
                     try {
                         await navigator.clipboard.writeText(url)
                     } catch (error) {
