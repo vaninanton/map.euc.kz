@@ -162,7 +162,7 @@ onMounted(async () => {
 
     layers.points.value = await createPointsLayer()
     layers.sockets.value = await createSocketsLayer()
-    layers.routes.value = createRoutesLayer()
+    layers.routes.value = await createRoutesLayer()
     layers.bikelanes.value = createBikelanesLayer()
 
     baseLayers.osm.value.addTo(map.value)

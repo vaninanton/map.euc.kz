@@ -4,7 +4,6 @@ import { greenIcon, blueIcon } from './markerIcons'
 import createTooltip from './createTooltip'
 import createPopup from './createPopup'
 
-import routesGeojson from '../assets/routes.json'
 import velojolAlmaty from '../assets/velojol/almaty.json'
 import { createClient } from '@supabase/supabase-js'
 
@@ -96,8 +95,41 @@ export const createSocketsLayer = async () => {
     })
 }
 
-export const createRoutesLayer = () =>
-    L.geoJSON(routesGeojson, {
+export const createRoutesLayer = async () => {
+    let routesGeojson = {
+        type: 'FeatureCollection',
+        features: [],
+    }
+
+    try {
+        let { data: map_routes, error } = await supabase
+            .from('map_routes')
+            .select('id,type,title,description,coordinates')
+            .eq('type', 'route')
+            .eq('flag_disabled', false)
+
+        if (error) throw error
+
+        map_routes.forEach((route) => {
+            routesGeojson.features.push({
+                type: 'Feature',
+                properties: {
+                    id: route.id,
+                    type: route.type,
+                    name: route.title,
+                    description: route.description,
+                },
+                geometry: {
+                    type: 'LineString',
+                    coordinates: route.coordinates,
+                },
+            })
+        })
+    } catch (error) {
+        console.log(error)
+    }
+
+    return L.geoJSON(routesGeojson, {
         pmIgnore: true,
         style: { color: '#f25824', weight: 2.5 },
         onEachFeature: (feature, layer) => {
@@ -118,6 +150,7 @@ export const createRoutesLayer = () =>
             })
         },
     })
+}
 
 export const createBikelanesLayer = () => {
     const veloGeoJson = velojol2geojson(velojolAlmaty, ['alm84', 'alm85', 'alm86', 'alm89'])
