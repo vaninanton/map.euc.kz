@@ -28,12 +28,12 @@ export default function createPopup(feature, layer) {
         }
         content.push('</div>')
 
-        content.push('<div class="w-full">')
-            content.push('<div>Уклон сред/макс: ' + avgGrade.toFixed(1) + '%/' + maxGrade.toFixed(1) + '%</div> ')
-            content.push('<div>Высота мин/макс: ' + minElevation.toFixed(0) + 'м/' + maxElevation.toFixed(0) + 'м</div> ')
-            content.push('<div>Извилистость: ' + twistiness.toFixed(1) + '</div> ')
-            content.push('<div>Сложность: ' + difficulty + '</div> ')
-        content.push('</div>')
+        // content.push('<div class="w-full">')
+        //     content.push('<div>Уклон сред/макс: ' + avgGrade.toFixed(1) + '%/' + maxGrade.toFixed(1) + '%</div> ')
+        //     content.push('<div>Высота мин/макс: ' + minElevation.toFixed(0) + 'м/' + maxElevation.toFixed(0) + 'м</div> ')
+        //     content.push('<div>Извилистость: ' + twistiness.toFixed(1) + '</div> ')
+        //     content.push('<div>Сложность: ' + difficulty + '</div> ')
+        // content.push('</div>')
     }
     if (description) {
         content.push(`<div class="mb-2">${description}</div>`)

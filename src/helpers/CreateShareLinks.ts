@@ -73,7 +73,7 @@ const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any
     }
 
     const url = new URL('https://classic-maps.openrouteservice.org/directions')
-    url.searchParams.append('b', '0')
+    url.searchParams.append('b', '1f')
     url.searchParams.append('c', '0')
 
     let a = [];
@@ -86,7 +86,10 @@ const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any
         a.push([finishLon, finishLat].reverse().join(','))
     }
     url.searchParams.append('a', a.join(','));
-    return `<a href="${url.href}" target="_blank" class="text-nowrap">openrouteservice</a>`
+    return `<a href="${url.href}" target="_blank" class="text-nowrap">
+        <img src="${shareIcon}" class="max-w-4 max-h-4 inline" />
+        OpenRoute
+    </a>`
 
 }
 
