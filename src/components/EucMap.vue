@@ -51,7 +51,7 @@ const initBaseLayers = () => {
             accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
         }),
         mapbox_sat: L.tileLayer.provider('MapBox', {
-            id: 'vanton/cmh0g3kak000m01s5cly26h8r',
+            id: 'vanton/cmh0le3ss00an01qu4nlx0upr',
             accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
         }),
     }
