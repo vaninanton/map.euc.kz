@@ -18,7 +18,7 @@
     "leaflet-color-markers": "^0.1.0",
     "leaflet-providers": "^2.0.0",
     "leaflet.locatecontrol": "^0.85.1",
-    "tailwindcss": "^4.1.14",
+    "tailwindcss": "^4.1.15",
     "vue": "^3.5.22"
   },
   "devDependencies": {
