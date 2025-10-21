@@ -3,7 +3,6 @@ import { onMounted, onBeforeUnmount, ref, shallowRef } from 'vue'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-import 'leaflet-providers/leaflet-providers'
 import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 
@@ -46,14 +45,14 @@ const initBaseLayers = () => {
             attribution:
                 '&copy; OpenStreetMap, TG: <a href="https://t.me/+m9ifLDAQddM5ZDEy" target="_blank">Электроклуб Алматы</a>',
         }),
-        mapbox: L.tileLayer.provider('MapBox', {
-            id: 'vanton/cmcw742a0002m01s945vc1s0n',
-            accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
-        }),
-        mapbox_sat: L.tileLayer.provider('MapBox', {
-            id: 'vanton/cmh0le3ss00an01qu4nlx0upr',
-            accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
-        }),
+        mapbox: L.tileLayer(
+            'https://api.mapbox.com/styles/v1/vanton/cmcw742a0002m01s945vc1s0n/tiles/256/{z}/{x}/{y}@2x?access_token=' +
+                import.meta.env.VITE_MAPBOX_TOKEN,
+        ),
+        mapbox_sat: L.tileLayer(
+            'https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.webp?access_token=' +
+                import.meta.env.VITE_MAPBOX_TOKEN,
+        ),
     }
 }
 
@@ -177,9 +176,9 @@ onMounted(async () => {
     layers.routes.value.addTo(map.value)
 
     const controlBaseLayers = {
-        "OpenStreetMap": baseLayers.osm.value,
-        "MapBox": baseLayers.mapbox.value,
-        "MapBox спутник": baseLayers.mapbox_sat.value,
+        OpenStreetMap: baseLayers.osm.value,
+        MapBox: baseLayers.mapbox.value,
+        'MapBox спутник': baseLayers.mapbox_sat.value,
     }
 
     const controlOverlays = {
