@@ -30,6 +30,7 @@ const map = shallowRef(null)
 const baseLayers = {
     osm: shallowRef(null),
     mapbox: shallowRef(null),
+    mapbox_sat: shallowRef(null),
 }
 
 const layers = {
@@ -47,7 +48,11 @@ const initBaseLayers = () => {
         }),
         mapbox: L.tileLayer.provider('MapBox', {
             id: 'vanton/cmcw742a0002m01s945vc1s0n',
-            accessToken: 'pk.eyJ1IjoidmFudG9uIiwiYSI6ImNtY3c2bWo4djA2amcybXBlams0ODI0cHQifQ.-PFTlBSPris_3p7XD29szA',
+            accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
+        }),
+        mapbox_sat: L.tileLayer.provider('MapBox', {
+            id: 'vanton/cmh0g3kak000m01s5cly26h8r',
+            accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
         }),
     }
 }
@@ -159,6 +164,7 @@ onMounted(async () => {
     const initializedBaseLayers = initBaseLayers()
     baseLayers.osm.value = initializedBaseLayers.osm
     baseLayers.mapbox.value = initializedBaseLayers.mapbox
+    baseLayers.mapbox_sat.value = initializedBaseLayers.mapbox_sat
 
     layers.points.value = await createPointsLayer()
     layers.sockets.value = await createSocketsLayer()
@@ -171,8 +177,9 @@ onMounted(async () => {
     layers.routes.value.addTo(map.value)
 
     const controlBaseLayers = {
-        OpenStreetMap: baseLayers.osm.value,
-        MapBox: baseLayers.mapbox.value,
+        "OpenStreetMap": baseLayers.osm.value,
+        "MapBox": baseLayers.mapbox.value,
+        "MapBox спутник": baseLayers.mapbox_sat.value,
     }
 
     const controlOverlays = {
@@ -186,7 +193,7 @@ onMounted(async () => {
 
     const locateControl = new LocateControl({
         position: 'bottomright',
-        keepCurrentZoomLevel: true,
+        keepCurrentZoomLevel: false,
         drawCircle: false,
         showPopup: false,
         strings: {
@@ -198,17 +205,6 @@ onMounted(async () => {
     })
 
     locateControl.addTo(map.value)
-    // L.control
-    //     .locate({
-    //         position: 'topleft',
-    //         strings: {
-    //             title: 'Показать моё местоположение',
-    //         },
-    //         locateOptions: {
-    //             enableHighAccuracy: true,
-    //         },
-    //     })
-    //     .addTo(map.value)
 
     map.value.on('pm:create', (e) => {
         currentLayer.value = e.layer
