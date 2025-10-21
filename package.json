@@ -11,20 +11,20 @@
   },
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.18.3",
-    "@supabase/supabase-js": "^2.75.0",
-    "@tailwindcss/vite": "^4.1.14",
+    "@supabase/supabase-js": "^2.76.1",
+    "@tailwindcss/vite": "^4.1.15",
     "js-base64": "^3.7.8",
     "leaflet": "^1.9.4",
     "leaflet-color-markers": "^0.1.0",
     "leaflet-providers": "^2.0.0",
     "leaflet.locatecontrol": "^0.85.1",
-    "tailwindcss": "^4.1.14",
+    "tailwindcss": "^4.1.15",
     "vue": "^3.5.22"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
     "prettier": "^3.6.2",
-    "vite": "^7.1.10",
+    "vite": "^7.1.11",
     "vite-plugin-pwa": "^1.1.0"
   }
 }
