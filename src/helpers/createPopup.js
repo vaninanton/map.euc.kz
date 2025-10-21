@@ -15,7 +15,8 @@ export default function createPopup(feature, layer) {
     }
 
     if (feature.geometry.type === 'LineString') {
-        const { distance, gain, loss, avgGrade, maxGrade, maxElevation, minElevation, twistiness, difficulty } = calculateRouteDistance(feature)
+        const { distance, gain, loss, avgGrade, maxGrade, maxElevation, minElevation, twistiness, difficulty } =
+            calculateRouteDistance(feature)
         content.push('<div class="grid grid-cols-3 gap-2 mb-2">')
         content.push(
             '<span><span class="block text-gray-500">Расстояние:</span> ' + distance.toFixed(1) + '&nbsp;км</span>',
@@ -45,7 +46,7 @@ export default function createPopup(feature, layer) {
             content.push('<div class="mt-2 flex flex-wrap gap-2">')
             CreateShareLinks(feature).forEach((link) => {
                 content.push(link)
-            });
+            })
             content.push('</div>')
         }
     }

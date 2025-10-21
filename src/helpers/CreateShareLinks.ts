@@ -19,7 +19,7 @@ const getViaPoints = (feature: Feature<LineString | Point, Record<string, any>>,
     return viaPoints
 }
 
-const linkYandex = (feature: Feature<LineString | Point, Record<string, any>>): string|null => {
+const linkYandex = (feature: Feature<LineString | Point, Record<string, any>>): string | null => {
     if (feature.geometry.type === 'Point') {
         const [lon, lat] = feature.geometry.coordinates
         return `<a href="https://yandex.ru/maps/?rtext=~${lat},${lon}&rtt=sc" target="_blank" class="text-nowrap">
@@ -67,16 +67,16 @@ const linkGuruMaps = (feature: Feature<LineString | Point, Record<string, any>>)
     return `<a href="${url.href}" class="text-nowrap"><img src="${guruIcon}" class="max-w-4 max-h-4 inline" /> Guru</a>`
 }
 
-const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any>>): string|null => {
+const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any>>): string | null => {
     if (feature.geometry.type !== 'LineString') {
-        return null;
+        return null
     }
 
     const url = new URL('https://classic-maps.openrouteservice.org/directions')
     url.searchParams.append('b', '1f')
     url.searchParams.append('c', '0')
 
-    let a = [];
+    let a = []
     if (feature.geometry.coordinates.length) {
         const [lon, lat] = feature.geometry.coordinates[0]
         a.push([lon, lat].reverse().join(','))
@@ -85,21 +85,26 @@ const linkProjectOsrm = (feature: Feature<LineString | Point, Record<string, any
         const [finishLon, finishLat] = feature.geometry.coordinates[feature.geometry.coordinates.length - 1]
         a.push([finishLon, finishLat].reverse().join(','))
     }
-    url.searchParams.append('a', a.join(','));
+    url.searchParams.append('a', a.join(','))
     return `<a href="${url.href}" target="_blank" class="text-nowrap">
         <img src="${shareIcon}" class="max-w-4 max-h-4 inline" />
         OpenRoute
     </a>`
-
 }
 
 const linkShare = (feature: Feature<LineString | Point, Record<string, any>>): string => {
     return `<a href="${window.location.origin}${window.location.pathname}#${feature.properties.type}=${feature.properties.id}" target="_blank" class="text-nowrap js-share">
         <img src="${shareIcon}" class="max-w-4 max-h-4 inline" />
         <span class="js-share-text">Поделиться</span>
-    </a>`;
+    </a>`
 }
 
 export default function CreateShareLinks(feature: Feature<LineString | Point, Record<string, any>>) {
-    return [linkYandex(feature), link2gis(feature), linkGuruMaps(feature), linkProjectOsrm(feature), linkShare(feature)].filter(Boolean)
+    return [
+        linkYandex(feature),
+        link2gis(feature),
+        linkGuruMaps(feature),
+        linkProjectOsrm(feature),
+        linkShare(feature),
+    ].filter(Boolean)
 }

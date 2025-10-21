@@ -45,7 +45,7 @@ export default function calculateRouteDistance(feature: Feature<LineString | Poi
     if (coords.length < 2) throw new Error('Недостаточно точек маршрута')
 
     for (let i = 1; i < coords.length - 1; i++) {
-        coords[i][2] = (coords[i-1][2] + coords[i][2] + coords[i+1][2]) / 3
+        coords[i][2] = (coords[i - 1][2] + coords[i][2] + coords[i + 1][2]) / 3
     }
 
     for (let index = 1; index < coords.length; index++) {
@@ -62,7 +62,8 @@ export default function calculateRouteDistance(feature: Feature<LineString | Poi
 
             if (dHoriz > 10) {
                 const grade = (dh / dHoriz) * 100
-                if (Math.abs(grade) < 30) { // максимальный уклон, остальное шум
+                if (Math.abs(grade) < 30) {
+                    // максимальный уклон, остальное шум
                     grades.push(grade)
                     if (Math.abs(grade) > Math.abs(maxGrade)) maxGrade = grade
                 }

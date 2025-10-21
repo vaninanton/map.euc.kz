@@ -94,9 +94,7 @@ const handleClose = () => {
     <div v-if="visible && shareData" class="share-overlay">
         <div class="share-modal">
             <div class="share-header">
-                <h2>
-                    Объект создан!
-                </h2>
+                <h2>Объект создан!</h2>
                 <button @click="handleClose" class="close-button">&times;</button>
             </div>
 
@@ -112,7 +110,10 @@ const handleClose = () => {
                 </div>
 
                 <div class="share-link-section">
-                    <p>Для публикации отправь эту ссылку в тг <a href="https://t.me/vanton" target="_blank">@vanton</a> и мы её добавим!</p>
+                    <p>
+                        Для публикации отправь эту ссылку в тг
+                        <a href="https://t.me/vanton" target="_blank">@vanton</a> и мы её добавим!
+                    </p>
                     <div class="link-container">
                         <input type="text" :value="shareUrl" readonly class="share-link-input" />
                         <button @click="copyShareLink" class="copy-button">📋 Копировать</button>
