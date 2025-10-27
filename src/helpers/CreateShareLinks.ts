@@ -48,7 +48,7 @@ const linkGuruMaps = (feature: Feature<LineString | Point, Record<string, any>>)
 
     if (feature.geometry.type === 'Point') {
         const [lon, lat] = feature.geometry.coordinates
-        url.searchParams.append('start', [lon, lat].reverse().join(','))
+        url.searchParams.append('finish', [lon, lat].reverse().join(','))
     }
 
     // Если это маршрут - ставим промежуточные точки
