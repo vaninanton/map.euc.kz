@@ -1,0 +1,30 @@
+---
+description: Mapbox, Supabase, GeoJSON — слои, источники, типы, данные
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Mapbox, Supabase, GeoJSON
+
+## Константы карты
+
+- ID слоёв, источников, цвета, центр и зум — только в `src/constants/index.ts`. Не дублировать строки в компонентах/хуках.
+- Слои: `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`. Цвета: `COLORS`. Стили: `MAPBOX_STYLES`, тип `BaseMapStyle` из useMapbox.
+
+## Mapbox
+
+- Инициализация карты — в хуке `useMapbox(containerRef)`. Один инстанс на контейнер; при смене базового стиля — `map.setStyle(...)`, пересоздание слоёв через событие `style.load`.
+- Проверка наличия стиля перед добавлением слоёв: `if (map.getStyle() === undefined) return;` (допустим eslint-disable с комментарием про mapbox-gl).
+- Popup: контент рендерить через `createRoot` + React-компонент, при закрытии вызывать `root.unmount()`.
+- Токен: `import.meta.env.VITE_MAPBOX_TOKEN`. Отключать телеметрию Mapbox через `transformRequest` (пустой ответ на events.mapbox.com).
+
+## GeoJSON и типы
+
+- Типы фич — из `src/types/geojson.ts`: `Feature`, `FeatureCollection`, `PointFeature`, `LineStringFeature`, `FeatureProperties`, `FeatureType`.
+- Координаты — [lon, lat] или [lon, lat, elevation]. Работа с границами/центром — в `src/utils/bounds.ts`.
+- Данные слоёв: точки и маршруты из Supabase (через `mapPointsToFeatureCollection`, `mapRoutesToFeatureCollection` в `utils/supabaseToGeojson`); велодорожки — статичный `data/almaty.json` (velojol), конвертация в FeatureCollection в useLayers.
+
+## Supabase
+
+- Клиент и запросы — в `src/lib/supabase.ts`. Таблицы: `map_points`, `map_routes`. Типы строк — `MapPointRow`, `MapRouteRow` из `types/supabase.ts`.
+- При отсутствии URL/ключа — fallback на Cache API (getFromCache) и предупреждение в консоль. Не бросать ошибки при старте из-за отсутствия env.
