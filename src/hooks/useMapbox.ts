@@ -34,9 +34,21 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
       zoom: MAP_ZOOM_DEFAULT,
       // Отключаем телеметрию Mapbox — запросы на events.mapbox.com блокируются CORS в части окружений
       transformRequest: (url) => {
-        if (url && url.includes('events.mapbox.com')) {
-          return { url: 'data:application/json;base64,e30=' }; // пустой JSON {} — запрос не уходит в сеть
+        if (!url) {
+          return { url };
         }
+
+        try {
+          const parsed = new URL(url);
+          if (parsed.hostname === 'events.mapbox.com') {
+            // пустой JSON {} — запрос не уходит в сеть
+            return { url: 'data:application/json;base64,e30=' };
+          }
+        } catch {
+          // If URL parsing fails, fall back to the original request URL
+          return { url };
+        }
+
         return { url };
       },
     });
