@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Очистка кеша — Мономаршруты</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 28em; margin: 2em auto; padding: 0 1em; text-align: center; }
+      a { color: #2563eb; }
+      p { margin: 1em 0; }
+    </style>
+  </head>
+  <body>
+    <p><strong>Очистка кеша…</strong></p>
+    <p>Страница перезагрузится автоматически. Если этого не произошло, <a href="." id="home">перейдите на главную</a>.</p>
+    <script>
+      (function () {
+        var home = document.getElementById('home');
+        var done = false;
+        function go() {
+          if (done) return;
+          done = true;
+          window.location.href = '/';
+        }
+        if (!('serviceWorker' in navigator)) {
+          go();
+          return;
+        }
+        navigator.serviceWorker.register('sw-cleanup.js').then(function () {
+          navigator.serviceWorker.addEventListener('controllerchange', go);
+          setTimeout(go, 2500);
+        }).catch(go);
+      })();
+    </script>
+  </body>
+</html>
