@@ -1,0 +1,40 @@
+---
+description: TypeScript и React — компоненты, хуки, типы, импорты
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript и React
+
+## Общее
+
+- Строгий TypeScript (eslint: `typescript-eslint/configs.strictTypeChecked`). Избегать `any`; при необходимости — явный комментарий или `eslint-disable` с обоснованием.
+- Импорты: сначала внешние библиотеки, затем внутренние по пути (`../hooks/`, `../constants` и т.д.), в конце `type` для типов.
+- Именование: PascalCase для компонентов и типов, camelCase для функций, хуков, переменных. Константы — UPPER_SNAKE или camelCase в зависимости от контекста.
+
+## Компоненты
+
+- Только функциональные компоненты. Именованный экспорт: `export function ComponentName()`.
+- Пропсы — отдельный интерфейс `ComponentNameProps` (или рядом с компонентом). Типы пропсов не инлайнить в `FC<...>`.
+- Стили — через Tailwind-классы; динамические цвета/значения — через `style={{ ... }}` только при необходимости (см. правило по стилям).
+
+## Хуки
+
+- Логику карты и слоёв выносить в кастомные хуки (`useMapbox`, `useLayers`). Хуки возвращают объект с нужными полями и функциями.
+- В эффектах с зависимостями от колбэков использовать ref’ы для актуального значения, если колбэк передаётся в подписки (например `map.on(...)`), чтобы не переподписываться на каждый рендер.
+- Для отключения правил хуков — `// eslint-disable-next-line react-hooks/... -- краткое обоснование`.
+
+## Типы
+
+- Общие типы карты/данных — в `src/types/` (geojson, supabase, velojol). Реэкспорт через `src/types/index.ts`.
+- Типы из констант — в `constants/index.ts` (например `LayerKey`). Хуки могут реэкспортировать свои типы (`export type { LayerKey }` из useLayers).
+
+## Пример импортов
+
+```ts
+import { useEffect, useCallback } from 'react';
+import mapboxgl from 'mapbox-gl';
+import { useMapbox } from '../hooks/useMapbox';
+import { LAYER_IDS } from '../constants';
+import type { Feature } from '../types/geojson';
+```

@@ -1,0 +1,35 @@
+---
+description: Обзор проекта map.euc — карта для моноколёс (точки, розетки, маршруты) в Алматы
+alwaysApply: true
+---
+
+# Проект map.euc
+
+Карта точек, розеток и маршрутов для моноколёс в Алматы.
+
+## Стек
+
+- **React 19** + **TypeScript** (strict)
+- **Vite 7** — сборка и dev-сервер
+- **Tailwind CSS 4** — стили (`@tailwindcss/vite`)
+- **Mapbox GL JS** — карта
+- **Supabase** — данные (map_points, map_routes)
+
+## Структура
+
+- `src/components/` — React-компоненты (EucMap, LayerControls, PopupContent, ShareBlock, TelegramChannels)
+- `src/hooks/` — хуки (useMapbox, useLayers, useYandexMetrika)
+- `src/lib/` — клиент Supabase и загрузка данных
+- `src/constants/` — ID слоёв/источников, цвета, центр карты, стили Mapbox
+- `src/types/` — типы GeoJSON, Supabase, velojol; реэкспорт из `index.ts`
+- `src/utils/` — bounds, mapPopup, routeStats, shareLinks, supabaseToGeojson
+- `src/data/` — статичные GeoJSON (например almaty.json для велодорожек)
+
+## Окружение
+
+- `VITE_MAPBOX_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` — см. `.env.example`
+- Локальный тест: Valet proxy на `map.euc.test` → `127.0.0.1:5173`
+
+## Язык
+
+- UI и комментарии в коде — **русский**.
