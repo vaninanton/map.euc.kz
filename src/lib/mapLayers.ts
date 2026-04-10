@@ -1,6 +1,12 @@
 import type { FeatureCollection } from '@/types/geojson';
 import { SOURCE_IDS, LAYER_IDS, COLORS } from '@/constants';
-import type { Map as MapboxMap, GeoJSONSource, LineLayer, CircleLayer, SymbolLayer } from 'mapbox-gl';
+import type {
+  Map as MapboxMap,
+  GeoJSONSource,
+  LineLayerSpecification,
+  CircleLayerSpecification,
+  SymbolLayerSpecification,
+} from 'mapbox-gl';
 
 /** Выражения для подсветки по feature-state (hover / selected). */
 const stateHighlight = {
@@ -52,7 +58,7 @@ function upsertGeoJsonLayer(
     (map.getSource(sourceId) as GeoJSONSource).setData(data);
   }
   if (!map.getLayer(layerId)) {
-    map.addLayer({ id: layerId, type: 'line', source: sourceId, paint } as LineLayer);
+    map.addLayer({ id: layerId, type: 'line', source: sourceId, paint } as LineLayerSpecification);
   }
 }
 
@@ -143,7 +149,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
           'circle-stroke-color': '#fff',
           'circle-opacity': stateHighlight.opacity(),
         },
-      } as unknown as CircleLayer);
+      } as unknown as CircleLayerSpecification);
     }
     if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points);
     if (!map.getLayer(LAYER_IDS.sockets)) {
@@ -174,7 +180,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
               ['case', ['boolean', ['feature-state', 'hover'], false], 1.2, 1],
             ],
           },
-        } as unknown as SymbolLayer);
+        } as unknown as SymbolLayerSpecification);
         if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points);
         if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets);
       });

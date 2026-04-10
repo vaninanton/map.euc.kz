@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
 import { useMapClick } from '@/hooks/useMapClick';
@@ -12,6 +12,8 @@ import { FeatureSidebar } from '@/components/FeatureSidebar';
 import { LayerControls } from '@/components/LayerControls';
 
 const LINE_LAYERS: LayerKey[] = ['routes', 'bikeLanes'];
+
+const ALL_SOURCE_IDS = [SOURCE_IDS.points, SOURCE_IDS.routes, SOURCE_IDS.bikeLanes] as const;
 
 function isLineLayer(layerKey: LayerKey): layerKey is 'routes' | 'bikeLanes' {
   return LINE_LAYERS.includes(layerKey);
@@ -36,9 +38,11 @@ export function EucMap() {
   const addLayersRef = useRef(addLayersToMap);
   const applyVisibilityRef = useRef(applyVisibility);
   const selectedFeatureStateRef = useRef<SelectedFeatureState>(null);
-  addLayersRef.current = addLayersToMap;
-  applyVisibilityRef.current = applyVisibility;
-  selectedFeatureStateRef.current = selectedFeatureState;
+  useEffect(() => {
+    addLayersRef.current = addLayersToMap;
+    applyVisibilityRef.current = applyVisibility;
+    selectedFeatureStateRef.current = selectedFeatureState;
+  });
 
   const openFeature = useCallback(
     (feature: Feature, layerKey: LayerKey, lngLat?: [number, number]) => {
@@ -81,19 +85,21 @@ export function EucMap() {
 
   // Синхронизация подсветки: выбранный — opacity 1, все остальные на карте — selected: false (полупрозрачны)
   const selectedRef = useRef<SelectedFeatureState>(null);
-  const sourceToFeatures: Record<string, string[]> = {
-    [SOURCE_IDS.points]: pointsGeo?.features.map((f) => String(f.properties.id)) ?? [],
-    [SOURCE_IDS.routes]: routesGeo?.features.map((f) => String(f.properties.id)) ?? [],
-    [SOURCE_IDS.bikeLanes]: bikeLanesGeo?.features.map((f) => String(f.properties.id)) ?? [],
-  };
-  const allSourceIds = [SOURCE_IDS.points, SOURCE_IDS.routes, SOURCE_IDS.bikeLanes];
+  const sourceToFeatures = useMemo(
+    () => ({
+      [SOURCE_IDS.points]: pointsGeo?.features.map((f) => f.properties.id) ?? [],
+      [SOURCE_IDS.routes]: routesGeo?.features.map((f) => f.properties.id) ?? [],
+      [SOURCE_IDS.bikeLanes]: bikeLanesGeo?.features.map((f) => f.properties.id) ?? [],
+    }),
+    [pointsGeo, routesGeo, bikeLanesGeo]
+  );
   useEffect(() => {
     if (!map) return;
     const prev = selectedRef.current;
     if (prev) {
       try {
-        for (const sourceId of allSourceIds) {
-          const ids = sourceToFeatures[sourceId] ?? [];
+        for (const sourceId of ALL_SOURCE_IDS) {
+          const ids = sourceToFeatures[sourceId];
           for (const id of ids) {
             map.removeFeatureState({ source: sourceId, id }, 'selected');
           }
@@ -105,10 +111,10 @@ export function EucMap() {
     }
     if (selectedFeatureState) {
       const { sourceId: selectedSourceId, id: selectedId } = selectedFeatureState;
-      const idStr = String(selectedId);
+      const idStr = selectedId;
       try {
-        for (const sourceId of allSourceIds) {
-          const ids = sourceToFeatures[sourceId] ?? [];
+        for (const sourceId of ALL_SOURCE_IDS) {
+          const ids = sourceToFeatures[sourceId];
           for (const id of ids) {
             const isSelected = sourceId === selectedSourceId && id === idStr;
             map.setFeatureState({ source: sourceId, id }, { selected: isSelected });
@@ -119,7 +125,7 @@ export function EucMap() {
         // источник ещё не загружен
       }
     }
-  }, [map, selectedFeatureState, pointsGeo, routesGeo, bikeLanesGeo]);
+  }, [map, selectedFeatureState, sourceToFeatures]);
 
   useEffect(() => {
     if (!map || !isMapReady) return;
@@ -166,12 +172,16 @@ export function EucMap() {
       const layerKey = HASH_TYPE_TO_LAYER_KEY[parsed.type];
       const feature = getFeatureById(layerKey, parsed.id);
       if (!feature) return;
-      requestAnimationFrame(() => openFeature(feature, layerKey));
+      requestAnimationFrame(() => {
+        openFeature(feature, layerKey);
+      });
       lastSyncedHashRef.current = hash;
     };
     syncFromHash();
     window.addEventListener('hashchange', syncFromHash);
-    return () => window.removeEventListener('hashchange', syncFromHash);
+    return () => {
+      window.removeEventListener('hashchange', syncFromHash);
+    };
   }, [map, isMapReady, pointsGeo, routesGeo, getFeatureById, openFeature]);
 
   return (

@@ -38,9 +38,10 @@ export function parseHash(hashOrEmpty?: string): { type: HashFeatureType; id: st
   const eq = raw.indexOf('=');
   if (eq <= 0) return null;
   const typeKey = raw.slice(0, eq).toLowerCase();
+  if (!(typeKey in NORMALIZED_TYPE)) return null;
   const type = NORMALIZED_TYPE[typeKey];
   const id = raw.slice(eq + 1).trim();
-  if (!id || !type) return null;
+  if (!id) return null;
   return { type, id: decodeURIComponent(id) };
 }
 

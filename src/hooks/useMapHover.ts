@@ -25,14 +25,16 @@ export function useMapHover(map: MapboxMap | null) {
     }
 
     const showTooltip = (x: number, y: number, name: string) => {
-      tooltipEl!.textContent = name || 'Без названия';
-      tooltipEl!.style.display = 'block';
-      tooltipEl!.style.left = `${x + TOOLTIP_OFFSET}px`;
-      tooltipEl!.style.top = `${y + TOOLTIP_OFFSET}px`;
+      tooltipEl.textContent = name || 'Без названия';
+      tooltipEl.style.display = 'block';
+      const leftPx = x + TOOLTIP_OFFSET;
+      const topPx = y + TOOLTIP_OFFSET;
+      tooltipEl.style.left = `${String(leftPx)}px`;
+      tooltipEl.style.top = `${String(topPx)}px`;
     };
 
     const hideTooltip = () => {
-      tooltipEl!.style.display = 'none';
+      tooltipEl.style.display = 'none';
     };
 
     const clearHover = () => {
@@ -51,13 +53,21 @@ export function useMapHover(map: MapboxMap | null) {
 
     const handleMouseMove = (e: MapMouseEvent) => {
       const layers = CLICKABLE_LAYER_IDS.filter((id) => map.getLayer(id));
-      if (!layers.length) return clearHover();
+      if (!layers.length) {
+        clearHover();
+        return;
+      }
       const features = map.queryRenderedFeatures(e.point, { layers: [...layers] });
+      if (features.length === 0) {
+        clearHover();
+        return;
+      }
       const f = features[0] as GeoJSON.Feature & { layer?: { id?: string }; id?: string | number };
-      const layerId = f?.layer?.id;
-      const featureId = f?.id ?? (f?.properties as { id?: string })?.id;
+      const layerId = f.layer?.id;
+      const props = f.properties as { id?: string; name?: string };
+      const featureId = f.id ?? props.id;
       const sourceId = layerId ? LAYER_ID_TO_SOURCE[layerId] : undefined;
-      const name = (f?.properties as { name?: string })?.name ?? '';
+      const name = props.name ?? '';
 
       const prev = hoveredRef.current;
       if (prev && (prev.sourceId !== sourceId || prev.id !== featureId)) {
@@ -83,7 +93,9 @@ export function useMapHover(map: MapboxMap | null) {
       }
     };
 
-    const handleMouseLeave = () => clearHover();
+    const handleMouseLeave = () => {
+      clearHover();
+    };
 
     map.on('mousemove', handleMouseMove);
     map.on('mouseleave', handleMouseLeave);
@@ -91,7 +103,7 @@ export function useMapHover(map: MapboxMap | null) {
       map.off('mousemove', handleMouseMove);
       map.off('mouseleave', handleMouseLeave);
       clearHover();
-      if (tooltipEl?.parentNode) tooltipEl.parentNode.removeChild(tooltipEl);
+      if (tooltipEl.parentNode) tooltipEl.parentNode.removeChild(tooltipEl);
       tooltipRef.current = null;
     };
   }, [map]);

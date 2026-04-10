@@ -112,7 +112,9 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
     if (ok) {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
       setShowCopied(true);
-      toastTimeoutRef.current = setTimeout(() => setShowCopied(false), TOAST_DURATION_MS);
+      toastTimeoutRef.current = setTimeout(() => {
+        setShowCopied(false);
+      }, TOAST_DURATION_MS);
       onCopied?.();
     }
   }, [appUrl, feature.properties.name, onCopied]);

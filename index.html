@@ -33,20 +33,6 @@
     <title>Мономаршруты</title>
   </head>
   <body>
-    <!-- Принудительная очистка кеша старого PWA (vite-plugin-pwa): при наличии SW — регистрируем cleanup, перезагружаем -->
-    <script>
-      (function () {
-        if (!('serviceWorker' in navigator)) return;
-        navigator.serviceWorker.getRegistrations().then(function (regs) {
-          if (regs.length === 0) return;
-          navigator.serviceWorker.register('%BASE_URL%sw-cleanup.js').then(function () {
-            navigator.serviceWorker.addEventListener('controllerchange', function () {
-              window.location.reload();
-            });
-          });
-        });
-      })();
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
