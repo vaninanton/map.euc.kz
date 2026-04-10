@@ -13,8 +13,9 @@ interface PopupContentProps {
 
 export function PopupContent({ feature, onCopied }: PopupContentProps) {
   const { type, name, description, isMeeting } = feature.properties;
-  const typeLabel = type === 'point' && isMeeting ? POINT_FLAG_LABELS.meeting : FEATURE_TYPE_LABELS[type] ?? type;
-  const typeColor = COLORS[type] ?? COLORS.point;
+  const typeLabel =
+    type === 'point' && isMeeting ? POINT_FLAG_LABELS.meeting : FEATURE_TYPE_LABELS[type];
+  const typeColor = COLORS[type];
 
   let stats: { distanceKm: number; ascentM: number; descentM: number } | null = null;
   if (feature.geometry.type === 'LineString' && type === 'route') {

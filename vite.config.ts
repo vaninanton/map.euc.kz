@@ -29,11 +29,13 @@ export default defineConfig({
     allowedHosts: ['map.euc.test'],
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          'mapbox-gl': ['mapbox-gl'],
-          'supabase': ['@supabase/supabase-js'],
+        codeSplitting: {
+          groups: [
+            { test: /node_modules\/mapbox-gl/, name: 'mapbox-gl' },
+            { test: /node_modules\/@supabase\/supabase-js/, name: 'supabase' },
+          ],
         },
       },
     },

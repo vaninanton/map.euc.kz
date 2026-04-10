@@ -140,22 +140,21 @@ export function useLayers() {
     [visibility]
   );
 
-  const geoByLayer: Record<LayerKey, FeatureCollection | null> = {
-    points: pointsGeo,
-    sockets: pointsGeo,
-    routes: routesGeo,
-    bikeLanes: bikeLanesGeo,
-  };
-
   const getFeatureById = useCallback(
     (layer: LayerKey, id: string): Feature | null => {
-      const fc = geoByLayer[layer];
+      const fc =
+        layer === 'points' || layer === 'sockets'
+          ? pointsGeo
+          : layer === 'routes'
+            ? routesGeo
+            : bikeLanesGeo;
       if (!fc) return null;
-      const idStr = String(id);
       const typeFilter = layer === 'points' ? 'point' : layer === 'sockets' ? 'socket' : null;
-      return fc.features.find(
-        (f) => String(f.properties.id) === idStr && (typeFilter == null || f.properties.type === typeFilter)
-      ) ?? null;
+      return (
+        fc.features.find(
+          (f) => f.properties.id === id && (typeFilter == null || f.properties.type === typeFilter)
+        ) ?? null
+      );
     },
     [pointsGeo, routesGeo, bikeLanesGeo]
   );
