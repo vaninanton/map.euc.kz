@@ -150,9 +150,11 @@ export function useLayers() {
             : bikeLanesGeo;
       if (!fc) return null;
       const typeFilter = layer === 'points' ? 'point' : layer === 'sockets' ? 'socket' : null;
+      const idNorm = String(id);
       return (
         fc.features.find(
-          (f) => f.properties.id === id && (typeFilter == null || f.properties.type === typeFilter)
+          (f) =>
+            String(f.properties.id) === idNorm && (typeFilter == null || f.properties.type === typeFilter)
         ) ?? null
       );
     },

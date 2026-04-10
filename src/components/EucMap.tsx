@@ -111,12 +111,12 @@ export function EucMap() {
     }
     if (selectedFeatureState) {
       const { sourceId: selectedSourceId, id: selectedId } = selectedFeatureState;
-      const idStr = selectedId;
+      const selectedNorm = String(selectedId);
       try {
         for (const sourceId of ALL_SOURCE_IDS) {
           const ids = sourceToFeatures[sourceId];
           for (const id of ids) {
-            const isSelected = sourceId === selectedSourceId && id === idStr;
+            const isSelected = sourceId === selectedSourceId && String(id) === selectedNorm;
             map.setFeatureState({ source: sourceId, id }, { selected: isSelected });
           }
         }
