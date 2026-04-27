@@ -61,7 +61,7 @@ export function PwaPrompts() {
   return (
     <>
       {waitingWorker && (
-        <div className="fixed left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-xs font-medium text-white shadow-md">
+        <div className="fixed left-1/2 top-0 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-xs font-medium text-white shadow-md control-inset-top">
           <span>Доступно обновление</span>
           <button
             type="button"
