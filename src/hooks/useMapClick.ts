@@ -8,6 +8,7 @@ import type { HashFeatureType } from '@/utils/hashNav';
 import { getLayerKeyById, getStringProperty } from '@/utils/mapFeatureGuards';
 
 export interface UseMapClickOptions {
+  enabled?: boolean;
   getFeatureById: (layer: LayerKey, id: string) => Feature | null;
   onFeatureSelect: (
     feature: Feature,
@@ -21,10 +22,10 @@ export function useMapClick(
   map: MapboxMap | null,
   options: UseMapClickOptions
 ) {
-  const { getFeatureById, onFeatureSelect, setHash } = options;
+  const { enabled = true, getFeatureById, onFeatureSelect, setHash } = options;
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || !enabled) return;
 
     const handleClick = (e: MapMouseEvent) => {
       const existingLayers = CLICKABLE_LAYER_IDS.filter((id) => map.getLayer(id));
@@ -51,5 +52,5 @@ export function useMapClick(
     return () => {
       map.off('click', handleClick);
     };
-  }, [map, getFeatureById, onFeatureSelect, setHash]);
+  }, [map, enabled, getFeatureById, onFeatureSelect, setHash]);
 }

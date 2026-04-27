@@ -8,6 +8,8 @@ interface LayerControlsProps {
   onToggle: (layer: LayerKey) => void;
   baseStyle: BaseMapStyle;
   onBaseStyleChange: (style: BaseMapStyle) => void;
+  isAddingPoint: boolean;
+  onToggleAddPoint: () => void;
 }
 
 const LABELS: Record<LayerKey, string> = {
@@ -26,7 +28,14 @@ const ROW_COLORS: Record<LayerKey, string> = {
 
 const LAYER_ORDER: LayerKey[] = ['points', 'routes', 'bikeLanes', 'sockets'];
 
-export function LayerControls({ visibility, onToggle, baseStyle, onBaseStyleChange }: LayerControlsProps) {
+export function LayerControls({
+  visibility,
+  onToggle,
+  baseStyle,
+  onBaseStyleChange,
+  isAddingPoint,
+  onToggleAddPoint,
+}: LayerControlsProps) {
   return (
     <div
       className="fixed bottom-0 left-0 z-10 w-[160px] sm:w-[180px] rounded-xl border border-neutral-200/80 bg-white/95 shadow-lg shadow-neutral-900/10 backdrop-blur-xl control-inset-left control-inset-bottom"
@@ -90,6 +99,19 @@ export function LayerControls({ visibility, onToggle, baseStyle, onBaseStyleChan
           );
         })}
       </ul>
+      <div className="px-2 pb-2 sm:px-2.5">
+        <button
+          type="button"
+          onClick={onToggleAddPoint}
+          className={`w-full rounded-lg px-3 py-2 text-xs sm:text-sm font-semibold transition ${
+            isAddingPoint
+              ? 'bg-blue-600/35 text-white hover:bg-blue-700/35'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          {isAddingPoint ? 'Отменить' : 'Добавить точку'}
+        </button>
+      </div>
       <TelegramChannels />
     </div>
   );

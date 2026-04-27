@@ -12,6 +12,14 @@ export interface MapPointRow {
   coordinates: [number, number]; // [lon, lat]
 }
 
+export interface MapPointDraftInput {
+  type: MapPointType;
+  is_meeting?: boolean | null;
+  title: string;
+  description: string | null;
+  coordinates: [number, number];
+}
+
 export interface MapRouteRow {
   id: string;
   title: string;

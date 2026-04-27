@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import type { MapPointRow, MapRouteRow } from '@/types';
+import type { MapPointDraftInput, MapPointRow, MapRouteRow } from '@/types';
 import { isRecord } from '@/utils/mapFeatureGuards';
 
 const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
 const key: string | undefined = import.meta.env.VITE_SUPABASE_KEY;
+const pointSubmissionsTable: string = import.meta.env.VITE_SUPABASE_POINT_SUBMISSIONS_TABLE ?? 'map_points_submissions';
 
 if (!url || !key) {
   console.warn('Supabase URL or key missing. Map data will be empty.');
@@ -116,4 +117,23 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
     if (normalized) rows.push(normalized);
   }
   return rows;
+}
+
+export async function createMapPointDraft(input: MapPointDraftInput): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_KEY.');
+  }
+
+  const { error } = await supabase.from('map_points_submissions').insert({
+    type: input.type,
+    title: input.title,
+    description: input.description,
+    coordinates: input.coordinates,
+    is_meeting: input.type === 'point' ? Boolean(input.is_meeting) : false,
+  });
+
+  if (error) {
+    console.error('createMapPointDraft:', error);
+    throw new Error('Не удалось отправить заявку. Проверьте RLS/policy для таблицы заявок.');
+  }
 }

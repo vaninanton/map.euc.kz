@@ -8,11 +8,14 @@ import { useSelectedFeatureState } from '@/hooks/useSelectedFeatureState';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
 import { setHash, clearHash } from '@/utils/hashNav';
+import { createMapPointDraft } from '@/lib/supabase';
 import type { Feature } from '@/types/geojson';
+import type { MapPointDraftInput } from '@/types';
 import type { LayerKey } from '@/constants';
 import { applySelectionOpacityById, type SelectedFeatureState } from '@/utils/selectionOpacity';
 import { FeatureSidebar } from '@/components/FeatureSidebar';
 import { LayerControls } from '@/components/LayerControls';
+import { AddPointPanel } from '@/components/AddPointPanel';
 
 const LINE_LAYERS: LayerKey[] = ['routes', 'bikeLanes'];
 const SIDEBAR_DESKTOP_WIDTH = 320;
@@ -51,6 +54,11 @@ export function EucMap() {
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
+  const [isAddingPoint, setIsAddingPoint] = useState(false);
+  const [draftCoordinates, setDraftCoordinates] = useState<[number, number] | null>(null);
+  const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
+  const [draftSubmitError, setDraftSubmitError] = useState<string | null>(null);
+  const [draftSubmitSuccess, setDraftSubmitSuccess] = useState<string | null>(null);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
   const {
@@ -71,6 +79,22 @@ export function EucMap() {
     setSelectedFeature(null);
     setSelectedFeatureState(null);
     clearHash();
+  }, []);
+
+  const handleCancelAddPoint = useCallback(() => {
+    setIsAddingPoint(false);
+    setDraftCoordinates(null);
+    setDraftSubmitError(null);
+  }, []);
+
+  const handleToggleAddPoint = useCallback(() => {
+    setDraftSubmitSuccess(null);
+    setDraftSubmitError(null);
+    setSelectedFeature(null);
+    setSelectedFeatureState(null);
+    clearHash();
+    setIsAddingPoint((prev) => !prev);
+    setDraftCoordinates(null);
   }, []);
 
   useEffect(() => {
@@ -143,8 +167,41 @@ export function EucMap() {
     [openFeature]
   );
 
-  useMapClick(map, { getFeatureById, onFeatureSelect: handleFeatureSelect, setHash });
+  useMapClick(map, { enabled: !isAddingPoint, getFeatureById, onFeatureSelect: handleFeatureSelect, setHash });
   useMapHover(map);
+
+  useEffect(() => {
+    if (!map || !isAddingPoint) return;
+
+    const onMapClick = (event: { lngLat: { lng: number; lat: number } }) => {
+      setDraftCoordinates([event.lngLat.lng, event.lngLat.lat]);
+      setDraftSubmitError(null);
+    };
+
+    map.on('click', onMapClick);
+    return () => {
+      map.off('click', onMapClick);
+    };
+  }, [map, isAddingPoint]);
+
+  const handleSubmitDraft = useCallback(async (payload: MapPointDraftInput) => {
+    if (isSubmittingDraft) return;
+    setIsSubmittingDraft(true);
+    setDraftSubmitError(null);
+    setDraftSubmitSuccess(null);
+
+    try {
+      await createMapPointDraft(payload);
+      setDraftSubmitSuccess('Заявка отправлена на модерацию.');
+      setIsAddingPoint(false);
+      setDraftCoordinates(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось отправить заявку. Попробуйте позже.';
+      setDraftSubmitError(message);
+    } finally {
+      setIsSubmittingDraft(false);
+    }
+  }, [isSubmittingDraft]);
 
   // ПКМ по карте — вывести координаты в консоль
   useEffect(() => {
@@ -229,12 +286,28 @@ export function EucMap() {
           <span>{emptyMessage}</span>
         </div>
       )}
+      {draftSubmitSuccess && (
+        <div className="absolute top-0 left-1/2 z-20 flex max-w-100 -translate-x-1/2 items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-md overlay-safe-inset">
+          <span>{draftSubmitSuccess}</span>
+        </div>
+      )}
       <LayerControls
         visibility={visibility}
         onToggle={toggleLayer}
         baseStyle={baseStyle}
         onBaseStyleChange={setBaseMapStyle}
+        isAddingPoint={isAddingPoint}
+        onToggleAddPoint={handleToggleAddPoint}
       />
+      {isAddingPoint && (
+        <AddPointPanel
+          coordinates={draftCoordinates}
+          isSubmitting={isSubmittingDraft}
+          submitError={draftSubmitError}
+          onSubmit={handleSubmitDraft}
+          onCancel={handleCancelAddPoint}
+        />
+      )}
       {selectedFeature && (
         <FeatureSidebar
           feature={selectedFeature}
