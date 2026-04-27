@@ -4,7 +4,6 @@ import { isRecord } from '@/utils/mapFeatureGuards';
 
 const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
 const key: string | undefined = import.meta.env.VITE_SUPABASE_KEY;
-const pointSubmissionsTable: string = import.meta.env.VITE_SUPABASE_POINT_SUBMISSIONS_TABLE ?? 'map_points_submissions';
 
 if (!url || !key) {
   console.warn('Supabase URL or key missing. Map data will be empty.');
