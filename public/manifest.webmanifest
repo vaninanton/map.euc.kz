@@ -1,13 +1,16 @@
 {
   "name": "map.euc.kz",
   "short_name": "map.euc.kz",
+  "id": "/?homescreen=1",
   "description": "Карта моноколёсных маршрутов. Планируй поездки, смотри маршруты, розетки и точки",
   "lang": "ru",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/?homescreen=1",
+  "scope": "/?homescreen=1",
   "display": "fullscreen",
+  "display_override": ["standalone"],
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  "categories": ["navigation", "travel", "utilities"],
   "icons": [
     {
       "src": "/icons/manifest-icon-192.maskable.png",

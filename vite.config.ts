@@ -19,6 +19,9 @@ function baseUrlMetaPlugin() {
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.GITHUB_SHA ?? `${Date.now()}`),
+  },
   plugins: [baseUrlMetaPlugin(), react(), tailwindcss()],
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
@@ -34,7 +37,6 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { test: /node_modules\/mapbox-gl/, name: 'mapbox-gl' },
-            { test: /node_modules\/@supabase\/supabase-js/, name: 'supabase' },
           ],
         },
       },
