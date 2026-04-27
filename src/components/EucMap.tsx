@@ -9,6 +9,7 @@ import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
 import { setHash, clearHash } from '@/utils/hashNav';
 import { createMapPointDraft } from '@/lib/supabase';
+import { Marker } from 'mapbox-gl';
 import type { Feature } from '@/types/geojson';
 import type { MapPointDraftInput } from '@/types';
 import type { LayerKey } from '@/constants';
@@ -59,6 +60,7 @@ export function EucMap() {
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [draftSubmitError, setDraftSubmitError] = useState<string | null>(null);
   const [draftSubmitSuccess, setDraftSubmitSuccess] = useState<string | null>(null);
+  const draftMarkerRef = useRef<Marker | null>(null);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
   const {
@@ -184,6 +186,38 @@ export function EucMap() {
     };
   }, [map, isAddingPoint]);
 
+  useEffect(() => {
+    if (!map) return;
+
+    if (!isAddingPoint || !draftCoordinates) {
+      draftMarkerRef.current?.remove();
+      draftMarkerRef.current = null;
+      return;
+    }
+
+    if (!draftMarkerRef.current) {
+      const markerEl = document.createElement('div');
+      markerEl.setAttribute('aria-label', 'Выбранная точка');
+      markerEl.style.width = '18px';
+      markerEl.style.height = '18px';
+      markerEl.style.borderRadius = '999px';
+      markerEl.style.background = '#ef4444';
+      markerEl.style.border = '3px solid #ffffff';
+      markerEl.style.boxShadow = '0 2px 8px rgba(0,0,0,0.35)';
+
+      draftMarkerRef.current = new Marker({ element: markerEl, anchor: 'center' }).setLngLat(draftCoordinates).addTo(map);
+    }
+
+    draftMarkerRef.current.setLngLat(draftCoordinates);
+  }, [map, isAddingPoint, draftCoordinates]);
+
+  useEffect(() => {
+    return () => {
+      draftMarkerRef.current?.remove();
+      draftMarkerRef.current = null;
+    };
+  }, []);
+
   const handleSubmitDraft = useCallback(async (payload: MapPointDraftInput) => {
     if (isSubmittingDraft) return;
     setIsSubmittingDraft(true);
@@ -291,14 +325,16 @@ export function EucMap() {
           <span>{draftSubmitSuccess}</span>
         </div>
       )}
-      <LayerControls
-        visibility={visibility}
-        onToggle={toggleLayer}
-        baseStyle={baseStyle}
-        onBaseStyleChange={setBaseMapStyle}
-        isAddingPoint={isAddingPoint}
-        onToggleAddPoint={handleToggleAddPoint}
-      />
+      {!selectedFeature && (
+        <LayerControls
+          visibility={visibility}
+          onToggle={toggleLayer}
+          baseStyle={baseStyle}
+          onBaseStyleChange={setBaseMapStyle}
+          isAddingPoint={isAddingPoint}
+          onToggleAddPoint={handleToggleAddPoint}
+        />
+      )}
       {isAddingPoint && (
         <AddPointPanel
           coordinates={draftCoordinates}

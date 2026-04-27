@@ -45,6 +45,12 @@ export function useMapHover(map: MapboxMap | null) {
       tooltipEl.style.display = 'none';
     };
 
+    const setCanvasCursor = (value: string) => {
+      const canvas = map.getCanvas();
+      if (!canvas) return;
+      canvas.style.cursor = value;
+    };
+
     const clearHover = () => {
       const prev = hoveredRef.current;
       if (prev) {
@@ -55,7 +61,7 @@ export function useMapHover(map: MapboxMap | null) {
         }
         hoveredRef.current = null;
       }
-      map.getCanvas().style.cursor = '';
+      setCanvasCursor('');
       hideTooltip();
     };
 
@@ -92,10 +98,10 @@ export function useMapHover(map: MapboxMap | null) {
         } catch {
           // ignore
         }
-        map.getCanvas().style.cursor = 'pointer';
+        setCanvasCursor('pointer');
         showTooltip(e.point.x, e.point.y, name);
       } else {
-        map.getCanvas().style.cursor = '';
+        setCanvasCursor('');
         hideTooltip();
       }
     };
