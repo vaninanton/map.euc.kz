@@ -11,7 +11,7 @@ export function FeatureSidebar({ feature, onClose }: FeatureSidebarProps) {
     <aside
       className="fixed z-20 flex flex-col bg-white shadow-lg border-neutral-200/80 overflow-hidden
         bottom-0 left-0 right-0 max-h-[45vh] rounded-t-2xl border-t
-        md:bottom-0 md:top-0 md:left-auto md:right-0 md:max-h-none md:w-[320px] md:max-w-[90vw] md:rounded-none md:rounded-l-2xl md:border-t-0 md:border-l control-inset-bottom md:control-inset-right md:control-inset-top md:control-inset-bottom"
+        md:bottom-0 md:top-0 md:left-auto md:right-0 md:max-h-none md:w-[320px] md:max-w-[90vw] md:rounded-none md:rounded-l-2xl md:border-t-0 md:border-l md:control-inset-right md:control-inset-top md:control-inset-bottom"
       role="dialog"
       aria-label="Информация об объекте"
     >
