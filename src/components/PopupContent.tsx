@@ -1,8 +1,9 @@
 import Typograf from 'typograf';
 import { FEATURE_TYPE_LABELS, POINT_FLAG_LABELS, COLORS } from '@/constants';
 import { computeRouteStats } from '@/utils/routeStats';
-import type { Feature, LineStringFeature } from '@/types/geojson';
+import type { Feature } from '@/types/geojson';
 import { ShareBlock } from '@/components/ShareBlock';
+import { isRouteFeature } from '@/utils/mapFeatureGuards';
 
 const typograf = new Typograf({ locale: ['ru', 'en-US'] });
 
@@ -12,14 +13,15 @@ interface PopupContentProps {
 }
 
 export function PopupContent({ feature, onCopied }: PopupContentProps) {
-  const { type, name, description, isMeeting } = feature.properties;
+  const { type, name, description } = feature.properties;
+  const isMeeting = type === 'point' ? feature.properties.isMeeting : false;
   const typeLabel =
     type === 'point' && isMeeting ? POINT_FLAG_LABELS.meeting : FEATURE_TYPE_LABELS[type];
   const typeColor = COLORS[type];
 
   let stats: { distanceKm: number; ascentM: number; descentM: number } | null = null;
-  if (feature.geometry.type === 'LineString' && type === 'route') {
-    const s = computeRouteStats(feature as LineStringFeature);
+  if (isRouteFeature(feature)) {
+    const s = computeRouteStats(feature);
     const distanceKm =
       feature.properties.distance != null && Number.isFinite(feature.properties.distance)
         ? feature.properties.distance

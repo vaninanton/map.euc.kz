@@ -16,27 +16,57 @@ export type Geometry = Point | LineString;
 
 export type FeatureType = 'point' | 'socket' | 'route' | 'bikeLane';
 
-export interface FeatureProperties {
+interface BaseFeatureProperties {
   id: string;
   name: string;
   description?: string | null;
-  type: FeatureType;
-  /** Точка — место встречи (только для type === 'point'). */
+}
+
+export interface PointProperties extends BaseFeatureProperties {
+  type: 'point';
+  /** Точка — место встречи. */
   isMeeting?: boolean;
+}
+
+export interface SocketProperties extends BaseFeatureProperties {
+  type: 'socket';
+}
+
+export interface RouteProperties extends BaseFeatureProperties {
+  type: 'route';
+  distance?: number;
+}
+
+export interface BikeLaneProperties extends BaseFeatureProperties {
+  type: 'bikeLane';
   distance?: number;
   safetyLevel?: number;
 }
 
-export interface Feature<G extends Geometry = Geometry> {
+export type FeatureProperties =
+  | PointProperties
+  | SocketProperties
+  | RouteProperties
+  | BikeLaneProperties;
+
+export interface Feature<
+  G extends Geometry = Geometry,
+  P extends FeatureProperties = FeatureProperties,
+> {
   type: 'Feature';
   geometry: G;
-  properties: FeatureProperties;
+  properties: P;
 }
 
-export interface FeatureCollection<G extends Geometry = Geometry> {
+export interface FeatureCollection<
+  G extends Geometry = Geometry,
+  P extends FeatureProperties = FeatureProperties,
+> {
   type: 'FeatureCollection';
-  features: Feature<G>[];
+  features: Array<Feature<G, P>>;
 }
 
-export type PointFeature = Feature<Point>;
-export type LineStringFeature = Feature<LineString>;
+export type PointFeature = Feature<Point, PointProperties | SocketProperties>;
+export type RouteFeature = Feature<LineString, RouteProperties>;
+export type BikeLaneFeature = Feature<LineString, BikeLaneProperties>;
+export type LineStringFeature = RouteFeature | BikeLaneFeature;

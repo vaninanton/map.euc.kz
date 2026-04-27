@@ -24,6 +24,8 @@ const ROW_COLORS: Record<LayerKey, string> = {
   bikeLanes: COLORS.bikeLane,
 };
 
+const LAYER_ORDER: LayerKey[] = ['points', 'routes', 'bikeLanes', 'sockets'];
+
 export function LayerControls({ visibility, onToggle, baseStyle, onBaseStyleChange }: LayerControlsProps) {
   return (
     <div
@@ -52,7 +54,7 @@ export function LayerControls({ visibility, onToggle, baseStyle, onBaseStyleChan
         </button>
       </div>
       <ul className="px-2 py-1.5 flex flex-col gap-0 sm:px-2.5 sm:py-2">
-        {(Object.keys(LABELS) as LayerKey[]).map((key) => {
+        {LAYER_ORDER.map((key) => {
           const color = ROW_COLORS[key];
           const isOn = visibility[key];
           return (

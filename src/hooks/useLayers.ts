@@ -1,12 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
-import type { Feature, FeatureCollection } from '@/types/geojson';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import type { Feature, FeatureCollection, BikeLaneFeature } from '@/types/geojson';
 import type { VelojolSegment } from '@/types/velojol';
 import { fetchMapPoints, fetchMapRoutes } from '@/lib/supabase';
 import { mapPointsToFeatureCollection, mapRoutesToFeatureCollection } from '@/utils/supabaseToGeojson';
 import { addLayersToMap as addLayersToMapImpl } from '@/lib/mapLayers';
 import { LAYER_IDS, type LayerKey } from '@/constants';
-import almatySegments from '@/data/almaty.json';
 import type { Map as MapboxMap } from 'mapbox-gl';
+import { getFeatureId, isRecord } from '@/utils/mapFeatureGuards';
 
 export type { LayerKey };
 
@@ -30,12 +30,13 @@ function loadStoredVisibility(): LayerVisibility {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_VISIBILITY;
-    const parsed = JSON.parse(raw) as Partial<LayerVisibility>;
+    const parsed: unknown = JSON.parse(raw);
+    const source = isRecord(parsed) ? parsed : {};
     return {
-      points: parsed.points ?? DEFAULT_VISIBILITY.points,
-      sockets: parsed.sockets ?? DEFAULT_VISIBILITY.sockets,
-      routes: parsed.routes ?? DEFAULT_VISIBILITY.routes,
-      bikeLanes: parsed.bikeLanes ?? DEFAULT_VISIBILITY.bikeLanes,
+      points: typeof source.points === 'boolean' ? source.points : DEFAULT_VISIBILITY.points,
+      sockets: typeof source.sockets === 'boolean' ? source.sockets : DEFAULT_VISIBILITY.sockets,
+      routes: typeof source.routes === 'boolean' ? source.routes : DEFAULT_VISIBILITY.routes,
+      bikeLanes: typeof source.bikeLanes === 'boolean' ? source.bikeLanes : DEFAULT_VISIBILITY.bikeLanes,
     };
   } catch {
     return DEFAULT_VISIBILITY;
@@ -46,7 +47,7 @@ function loadStoredVisibility(): LayerVisibility {
 const EXCLUDED_BIKE_LANE_IDS = new Set(['alm84', 'alm85', 'alm86', 'alm89']);
 
 function velojolToFeatureCollection(segments: VelojolSegment[]): FeatureCollection {
-  const features = segments.map((seg) => ({
+  const features: BikeLaneFeature[] = segments.map((seg) => ({
     type: 'Feature' as const,
     geometry: {
       type: 'LineString' as const,
@@ -67,38 +68,101 @@ function velojolToFeatureCollection(segments: VelojolSegment[]): FeatureCollecti
 export function useLayers() {
   const [pointsGeo, setPointsGeo] = useState<FeatureCollection | null>(null);
   const [routesGeo, setRoutesGeo] = useState<FeatureCollection | null>(null);
-  const [bikeLanesGeo] = useState<FeatureCollection | null>(() => {
-    if (!Array.isArray(almatySegments) || !almatySegments.length) return null;
-    const segments = (almatySegments as VelojolSegment[]).filter(
-      (seg) => !EXCLUDED_BIKE_LANE_IDS.has(seg.id)
-    );
-    return velojolToFeatureCollection(segments);
-  });
+  const [bikeLanesGeo, setBikeLanesGeo] = useState<FeatureCollection | null>(null);
   const [visibility, setVisibility] = useState<LayerVisibility>(loadStoredVisibility);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     setErrorMessage(null);
+    setEmptyMessage(null);
     void (async () => {
-      try {
-        const [pointsRows, routesRows] = await Promise.all([fetchMapPoints(), fetchMapRoutes()]);
-        if (cancelled) return;
-        setPointsGeo(mapPointsToFeatureCollection(pointsRows));
-        setRoutesGeo(mapRoutesToFeatureCollection(routesRows));
-      } catch (error: unknown) {
-        if (cancelled) return;
-        const message = error instanceof Error ? error.message : 'Ошибка загрузки данных из Supabase.';
-        setErrorMessage(message);
-      } finally {
-        if (!cancelled) setLoading(false);
+      const [pointsResult, routesResult, bikeLanesModule] = await Promise.allSettled([
+        fetchMapPoints(),
+        fetchMapRoutes(),
+        import('@/data/almaty.json'),
+      ]);
+      if (cancelled) return;
+
+      if (pointsResult.status === 'fulfilled') {
+        setPointsGeo(mapPointsToFeatureCollection(pointsResult.value));
+      } else {
+        setPointsGeo(null);
       }
+
+      if (routesResult.status === 'fulfilled') {
+        setRoutesGeo(mapRoutesToFeatureCollection(routesResult.value));
+      } else {
+        setRoutesGeo(null);
+      }
+
+      if (bikeLanesModule.status === 'fulfilled') {
+        const raw = bikeLanesModule.value.default;
+        if (Array.isArray(raw) && raw.length > 0) {
+          const segments = (raw as VelojolSegment[]).filter(
+            (seg) => !EXCLUDED_BIKE_LANE_IDS.has(seg.id)
+          );
+          setBikeLanesGeo(velojolToFeatureCollection(segments));
+        } else {
+          setBikeLanesGeo(null);
+        }
+      } else {
+        setBikeLanesGeo(null);
+      }
+
+      const errors: string[] = [];
+      if (pointsResult.status === 'rejected') {
+        const msg = pointsResult.reason instanceof Error ? pointsResult.reason.message : 'Не удалось загрузить точки.';
+        errors.push(msg);
+      }
+      if (routesResult.status === 'rejected') {
+        const msg = routesResult.reason instanceof Error ? routesResult.reason.message : 'Не удалось загрузить маршруты.';
+        errors.push(msg);
+      }
+      if (errors.length > 0) setErrorMessage(errors.join(' '));
+
+      const pointsCount = pointsResult.status === 'fulfilled' ? pointsResult.value.length : 0;
+      const routesCount = routesResult.status === 'fulfilled' ? routesResult.value.length : 0;
+      if (pointsCount + routesCount === 0) {
+        setEmptyMessage('Пока нет опубликованных точек и маршрутов.');
+      }
+      setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const pointsById = useMemo(() => {
+    const map = new Map<string, Feature>();
+    for (const feature of pointsGeo?.features ?? []) {
+      const id = getFeatureId(feature);
+      map.set(`all:${id}`, feature);
+      map.set(`${feature.properties.type}:${id}`, feature);
+    }
+    return map;
+  }, [pointsGeo]);
+
+  const routesById = useMemo(() => {
+    const map = new Map<string, Feature>();
+    for (const feature of routesGeo?.features ?? []) {
+      const id = getFeatureId(feature);
+      map.set(id, feature);
+    }
+    return map;
+  }, [routesGeo]);
+
+  const bikeLanesById = useMemo(() => {
+    const map = new Map<string, Feature>();
+    for (const feature of bikeLanesGeo?.features ?? []) {
+      const id = getFeatureId(feature);
+      map.set(id, feature);
+    }
+    return map;
+  }, [bikeLanesGeo]);
 
   const toggleLayer = useCallback((layer: LayerKey) => {
     setVisibility((v) => {
@@ -142,23 +206,13 @@ export function useLayers() {
 
   const getFeatureById = useCallback(
     (layer: LayerKey, id: string): Feature | null => {
-      const fc =
-        layer === 'points' || layer === 'sockets'
-          ? pointsGeo
-          : layer === 'routes'
-            ? routesGeo
-            : bikeLanesGeo;
-      if (!fc) return null;
-      const typeFilter = layer === 'points' ? 'point' : layer === 'sockets' ? 'socket' : null;
       const idNorm = String(id);
-      return (
-        fc.features.find(
-          (f) =>
-            String(f.properties.id) === idNorm && (typeFilter == null || f.properties.type === typeFilter)
-        ) ?? null
-      );
+      if (layer === 'points') return pointsById.get(`point:${idNorm}`) ?? null;
+      if (layer === 'sockets') return pointsById.get(`socket:${idNorm}`) ?? null;
+      if (layer === 'routes') return routesById.get(idNorm) ?? null;
+      return bikeLanesById.get(idNorm) ?? null;
     },
-    [pointsGeo, routesGeo, bikeLanesGeo]
+    [pointsById, routesById, bikeLanesById]
   );
 
   return {
@@ -168,6 +222,7 @@ export function useLayers() {
     visibility,
     loading,
     errorMessage,
+    emptyMessage,
     toggleLayer,
     addLayersToMap,
     applyVisibility,

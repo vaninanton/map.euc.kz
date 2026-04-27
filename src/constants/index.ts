@@ -26,9 +26,9 @@ export const CLICKABLE_LAYER_IDS = [
 
 export type LayerKey = 'points' | 'sockets' | 'routes' | 'bikeLanes';
 
-export const LAYER_ID_TO_KEY: Record<string, LayerKey> = Object.fromEntries(
+export const LAYER_ID_TO_KEY = Object.fromEntries(
   (Object.entries(LAYER_IDS) as [LayerKey, string][]).map(([key, id]) => [id, key])
-) as Record<string, LayerKey>;
+) as Record<(typeof LAYER_IDS)[LayerKey], LayerKey>;
 
 export const SOURCE_IDS = {
   points: 'points-source',
@@ -38,7 +38,7 @@ export const SOURCE_IDS = {
 } as const;
 
 /** Соответствие слой → источник (для feature-state). */
-export const LAYER_ID_TO_SOURCE: Record<string, string> = {
+export const LAYER_ID_TO_SOURCE: Record<(typeof LAYER_IDS)[LayerKey], string> = {
   [LAYER_IDS.points]: SOURCE_IDS.points,
   [LAYER_IDS.sockets]: SOURCE_IDS.points,
   [LAYER_IDS.routes]: SOURCE_IDS.routes,

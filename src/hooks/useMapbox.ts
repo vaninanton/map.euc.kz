@@ -6,11 +6,14 @@ import { MAP_CENTER, MAP_ZOOM_DEFAULT, MAPBOX_STYLES } from '@/constants';
 const token = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const STORAGE_KEY = 'map-base-style';
+function isBaseMapStyle(value: string): value is BaseMapStyle {
+  return value in MAPBOX_STYLES;
+}
 
 function getStoredStyle(): BaseMapStyle {
   if (typeof window === 'undefined') return 'streets';
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && stored in MAPBOX_STYLES) return stored as BaseMapStyle;
+  if (stored && isBaseMapStyle(stored)) return stored;
   return 'streets';
 }
 
@@ -95,8 +98,14 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     map?.flyTo({ center, zoom: zoom ?? MAP_ZOOM_DEFAULT });
   };
 
-  const flyToBounds = (bounds: [[number, number], [number, number]]) => {
-    map?.fitBounds(bounds, { padding: 40, maxZoom: 15 });
+  const flyToBounds = (
+    bounds: [[number, number], [number, number]],
+    options?: { padding?: number | mapboxgl.PaddingOptions; maxZoom?: number }
+  ) => {
+    map?.fitBounds(bounds, {
+      padding: options?.padding ?? 40,
+      maxZoom: options?.maxZoom ?? 15,
+    });
   };
 
   return {

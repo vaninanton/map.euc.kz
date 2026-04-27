@@ -132,7 +132,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
   if (!coords && type !== 'route') return null;
 
   return (
-    <div className="mt-3 pt-3 px-4 pb-4 border-t border-neutral-200">
+    <div className="mt-3 pt-3 px-2 pb-4 border-t border-neutral-200">
       <div className="flex flex-wrap gap-2">
         {showMapLinks && mapLinkCoords && (
           <>

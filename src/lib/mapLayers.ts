@@ -6,36 +6,37 @@ import type {
   LineLayerSpecification,
   CircleLayerSpecification,
   SymbolLayerSpecification,
+  ExpressionSpecification,
 } from 'mapbox-gl';
 
 /** Выражения для подсветки по feature-state (hover / selected). */
 const stateHighlight = {
-  lineWidth: (defaultW: number, hoverW: number, selectedW: number) => [
+  lineWidth: (defaultW: number, hoverW: number, selectedW: number): ExpressionSpecification => [
     'case',
     ['boolean', ['feature-state', 'selected'], false],
     selectedW,
     ['case', ['boolean', ['feature-state', 'hover'], false], hoverW, defaultW],
   ],
-  circleRadius: (defaultR: number, hoverR: number, selectedR: number) => [
+  circleRadius: (defaultR: number, hoverR: number, selectedR: number): ExpressionSpecification => [
     'case',
     ['boolean', ['feature-state', 'selected'], false],
     selectedR,
     ['case', ['boolean', ['feature-state', 'hover'], false], hoverR, defaultR],
   ],
-  circleStrokeWidth: (defaultW: number, hoverW: number, selectedW: number) => [
+  circleStrokeWidth: (defaultW: number, hoverW: number, selectedW: number): ExpressionSpecification => [
     'case',
     ['boolean', ['feature-state', 'selected'], false],
     selectedW,
     ['case', ['boolean', ['feature-state', 'hover'], false], hoverW, defaultW],
   ],
-  iconOpacity: (defaultO: number, hoverO: number, selectedO: number) => [
+  iconOpacity: (defaultO: number, hoverO: number, selectedO: number): ExpressionSpecification => [
     'case',
     ['boolean', ['feature-state', 'selected'], false],
     selectedO,
     ['case', ['boolean', ['feature-state', 'hover'], false], hoverO, defaultO],
   ],
   /** Невыбранные — полупрозрачны (selected: true → 1, selected: false → 0.45, нет состояния → 1). */
-  opacity: () => [
+  opacity: (): ExpressionSpecification => [
     'case',
     ['==', ['feature-state', 'selected'], true],
     1,
@@ -50,7 +51,7 @@ function upsertGeoJsonLayer(
   sourceId: string,
   layerId: string,
   data: FeatureCollection,
-  paint: Record<string, unknown>
+  paint: LineLayerSpecification['paint']
 ): void {
   if (!map.getSource(sourceId)) {
     map.addSource(sourceId, { type: 'geojson', data, promoteId: 'id' });
@@ -58,7 +59,8 @@ function upsertGeoJsonLayer(
     (map.getSource(sourceId) as GeoJSONSource).setData(data);
   }
   if (!map.getLayer(layerId)) {
-    map.addLayer({ id: layerId, type: 'line', source: sourceId, paint } as LineLayerSpecification);
+    const layer: LineLayerSpecification = { id: layerId, type: 'line', source: sourceId, paint };
+    map.addLayer(layer);
   }
 }
 
@@ -137,7 +139,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
       (map.getSource(SOURCE_IDS.points) as GeoJSONSource).setData(pointsGeo);
     }
     if (!map.getLayer(LAYER_IDS.points)) {
-      map.addLayer({
+      const pointLayer: CircleLayerSpecification = {
         id: LAYER_IDS.points,
         type: 'circle',
         source: SOURCE_IDS.points,
@@ -149,14 +151,15 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
           'circle-stroke-color': '#fff',
           'circle-opacity': stateHighlight.opacity(),
         },
-      } as unknown as CircleLayerSpecification);
+      };
+      map.addLayer(pointLayer);
     }
     if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points);
     if (!map.getLayer(LAYER_IDS.sockets)) {
       ensurePlugImage(map, () => {
         if (map.getLayer(LAYER_IDS.sockets)) return;
         if (!map.getSource(SOURCE_IDS.points)) return;
-        map.addLayer({
+        const socketLayer: SymbolLayerSpecification = {
           id: LAYER_IDS.sockets,
           type: 'symbol',
           source: SOURCE_IDS.points,
@@ -180,7 +183,8 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
               ['case', ['boolean', ['feature-state', 'hover'], false], 1.2, 1],
             ],
           },
-        } as unknown as SymbolLayerSpecification);
+        };
+        map.addLayer(socketLayer);
         if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points);
         if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets);
       });

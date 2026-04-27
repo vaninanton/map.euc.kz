@@ -1,8 +1,28 @@
-import type { FeatureCollection, PointFeature, LineStringFeature } from '@/types/geojson';
+import type { FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
 import type { MapPointRow, MapRouteRow } from '@/types/supabase';
 
-export function mapPointsToFeatureCollection(rows: MapPointRow[]): FeatureCollection<{ type: 'Point'; coordinates: [number, number] }> {
-  const features: PointFeature[] = rows.map((row) => ({
+function isPointCoordinates(value: unknown): value is [number, number] {
+  return Array.isArray(value) && value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number';
+}
+
+function isLineCoordinates(value: unknown): value is Array<[number, number] | [number, number, number]> {
+  if (!Array.isArray(value) || value.length < 2) return false;
+  return value.every(
+    (item) =>
+      Array.isArray(item) &&
+      item.length >= 2 &&
+      typeof item[0] === 'number' &&
+      typeof item[1] === 'number' &&
+      (item[2] === undefined || typeof item[2] === 'number')
+  );
+}
+
+export function mapPointsToFeatureCollection(
+  rows: MapPointRow[]
+): FeatureCollection<{ type: 'Point'; coordinates: [number, number] }> {
+  const features: PointFeature[] = rows
+    .filter((row) => isPointCoordinates(row.coordinates))
+    .map((row) => ({
     type: 'Feature',
     geometry: {
       type: 'Point',
@@ -20,11 +40,13 @@ export function mapPointsToFeatureCollection(rows: MapPointRow[]): FeatureCollec
 }
 
 export function mapRoutesToFeatureCollection(rows: MapRouteRow[]): FeatureCollection {
-  const features: LineStringFeature[] = rows.map((row) => ({
+  const features: RouteFeature[] = rows
+    .filter((row) => isLineCoordinates(row.coordinates))
+    .map((row) => ({
     type: 'Feature',
     geometry: {
       type: 'LineString',
-      coordinates: row.coordinates as LineStringFeature['geometry']['coordinates'],
+      coordinates: row.coordinates,
     },
     properties: {
       id: row.id,

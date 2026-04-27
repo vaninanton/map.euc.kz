@@ -1,30 +1,55 @@
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
 import { useMapClick } from '@/hooks/useMapClick';
 import { useMapHover } from '@/hooks/useMapHover';
+import { useHashSelectionSync } from '@/hooks/useHashSelectionSync';
+import { useSelectedFeatureState } from '@/hooks/useSelectedFeatureState';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
-import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE, SOURCE_IDS } from '@/constants';
-import { parseHash, setHash, clearHash, HASH_TYPE_TO_LAYER_KEY } from '@/utils/hashNav';
+import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
+import { setHash, clearHash } from '@/utils/hashNav';
 import type { Feature } from '@/types/geojson';
 import type { LayerKey } from '@/constants';
+import { applySelectionOpacityById, type SelectedFeatureState } from '@/utils/selectionOpacity';
 import { FeatureSidebar } from '@/components/FeatureSidebar';
 import { LayerControls } from '@/components/LayerControls';
 
 const LINE_LAYERS: LayerKey[] = ['routes', 'bikeLanes'];
-
-const ALL_SOURCE_IDS = [SOURCE_IDS.points, SOURCE_IDS.routes, SOURCE_IDS.bikeLanes] as const;
+const SIDEBAR_DESKTOP_WIDTH = 320;
+const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
+const FOCUS_PADDING_BASE = 40;
 
 function isLineLayer(layerKey: LayerKey): layerKey is 'routes' | 'bikeLanes' {
   return LINE_LAYERS.includes(layerKey);
 }
 
-type SelectedFeatureState = { sourceId: string; id: string } | null;
+function getRouteFocusPadding(): number | { top: number; right: number; bottom: number; left: number } {
+  if (typeof window === 'undefined') return FOCUS_PADDING_BASE;
+
+  const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+  if (isDesktop) {
+    return {
+      top: FOCUS_PADDING_BASE,
+      right: SIDEBAR_DESKTOP_WIDTH + FOCUS_PADDING_BASE,
+      bottom: FOCUS_PADDING_BASE,
+      left: FOCUS_PADDING_BASE,
+    };
+  }
+
+  const viewportHeight = window.innerHeight || 0;
+  const mobileSidebarHeight = Math.round(viewportHeight * SIDEBAR_MOBILE_HEIGHT_RATIO);
+  return {
+    top: FOCUS_PADDING_BASE,
+    right: FOCUS_PADDING_BASE,
+    bottom: mobileSidebarHeight + FOCUS_PADDING_BASE,
+    left: FOCUS_PADDING_BASE,
+  };
+}
 
 export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
-  const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState>(null);
+  const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
@@ -38,6 +63,8 @@ export function EucMap() {
     routesGeo,
     bikeLanesGeo,
     errorMessage,
+    emptyMessage,
+    loading,
   } = useLayers();
 
   const handleSidebarClose = useCallback(() => {
@@ -45,6 +72,21 @@ export function EucMap() {
     setSelectedFeatureState(null);
     clearHash();
   }, []);
+
+  useEffect(() => {
+    if (!selectedFeature) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleSidebarClose();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [selectedFeature, handleSidebarClose]);
 
   const handleResetCacheAndReload = useCallback(async () => {
     if (isResettingCache) return;
@@ -71,7 +113,7 @@ export function EucMap() {
 
   const addLayersRef = useRef(addLayersToMap);
   const applyVisibilityRef = useRef(applyVisibility);
-  const selectedFeatureStateRef = useRef<SelectedFeatureState>(null);
+  const selectedFeatureStateRef = useRef<SelectedFeatureState | null>(null);
   useEffect(() => {
     addLayersRef.current = addLayersToMap;
     applyVisibilityRef.current = applyVisibility;
@@ -85,7 +127,7 @@ export function EucMap() {
       setSelectedFeatureState(sourceId ? { sourceId, id } : null);
       setSelectedFeature(feature);
       if (isLineLayer(layerKey)) {
-        flyToBounds(getFeatureBounds(feature));
+        flyToBounds(getFeatureBounds(feature), { padding: getRouteFocusPadding() });
       } else {
         const center = lngLat ?? getFeatureCenter(feature);
         flyTo(center, MAP_ZOOM_FOCUS);
@@ -117,55 +159,16 @@ export function EucMap() {
     };
   }, [map]);
 
-  // Синхронизация подсветки: выбранный — opacity 1, все остальные на карте — selected: false (полупрозрачны)
-  const selectedRef = useRef<SelectedFeatureState>(null);
-  const sourceToFeatures = useMemo(
-    () => ({
-      [SOURCE_IDS.points]: pointsGeo?.features.map((f) => f.properties.id) ?? [],
-      [SOURCE_IDS.routes]: routesGeo?.features.map((f) => f.properties.id) ?? [],
-      [SOURCE_IDS.bikeLanes]: bikeLanesGeo?.features.map((f) => f.properties.id) ?? [],
-    }),
-    [pointsGeo, routesGeo, bikeLanesGeo]
-  );
+  useSelectedFeatureState(map, selectedFeatureState);
+
   useEffect(() => {
-    if (!map) return;
-    const prev = selectedRef.current;
-    if (prev) {
-      try {
-        for (const sourceId of ALL_SOURCE_IDS) {
-          const ids = sourceToFeatures[sourceId];
-          for (const id of ids) {
-            map.removeFeatureState({ source: sourceId, id }, 'selected');
-          }
-        }
-      } catch {
-        // ignore
-      }
-      selectedRef.current = null;
-    }
-    if (selectedFeatureState) {
-      const { sourceId: selectedSourceId, id: selectedId } = selectedFeatureState;
-      const selectedNorm = String(selectedId);
-      try {
-        for (const sourceId of ALL_SOURCE_IDS) {
-          const ids = sourceToFeatures[sourceId];
-          for (const id of ids) {
-            const isSelected = sourceId === selectedSourceId && String(id) === selectedNorm;
-            map.setFeatureState({ source: sourceId, id }, { selected: isSelected });
-          }
-        }
-        selectedRef.current = selectedFeatureState;
-      } catch {
-        // источник ещё не загружен
-      }
-    }
-  }, [map, selectedFeatureState, sourceToFeatures]);
+    applySelectionOpacityById(map, selectedFeatureState);
+  }, [map, selectedFeatureState, pointsGeo, routesGeo, bikeLanesGeo]);
 
   useEffect(() => {
     if (!map || !isMapReady) return;
     addLayersToMap(map);
-    applyVisibility(map);
-  }, [map, isMapReady, addLayersToMap, applyVisibility, pointsGeo, routesGeo]);
+  }, [map, isMapReady, addLayersToMap, pointsGeo, routesGeo, bikeLanesGeo]);
 
   useEffect(() => {
     if (!map) return;
@@ -180,6 +183,7 @@ export function EucMap() {
           // ignore
         }
       }
+      applySelectionOpacityById(map, sel);
     };
     map.on('style.load', onStyleLoad);
     return () => {
@@ -191,32 +195,11 @@ export function EucMap() {
     applyVisibility(map);
   }, [visibility, map, applyVisibility]);
 
-  // Открытие по hash только при смене hash (или первая загрузка), чтобы не сбрасывать зум при ре-рендерах
-  const lastSyncedHashRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!map || !isMapReady) return;
-    const syncFromHash = () => {
-      const hash = typeof window !== 'undefined' ? window.location.hash : '';
-      if (hash === lastSyncedHashRef.current) return;
-      const parsed = parseHash();
-      if (!parsed) {
-        lastSyncedHashRef.current = hash;
-        return;
-      }
-      const layerKey = HASH_TYPE_TO_LAYER_KEY[parsed.type];
-      const feature = getFeatureById(layerKey, parsed.id);
-      if (!feature) return;
-      requestAnimationFrame(() => {
-        openFeature(feature, layerKey);
-      });
-      lastSyncedHashRef.current = hash;
-    };
-    syncFromHash();
-    window.addEventListener('hashchange', syncFromHash);
-    return () => {
-      window.removeEventListener('hashchange', syncFromHash);
-    };
-  }, [map, isMapReady, pointsGeo, routesGeo, getFeatureById, openFeature]);
+  useHashSelectionSync({
+    enabled: Boolean(map && isMapReady),
+    getFeatureById,
+    openFeature,
+  });
 
   return (
     <div>
@@ -239,6 +222,11 @@ export function EucMap() {
           >
             Обновить страницу
           </button>
+        </div>
+      )}
+      {!errorMessage && !loading && emptyMessage && (
+        <div className="absolute top-0 left-1/2 z-20 flex max-w-100 -translate-x-1/2 items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 shadow-md overlay-safe-inset">
+          <span>{emptyMessage}</span>
         </div>
       )}
       <LayerControls

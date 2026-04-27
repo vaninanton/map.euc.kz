@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
-import { CLICKABLE_LAYER_IDS, LAYER_ID_TO_KEY } from '@/constants';
+import { CLICKABLE_LAYER_IDS } from '@/constants';
 import { LAYER_KEY_TO_HASH_TYPE } from '@/utils/hashNav';
 import type { Feature } from '@/types/geojson';
 import type { LayerKey } from '@/constants';
 import type { HashFeatureType } from '@/utils/hashNav';
+import { getLayerKeyById, getStringProperty } from '@/utils/mapFeatureGuards';
 
 export interface UseMapClickOptions {
   getFeatureById: (layer: LayerKey, id: string) => Feature | null;
@@ -30,17 +31,12 @@ export function useMapClick(
       if (!existingLayers.length) return;
       const features = map.queryRenderedFeatures(e.point, { layers: existingLayers });
       if (!features.length) return;
-      const f = features[0] as GeoJSON.Feature & {
-        layer?: { id?: string };
-        properties?: Record<string, unknown>;
-      };
-      /* eslint-disable @typescript-eslint/no-unnecessary-condition -- Mapbox feature/layerId не гарантированы в queryRenderedFeatures */
+      const f = features[0];
       const layerId = f.layer?.id;
-      const id = (f.properties as { id?: string })?.id;
+      const id = getStringProperty(f.properties, 'id');
       if (!id || !layerId) return;
-      const layerKey = LAYER_ID_TO_KEY[layerId];
+      const layerKey = getLayerKeyById(layerId);
       if (!layerKey) return;
-      /* eslint-enable @typescript-eslint/no-unnecessary-condition */
       const feature = getFeatureById(layerKey, id);
       if (!feature) return;
       const lngLat =
