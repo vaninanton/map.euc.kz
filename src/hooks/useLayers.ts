@@ -76,25 +76,25 @@ export function useLayers() {
   });
   const [visibility, setVisibility] = useState<LayerVisibility>(loadStoredVisibility);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([
-      fetchMapPoints().then((rows) => {
-        if (cancelled) return null;
-        const fc = mapPointsToFeatureCollection(rows);
-        setPointsGeo(fc);
-        return fc;
-      }),
-      fetchMapRoutes().then((rows) => {
-        if (cancelled) return null;
-        const fc = mapRoutesToFeatureCollection(rows);
-        setRoutesGeo(fc);
-        return fc;
-      }),
-    ]).finally(() => {
-      if (!cancelled) setLoading(false);
-    });
+    setErrorMessage(null);
+    void (async () => {
+      try {
+        const [pointsRows, routesRows] = await Promise.all([fetchMapPoints(), fetchMapRoutes()]);
+        if (cancelled) return;
+        setPointsGeo(mapPointsToFeatureCollection(pointsRows));
+        setRoutesGeo(mapRoutesToFeatureCollection(routesRows));
+      } catch (error: unknown) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Ошибка загрузки данных из Supabase.';
+        setErrorMessage(message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -167,6 +167,7 @@ export function useLayers() {
     bikeLanesGeo,
     visibility,
     loading,
+    errorMessage,
     toggleLayer,
     addLayersToMap,
     applyVisibility,

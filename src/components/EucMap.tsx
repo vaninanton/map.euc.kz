@@ -25,15 +25,49 @@ export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState>(null);
+  const [isResettingCache, setIsResettingCache] = useState(false);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
-  const { visibility, toggleLayer, addLayersToMap, applyVisibility, getFeatureById, pointsGeo, routesGeo, bikeLanesGeo } = useLayers();
+  const {
+    visibility,
+    toggleLayer,
+    addLayersToMap,
+    applyVisibility,
+    getFeatureById,
+    pointsGeo,
+    routesGeo,
+    bikeLanesGeo,
+    errorMessage,
+  } = useLayers();
 
   const handleSidebarClose = useCallback(() => {
     setSelectedFeature(null);
     setSelectedFeatureState(null);
     clearHash();
   }, []);
+
+  const handleResetCacheAndReload = useCallback(async () => {
+    if (isResettingCache) return;
+    setIsResettingCache(true);
+
+    try {
+      localStorage.clear();
+
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+      }
+
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+    } catch (error) {
+      console.error('Не удалось полностью очистить кеш:', error);
+    } finally {
+      window.location.reload();
+    }
+  }, [isResettingCache]);
 
   const addLayersRef = useRef(addLayersToMap);
   const applyVisibilityRef = useRef(applyVisibility);
@@ -185,11 +219,26 @@ export function EucMap() {
   }, [map, isMapReady, pointsGeo, routesGeo, getFeatureById, openFeature]);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+    <div>
+      <div ref={containerRef} className="map-container" />
       {!import.meta.env.VITE_MAPBOX_TOKEN && (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-100 text-neutral-700 p-6 text-center z-10 rounded-2xl overlay-safe-inset font-medium">
           Задайте VITE_MAPBOX_TOKEN в .env
+        </div>
+      )}
+      {errorMessage && (
+        <div className="absolute top-0 left-1/2 z-20 flex max-w-100 -translate-x-1/2 items-center gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-md overlay-safe-inset">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => {
+              void handleResetCacheAndReload();
+            }}
+            disabled={isResettingCache}
+            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+          >
+            Обновить страницу
+          </button>
         </div>
       )}
       <LayerControls
