@@ -102,6 +102,14 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
   const id = feature.properties.id;
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 800;
   const coordsArray = getCoordinatesArray(feature);
+  const routeEndCoords =
+    (type === 'route' || type === 'bikeLane') && coordsArray.length > 0
+      ? coordsArray[coordsArray.length - 1]
+      : null;
+  const mapLinkCoords = routeEndCoords
+    ? { lat: routeEndCoords[1], lon: routeEndCoords[0] }
+    : coords;
+  const showMapLinks = type !== 'bikeLane' && mapLinkCoords !== null;
   const [showCopied, setShowCopied] = useState(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -126,10 +134,10 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
   return (
     <div className="mt-3 pt-3 px-4 pb-4 border-t border-neutral-200">
       <div className="flex flex-wrap gap-2">
-        {coords && (
+        {showMapLinks && mapLinkCoords && (
           <>
             <a
-              href={buildYandexLink(coords.lat, coords.lon)}
+              href={buildYandexLink(mapLinkCoords.lat, mapLinkCoords.lon)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -138,7 +146,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
               <IconYandex />
             </a>
             <a
-              href={build2GISLink(coords.lat, coords.lon, isMobile)}
+              href={build2GISLink(mapLinkCoords.lat, mapLinkCoords.lon, isMobile)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
@@ -146,7 +154,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
             >
               <Icon2GIS />
             </a>
-            {(type === 'point' || type === 'socket') && (
+            {(type === 'point' || type === 'socket') && coords && (
               <a
                 href={buildGuruPointLink(coords.lat, coords.lon)}
                 className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
@@ -157,7 +165,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
             )}
           </>
         )}
-        {(type === 'route' || type === 'bikeLane') && coordsArray.length >= 2 && (
+        {type === 'route' && coordsArray.length >= 2 && (
           <>
             <a
               href={buildGuruRouteLink(coordsArray)}
