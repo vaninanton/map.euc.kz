@@ -6,6 +6,8 @@ import {
   buildGuruRouteLink,
   buildOpenRouteLink,
   buildAppShareLink,
+  buildTelegramPointMessage,
+  buildTelegramShareLink,
   getCoordsFromFeature,
   getCoordinatesArray,
   copyOrShare,
@@ -94,6 +96,14 @@ function IconShare() {
   );
 }
 
+function IconTelegram() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M9.78 16.57 9.4 20.9c.54 0 .77-.23 1.04-.5l2.49-2.38 5.17 3.78c.95.52 1.62.25 1.88-.88l3.4-15.94h.01c.31-1.46-.53-2.03-1.45-1.69L1.98 11.05c-1.4.55-1.38 1.33-.24 1.68l5.1 1.59L18.7 6.9c.56-.34 1.07-.15.65.19" />
+    </svg>
+  );
+}
+
 const TOAST_DURATION_MS = 2500;
 
 export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
@@ -114,6 +124,13 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const appUrl = buildAppShareLink(type, id);
+  const isMeetingPoint = type === 'point' && feature.properties.isMeeting === true;
+  const telegramShareLink = isMeetingPoint
+    ? buildTelegramShareLink(
+      appUrl,
+      buildTelegramPointMessage(feature.properties.name || 'Точка')
+    )
+    : null;
 
   const handleAppShare = useCallback(async () => {
     const ok = await copyOrShare(appUrl, feature.properties.name);
@@ -184,6 +201,17 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
               <IconOpenRoute />
             </a>
           </>
+        )}
+        {telegramShareLink && (
+          <a
+            href={telegramShareLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-sky-50 hover:text-sky-600 transition-colors"
+            title="Поделиться в Telegram"
+          >
+            <IconTelegram />
+          </a>
         )}
         <button
           type="button"

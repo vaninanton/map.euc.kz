@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   build2GISLink,
+  buildTelegramPointMessage,
+  buildTelegramShareLink,
   buildGuruRouteLink,
   buildOpenRouteLink,
   getViaPoints,
@@ -42,5 +44,16 @@ describe('shareLinks smoke', () => {
   it('buildOpenRouteLink возвращает пустую строку для короткого маршрута', () => {
     expect(buildOpenRouteLink([])).toBe('');
     expect(buildOpenRouteLink([[76.9, 43.2]])).toBe('');
+  });
+
+  it('формирует telegram-сообщение и ссылку для шаринга точки', () => {
+    const shareUrl = 'https://map.euc.kz/#point=abc';
+    const message = buildTelegramPointMessage('Парк первого президента');
+    expect(message).toContain('Парк первого президента');
+
+    const link = buildTelegramShareLink(shareUrl, message);
+    expect(link.startsWith('https://t.me/share/url?')).toBe(true);
+    expect(link).toContain('url=');
+    expect(link).toContain('text=');
   });
 });

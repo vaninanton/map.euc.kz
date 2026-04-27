@@ -84,6 +84,17 @@ export function buildAppShareLink(type: FeatureType, id: string): string {
   return `${origin}${pathname}#${buildHash(type, id)}`;
 }
 
+export function buildTelegramPointMessage(pointName: string): string {
+  return pointName;
+}
+
+export function buildTelegramShareLink(shareUrl: string, text: string): string {
+  const telegramUrl = new URL('https://t.me/share/url');
+  telegramUrl.searchParams.set('url', shareUrl);
+  telegramUrl.searchParams.set('text', text);
+  return telegramUrl.toString();
+}
+
 export function getCoordsFromFeature(feature: Feature): { lat: number; lon: number } | null {
   const g = feature.geometry;
   if (g.type === 'Point') {
