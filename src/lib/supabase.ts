@@ -1,5 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import type { MapPointDraftInput, MapPointRow, MapRouteRow, MapPointPhotoRow } from '@/types';
+import type {
+  MapPointDraftInput,
+  MapPointRow,
+  MapRouteRow,
+  MapPointPhotoRow,
+  TelegramLocationRow,
+  TelegramProfileRow,
+} from '@/types';
 import { isRecord } from '@/utils/mapFeatureGuards';
 
 const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
@@ -121,6 +128,69 @@ function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
   };
 }
 
+function normalizeTelegramLocationRow(row: unknown): TelegramLocationRow | null {
+  if (!isRecord(row)) return null;
+  const id = row.id;
+  const createdAt = row.created_at;
+  const chatId = row.chat_id;
+  const chatTitle = row.chat_title;
+  const telegramUserId = row.telegram_user_id;
+  const username = row.username;
+  const firstName = row.first_name;
+  const lastName = row.last_name;
+  const avatarUrl = row.avatar_url;
+  const longitude = row.longitude;
+  const latitude = row.latitude;
+
+  if (
+    (typeof id !== 'string' && typeof id !== 'number') ||
+    typeof createdAt !== 'string' ||
+    typeof chatId !== 'number' ||
+    typeof telegramUserId !== 'number' ||
+    typeof longitude !== 'number' ||
+    typeof latitude !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    id: String(id),
+    created_at: createdAt,
+    chat_id: chatId,
+    chat_title: typeof chatTitle === 'string' ? chatTitle : null,
+    telegram_user_id: telegramUserId,
+    username: typeof username === 'string' ? username : null,
+    first_name: typeof firstName === 'string' ? firstName : null,
+    last_name: typeof lastName === 'string' ? lastName : null,
+    avatar_url: typeof avatarUrl === 'string' ? avatarUrl : null,
+    longitude,
+    latitude,
+  };
+}
+
+function normalizeTelegramProfileRow(row: unknown): TelegramProfileRow | null {
+  if (!isRecord(row)) return null;
+  const telegramUserId = row.telegram_user_id;
+  const username = row.username;
+  const firstName = row.first_name;
+  const lastName = row.last_name;
+  const avatarUrl = row.avatar_url;
+  const updatedAt = row.updated_at;
+
+  if (typeof telegramUserId !== 'number' || typeof updatedAt !== 'string') {
+    return null;
+  }
+
+  return {
+    telegram_user_id: telegramUserId,
+    username: typeof username === 'string' ? username : null,
+    first_name: typeof firstName === 'string' ? firstName : null,
+    last_name: typeof lastName === 'string' ? lastName : null,
+    avatar_url: typeof avatarUrl === 'string' ? avatarUrl : null,
+    updated_at: updatedAt,
+  };
+}
+
 export async function fetchMapPoints(): Promise<MapPointRow[]> {
   if (!supabase) {
     throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
@@ -163,6 +233,52 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
   for (const row of data ?? []) {
     const normalized = normalizeMapRouteRow(row);
     if (normalized) rows.push(normalized);
+  }
+  return rows;
+}
+
+export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
+  if (!supabase) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
+  }
+
+  const { data, error } = await supabase
+    .from('telegram_locations')
+    .select('id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('fetchTelegramLocations:', error);
+    throw new Error('Не удалось загрузить telegram-локации.');
+  }
+
+  const { data: profilesData, error: profilesError } = await supabase
+    .from('telegram_profiles')
+    .select('telegram_user_id, username, first_name, last_name, avatar_url, updated_at');
+
+  if (profilesError) {
+    console.error('fetchTelegramLocations: profiles', profilesError);
+    throw new Error('Не удалось загрузить профили Telegram.');
+  }
+
+  const profilesByUserId = new Map<number, TelegramProfileRow>();
+  for (const row of profilesData ?? []) {
+    const normalized = normalizeTelegramProfileRow(row);
+    if (normalized) profilesByUserId.set(normalized.telegram_user_id, normalized);
+  }
+
+  const rows: TelegramLocationRow[] = [];
+  for (const row of data ?? []) {
+    const normalized = normalizeTelegramLocationRow(row);
+    if (!normalized) continue;
+    const profile = profilesByUserId.get(normalized.telegram_user_id);
+    rows.push({
+      ...normalized,
+      username: profile?.username ?? normalized.username,
+      first_name: profile?.first_name ?? normalized.first_name,
+      last_name: profile?.last_name ?? normalized.last_name,
+      avatar_url: profile?.avatar_url ?? normalized.avatar_url,
+    });
   }
   return rows;
 }

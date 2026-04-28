@@ -41,6 +41,16 @@ function isStaticAssetRequest(requestUrl) {
   );
 }
 
+function isSupabaseRealtimeOrApiRequest(requestUrl) {
+  const pathname = requestUrl.pathname;
+  return (
+    pathname.includes('/realtime/v1') ||
+    pathname.includes('/rest/v1') ||
+    pathname.includes('/auth/v1') ||
+    pathname.includes('/storage/v1')
+  );
+}
+
 async function trimRuntimeCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
@@ -111,6 +121,12 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
+  const requestUrl = new URL(request.url);
+
+  // Никогда не кэшируем Supabase API/realtime запросы.
+  if (isSupabaseRealtimeOrApiRequest(requestUrl)) {
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(handleNavigationRequest(request));

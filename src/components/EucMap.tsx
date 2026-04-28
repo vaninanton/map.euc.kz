@@ -72,6 +72,7 @@ export function EucMap() {
     pointsGeo,
     routesGeo,
     bikeLanesGeo,
+    telegramUsersGeo,
     errorMessage,
     emptyMessage,
     loading,
@@ -173,6 +174,13 @@ export function EucMap() {
   useMapHover(map);
 
   useEffect(() => {
+    if (!selectedFeature || selectedFeature.properties.type !== 'telegramUser') return;
+    const freshFeature = getFeatureById('telegramUsers', selectedFeature.properties.id);
+    if (!freshFeature) return;
+    setSelectedFeature(freshFeature);
+  }, [selectedFeature, getFeatureById, telegramUsersGeo]);
+
+  useEffect(() => {
     if (!map || !isAddingPoint) return;
 
     const onMapClick = (event: { lngLat: { lng: number; lat: number } }) => {
@@ -254,12 +262,12 @@ export function EucMap() {
 
   useEffect(() => {
     applySelectionOpacityById(map, selectedFeatureState);
-  }, [map, selectedFeatureState, pointsGeo, routesGeo, bikeLanesGeo]);
+  }, [map, selectedFeatureState, pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo]);
 
   useEffect(() => {
     if (!map || !isMapReady) return;
     addLayersToMap(map);
-  }, [map, isMapReady, addLayersToMap, pointsGeo, routesGeo, bikeLanesGeo]);
+  }, [map, isMapReady, addLayersToMap, pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo]);
 
   useEffect(() => {
     if (!map) return;

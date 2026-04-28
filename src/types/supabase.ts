@@ -38,3 +38,26 @@ export interface MapRouteRow {
   description: string | null;
   coordinates: Array<[number, number] | [number, number, number]>; // [lon, lat] or [lon, lat, elevation]
 }
+
+export interface TelegramLocationRow {
+  id: string;
+  created_at: string;
+  chat_id: number;
+  chat_title: string | null;
+  telegram_user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  longitude: number;
+  latitude: number;
+}
+
+export interface TelegramProfileRow {
+  telegram_user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  updated_at: string;
+}

@@ -7,11 +7,11 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function isFeatureType(value: unknown): value is FeatureType {
-  return value === 'point' || value === 'socket' || value === 'route' || value === 'bikeLane';
+  return value === 'point' || value === 'socket' || value === 'route' || value === 'bikeLane' || value === 'telegramUser';
 }
 
 export function isLayerKey(value: unknown): value is LayerKey {
-  return value === 'points' || value === 'sockets' || value === 'routes' || value === 'bikeLanes';
+  return value === 'points' || value === 'sockets' || value === 'routes' || value === 'bikeLanes' || value === 'telegramUsers';
 }
 
 export function getLayerKeyById(layerId: string): LayerKey | null {

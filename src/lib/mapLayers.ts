@@ -101,6 +101,7 @@ export interface AddLayersOptions {
   pointsGeo: FeatureCollection | null;
   routesGeo: FeatureCollection | null;
   bikeLanesGeo: FeatureCollection | null;
+  telegramUsersGeo: FeatureCollection | null;
   socketsVisible: boolean;
 }
 
@@ -109,7 +110,7 @@ export interface AddLayersOptions {
  * Вызывать после загрузки стиля (style.load или после load).
  */
 export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void {
-  const { pointsGeo, routesGeo, bikeLanesGeo, socketsVisible } = options;
+  const { pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, socketsVisible } = options;
   // Стиль может быть ещё не загружен (mapbox-gl)
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getStyle() может быть undefined до load
   if (map.getStyle() === undefined) return;
@@ -129,6 +130,66 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
       'line-dasharray': [2, 1.5],
       'line-opacity': stateHighlight.opacity(),
     });
+  }
+  if (telegramUsersGeo?.features.length) {
+    if (!map.getSource(SOURCE_IDS.telegramUsers)) {
+      map.addSource(SOURCE_IDS.telegramUsers, {
+        type: 'geojson',
+        data: telegramUsersGeo,
+        promoteId: 'id',
+        lineMetrics: true,
+      });
+    } else {
+      (map.getSource(SOURCE_IDS.telegramUsers) as GeoJSONSource).setData(telegramUsersGeo);
+    }
+    if (!map.getLayer(LAYER_IDS.telegramTracks)) {
+      const lineLayer: LineLayerSpecification = {
+        id: LAYER_IDS.telegramTracks,
+        type: 'line',
+        source: SOURCE_IDS.telegramUsers,
+        filter: ['==', ['geometry-type'], 'LineString'],
+        paint: {
+          'line-width': stateHighlight.lineWidth(3, 4.2, 3.6),
+          'line-opacity': stateHighlight.opacity(),
+          'line-gradient': [
+            'interpolate',
+            ['linear'],
+            ['line-progress'],
+            0,
+            'rgba(20,184,166,0.05)',
+            0.35,
+            'rgba(20,184,166,0.25)',
+            1,
+            COLORS.telegramTrack,
+          ],
+        },
+      };
+      map.addLayer(lineLayer);
+    }
+    if (!map.getLayer(LAYER_IDS.telegramUsers)) {
+      const layer: CircleLayerSpecification = {
+        id: LAYER_IDS.telegramUsers,
+        type: 'circle',
+        source: SOURCE_IDS.telegramUsers,
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-radius': stateHighlight.circleRadius(7, 9, 12),
+          'circle-color': COLORS.telegramUser,
+          'circle-stroke-width': stateHighlight.circleStrokeWidth(2, 2.5, 4),
+          'circle-stroke-color': '#fff',
+          'circle-opacity': [
+            'interpolate',
+            ['linear'],
+            ['get', 'ageMinutes'],
+            0,
+            1,
+            10,
+            0.25,
+          ],
+        },
+      };
+      map.addLayer(layer);
+    }
   }
 
   // Затем точки и розетки (выше по z-index)

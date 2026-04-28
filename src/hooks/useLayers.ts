@@ -1,8 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { Feature, FeatureCollection, BikeLaneFeature } from '@/types/geojson';
 import type { VelojolSegment } from '@/types/velojol';
-import { fetchMapPoints, fetchMapRoutes } from '@/lib/supabase';
-import { mapPointsToFeatureCollection, mapRoutesToFeatureCollection } from '@/utils/supabaseToGeojson';
+import { fetchMapPoints, fetchMapRoutes, fetchTelegramLocations, supabase } from '@/lib/supabase';
+import {
+  mapPointsToFeatureCollection,
+  mapRoutesToFeatureCollection,
+  telegramLocationsToRecentTracksFeatureCollection,
+  telegramLocationsToUsersFeatureCollection,
+} from '@/utils/supabaseToGeojson';
 import { addLayersToMap as addLayersToMapImpl } from '@/lib/mapLayers';
 import { LAYER_IDS, type LayerKey } from '@/constants';
 import type { Map as MapboxMap } from 'mapbox-gl';
@@ -15,6 +20,7 @@ export interface LayerVisibility {
   sockets: boolean;
   routes: boolean;
   bikeLanes: boolean;
+  telegramUsers: boolean;
 }
 
 const STORAGE_KEY = 'map-euc-layer-visibility';
@@ -24,6 +30,7 @@ const DEFAULT_VISIBILITY: LayerVisibility = {
   sockets: true,
   routes: true,
   bikeLanes: true,
+  telegramUsers: true,
 };
 
 function loadStoredVisibility(): LayerVisibility {
@@ -37,6 +44,7 @@ function loadStoredVisibility(): LayerVisibility {
       sockets: typeof source.sockets === 'boolean' ? source.sockets : DEFAULT_VISIBILITY.sockets,
       routes: typeof source.routes === 'boolean' ? source.routes : DEFAULT_VISIBILITY.routes,
       bikeLanes: typeof source.bikeLanes === 'boolean' ? source.bikeLanes : DEFAULT_VISIBILITY.bikeLanes,
+      telegramUsers: typeof source.telegramUsers === 'boolean' ? source.telegramUsers : DEFAULT_VISIBILITY.telegramUsers,
     };
   } catch {
     return DEFAULT_VISIBILITY;
@@ -69,10 +77,25 @@ export function useLayers() {
   const [pointsGeo, setPointsGeo] = useState<FeatureCollection | null>(null);
   const [routesGeo, setRoutesGeo] = useState<FeatureCollection | null>(null);
   const [bikeLanesGeo, setBikeLanesGeo] = useState<FeatureCollection | null>(null);
+  const [telegramUsersGeo, setTelegramUsersGeo] = useState<FeatureCollection | null>(null);
   const [visibility, setVisibility] = useState<LayerVisibility>(loadStoredVisibility);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
+
+  const refreshTelegramUsers = useCallback(async () => {
+    try {
+      const rows = await fetchTelegramLocations();
+      const pointsGeo = telegramLocationsToUsersFeatureCollection(rows);
+      const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(rows);
+      setTelegramUsersGeo({
+        type: 'FeatureCollection',
+        features: [...tracksGeo.features, ...pointsGeo.features],
+      });
+    } catch (error) {
+      console.error('Realtime refresh telegram users failed:', error);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,9 +103,10 @@ export function useLayers() {
     setErrorMessage(null);
     setEmptyMessage(null);
     void (async () => {
-      const [pointsResult, routesResult, bikeLanesModule] = await Promise.allSettled([
+      const [pointsResult, routesResult, telegramLocationsResult, bikeLanesModule] = await Promise.allSettled([
         fetchMapPoints(),
         fetchMapRoutes(),
+        fetchTelegramLocations(),
         import('@/data/almaty.json'),
       ]);
       if (cancelled) return;
@@ -97,6 +121,17 @@ export function useLayers() {
         setRoutesGeo(mapRoutesToFeatureCollection(routesResult.value));
       } else {
         setRoutesGeo(null);
+      }
+
+      if (telegramLocationsResult.status === 'fulfilled') {
+        const pointsGeo = telegramLocationsToUsersFeatureCollection(telegramLocationsResult.value);
+        const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(telegramLocationsResult.value);
+        setTelegramUsersGeo({
+          type: 'FeatureCollection',
+          features: [...tracksGeo.features, ...pointsGeo.features],
+        });
+      } else {
+        setTelegramUsersGeo(null);
       }
 
       if (bikeLanesModule.status === 'fulfilled') {
@@ -122,12 +157,21 @@ export function useLayers() {
         const msg = routesResult.reason instanceof Error ? routesResult.reason.message : 'Не удалось загрузить маршруты.';
         errors.push(msg);
       }
+      if (telegramLocationsResult.status === 'rejected') {
+        const msg =
+          telegramLocationsResult.reason instanceof Error
+            ? telegramLocationsResult.reason.message
+            : 'Не удалось загрузить Telegram-участников.';
+        errors.push(msg);
+      }
       if (errors.length > 0) setErrorMessage(errors.join(' '));
 
       const pointsCount = pointsResult.status === 'fulfilled' ? pointsResult.value.length : 0;
       const routesCount = routesResult.status === 'fulfilled' ? routesResult.value.length : 0;
-      if (pointsCount + routesCount === 0) {
-        setEmptyMessage('Пока нет опубликованных точек и маршрутов.');
+      const telegramPointsCount =
+        telegramLocationsResult.status === 'fulfilled' ? telegramLocationsResult.value.length : 0;
+      if (pointsCount + routesCount + telegramPointsCount === 0) {
+        setEmptyMessage('Пока нет опубликованных точек, маршрутов и Telegram-локаций.');
       }
       setLoading(false);
     })();
@@ -135,6 +179,43 @@ export function useLayers() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const supabaseClient = supabase;
+
+    let refreshTimerId: number | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimerId !== null) {
+        window.clearTimeout(refreshTimerId);
+      }
+      // Немного дебаунсим, чтобы пачка апдейтов не вызывала лишние запросы.
+      refreshTimerId = window.setTimeout(() => {
+        void refreshTelegramUsers();
+      }, 300);
+    };
+
+    const channel = supabaseClient
+      .channel('telegram-live-points')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'telegram_locations' },
+        scheduleRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'telegram_profiles' },
+        scheduleRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimerId !== null) {
+        window.clearTimeout(refreshTimerId);
+      }
+      void supabaseClient.removeChannel(channel);
+    };
+  }, [refreshTelegramUsers]);
 
   const pointsById = useMemo(() => {
     const map = new Map<string, Feature>();
@@ -164,6 +245,15 @@ export function useLayers() {
     return map;
   }, [bikeLanesGeo]);
 
+  const telegramUsersById = useMemo(() => {
+    const map = new Map<string, Feature>();
+    for (const feature of telegramUsersGeo?.features ?? []) {
+      const id = getFeatureId(feature);
+      map.set(id, feature);
+    }
+    return map;
+  }, [telegramUsersGeo]);
+
   const toggleLayer = useCallback((layer: LayerKey) => {
     setVisibility((v) => {
       const next = { ...v, [layer]: !v[layer] };
@@ -182,10 +272,11 @@ export function useLayers() {
         pointsGeo,
         routesGeo,
         bikeLanesGeo,
+        telegramUsersGeo,
         socketsVisible: visibility.sockets,
       });
     },
-    [pointsGeo, routesGeo, bikeLanesGeo, visibility.sockets]
+    [pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility.sockets]
   );
 
   const applyVisibility = useCallback(
@@ -200,6 +291,8 @@ export function useLayers() {
       setVis(LAYER_IDS.sockets, visibility.sockets);
       setVis(LAYER_IDS.routes, visibility.routes);
       setVis(LAYER_IDS.bikeLanes, visibility.bikeLanes);
+      setVis(LAYER_IDS.telegramUsers, visibility.telegramUsers);
+      setVis(LAYER_IDS.telegramTracks, visibility.telegramUsers);
     },
     [visibility]
   );
@@ -210,15 +303,17 @@ export function useLayers() {
       if (layer === 'points') return pointsById.get(`point:${idNorm}`) ?? null;
       if (layer === 'sockets') return pointsById.get(`socket:${idNorm}`) ?? null;
       if (layer === 'routes') return routesById.get(idNorm) ?? null;
-      return bikeLanesById.get(idNorm) ?? null;
+      if (layer === 'bikeLanes') return bikeLanesById.get(idNorm) ?? null;
+      return telegramUsersById.get(idNorm) ?? null;
     },
-    [pointsById, routesById, bikeLanesById]
+    [pointsById, routesById, bikeLanesById, telegramUsersById]
   );
 
   return {
     pointsGeo,
     routesGeo,
     bikeLanesGeo,
+    telegramUsersGeo,
     visibility,
     loading,
     errorMessage,

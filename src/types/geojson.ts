@@ -14,7 +14,7 @@ export interface LineString {
 
 export type Geometry = Point | LineString;
 
-export type FeatureType = 'point' | 'socket' | 'route' | 'bikeLane';
+export type FeatureType = 'point' | 'socket' | 'route' | 'bikeLane' | 'telegramUser';
 
 interface BaseFeatureProperties {
   id: string;
@@ -54,11 +54,23 @@ export interface BikeLaneProperties extends BaseFeatureProperties {
   safetyLevel?: number;
 }
 
+export interface TelegramUserProperties extends BaseFeatureProperties {
+  type: 'telegramUser';
+  telegramUserId: number;
+  username?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  updatedAt: string;
+  ageMinutes?: number;
+  avatarUrl?: string;
+}
+
 export type FeatureProperties =
   | PointProperties
   | SocketProperties
   | RouteProperties
-  | BikeLaneProperties;
+  | BikeLaneProperties
+  | TelegramUserProperties;
 
 export interface Feature<
   G extends Geometry = Geometry,
@@ -77,7 +89,7 @@ export interface FeatureCollection<
   features: Array<Feature<G, P>>;
 }
 
-export type PointFeature = Feature<Point, PointProperties | SocketProperties>;
+export type PointFeature = Feature<Point, PointProperties | SocketProperties | TelegramUserProperties>;
 export type RouteFeature = Feature<LineString, RouteProperties>;
 export type BikeLaneFeature = Feature<LineString, BikeLaneProperties>;
 export type LineStringFeature = RouteFeature | BikeLaneFeature;

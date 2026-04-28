@@ -2,31 +2,22 @@
 
 Карта точек, розеток и маршрутов для моноколёс в Алматы.
 
-## Тест на телефоне через Valet
+## Telegram-бот: сбор геопозиций в Supabase
 
-1. **Свяжите проект с Valet** (из родительского каталога):
+Реализован webhook через Edge Function `telegram-location-bot`: он принимает `update` от Telegram и сохраняет сообщения с `location` в таблицу `telegram_locations`.
+1. Задайте секреты для функции:
    ```bash
-   valet link map.euc
+   supabase secrets set TELEGRAM_BOT_TOKEN=<bot_token> TELEGRAM_WEBHOOK_SECRET=<random_secret>
+   ```
+2. Задеплойте функцию:
+   ```bash
+   supabase functions deploy telegram-location-bot --no-verify-jwt
+   ```
+3. Подключите webhook у бота:
+   ```bash
+   curl -X POST "https://api.telegram.org/bot<bot_token>/setWebhook" \
+     -H "Content-Type: application/json" \
+     -d '{"url":"https://sbfnottcjbbgoucfwbzs.supabase.co/functions/v1/telegram-location-bot/<bot_token>","secret_token":"<random_secret>"}'
    ```
 
-2. **Настройте прокси** на Vite (порт 5173):
-   ```bash
-   valet proxy map.euc.test http://127.0.0.1:5173
-   ```
-
-3. **Запустите dev-сервер**:
-   ```bash
-   npm run dev
-   ```
-
-4. **Включите общий доступ** (в другом терминале):
-   ```bash
-   valet share
-   ```
-   Откройте выданную ссылку (ngrok) на телефоне.
-
-Отключить прокси: `valet unproxy map.euc.test`.
-
-## Если сайт не обновляется (осталась старая версия)
-
-После перехода с PWA у части пользователей мог закешироваться старый сервис-воркер (он был зарегистрирован по `/sw.js`). При проверке обновлений браузер запрашивает этот URL без кеша, поэтому мы отдаём по `/sw.js` скрипт очистки: при следующем заходе или перезагрузке страницы браузер подхватит его как новую версию SW, активирует — кеши и регистрация сбросятся автоматически.
+После этого любые сообщения с геопозицией в чате, где есть бот, будут попадать в `telegram_locations`.

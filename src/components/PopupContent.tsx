@@ -18,6 +18,9 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
   const photos = feature.properties.type === 'point' || feature.properties.type === 'socket'
     ? feature.properties.photos ?? []
     : [];
+  const telegramAvatarUrl = feature.properties.type === 'telegramUser'
+    ? feature.properties.avatarUrl
+    : null;
   const isMeeting = type === 'point' ? feature.properties.isMeeting : false;
   const hasSocket = type === 'point' ? feature.properties.hasSocket === true : false;
   const typeLabel =
@@ -25,6 +28,22 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
   const typeColor = COLORS[type];
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const activePhoto = lightboxIndex !== null ? photos[lightboxIndex] : null;
+  const [nowTs, setNowTs] = useState(() => Date.now());
+
+  const humanizeRelativeTime = (isoDate: string): string => {
+    const timestamp = Date.parse(isoDate);
+    if (!Number.isFinite(timestamp)) return 'только что';
+    const diffMs = Math.max(0, nowTs - timestamp);
+    const sec = Math.floor(diffMs / 1000);
+    if (sec < 5) return 'только что';
+    if (sec < 60) return `${String(sec)} сек назад`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${String(min)} мин назад`;
+    const hours = Math.floor(min / 60);
+    if (hours < 24) return `${String(hours)} ч назад`;
+    const days = Math.floor(hours / 24);
+    return `${String(days)} дн назад`;
+  };
 
   useEffect(() => {
     if (lightboxIndex === null) return;
@@ -50,6 +69,16 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [lightboxIndex, photos.length]);
 
+  useEffect(() => {
+    if (feature.properties.type !== 'telegramUser') return;
+    const id = window.setInterval(() => {
+      setNowTs(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [feature.properties.type]);
+
   let stats: { distanceKm: number; ascentM: number; descentM: number } | null = null;
   if (isRouteFeature(feature)) {
     const s = computeRouteStats(feature);
@@ -72,6 +101,14 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
         <h3 className="font-semibold text-neutral-900 mt-2 text-[15px]">
           {name || 'Без названия'}
         </h3>
+        {telegramAvatarUrl && (
+          <img
+            src={telegramAvatarUrl}
+            alt={`Аватар ${name || 'пользователя'}`}
+            className="mt-2 h-12 w-12 rounded-full border border-neutral-200 bg-neutral-50 object-cover"
+            loading="lazy"
+          />
+        )}
         {hasSocket && (
           <span className="mt-1.5 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
             Можно зарядиться
@@ -79,6 +116,11 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
         )}
         {description && (
           <p className="text-xs text-neutral-600 mt-1.5" dangerouslySetInnerHTML={{ __html: typograf.execute(description) }} />
+        )}
+        {feature.properties.type === 'telegramUser' && (
+          <p className="text-xs text-neutral-500 mt-1">
+            Последняя гео: {humanizeRelativeTime(feature.properties.updatedAt)}
+          </p>
         )}
         {photos.length > 0 && (
           <div className="mt-3 -mx-2 px-2 overflow-x-auto">

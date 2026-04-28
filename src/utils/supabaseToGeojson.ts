@@ -1,5 +1,5 @@
-import type { FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
-import type { MapPointRow, MapRouteRow } from '@/types/supabase';
+import type { Feature, FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
+import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supabase';
 
 function isPointCoordinates(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number';
@@ -65,4 +65,123 @@ export function mapRoutesToFeatureCollection(rows: MapRouteRow[]): FeatureCollec
     },
   }));
   return { type: 'FeatureCollection', features };
+}
+
+function buildTelegramDisplayName(row: TelegramLocationRow): string {
+  if (row.username) return `@${row.username}`;
+  const fullName = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
+  if (fullName.length > 0) return fullName;
+  return `Пользователь ${String(row.telegram_user_id)}`;
+}
+
+function buildTelegramAvatarUrl(row: TelegramLocationRow): string {
+  if (row.avatar_url) return row.avatar_url;
+  const seed = row.username ?? `${row.telegram_user_id}`;
+  return `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}`;
+}
+
+export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocationRow[]): FeatureCollection {
+  if (rows.length === 0) {
+    return { type: 'FeatureCollection', features: [] };
+  }
+
+  const pointsTtlMs = 15 * 60 * 1000;
+  const nowTs = Date.now();
+  const latestByUser = new Map<number, TelegramLocationRow>();
+  for (const row of rows) {
+    const existing = latestByUser.get(row.telegram_user_id);
+    if (!existing || existing.created_at < row.created_at) {
+      latestByUser.set(row.telegram_user_id, row);
+    }
+  }
+
+  const features: PointFeature[] = Array.from(latestByUser.values())
+    .filter((row) => {
+      const ts = Date.parse(row.created_at);
+      return Number.isFinite(ts) && nowTs - ts <= pointsTtlMs;
+    })
+    .map((row) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [row.longitude, row.latitude],
+      },
+      properties: {
+        id: `telegram-user-${String(row.telegram_user_id)}`,
+        name: buildTelegramDisplayName(row),
+        description: row.chat_title
+          ? `Чат: ${row.chat_title}`
+          : `Чат ID: ${String(row.chat_id)}`,
+        type: 'telegramUser',
+        telegramUserId: row.telegram_user_id,
+        username: row.username,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        updatedAt: row.created_at,
+        ageMinutes: Math.max(0, (nowTs - Date.parse(row.created_at)) / 60000),
+        avatarUrl: buildTelegramAvatarUrl(row),
+      },
+    }));
+
+  return {
+    type: 'FeatureCollection',
+    features,
+  };
+}
+
+export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramLocationRow[]): FeatureCollection {
+  if (rows.length === 0) {
+    return { type: 'FeatureCollection', features: [] };
+  }
+
+  const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+  const byUser = new Map<number, TelegramLocationRow[]>();
+
+  for (const row of rows) {
+    const timestamp = Date.parse(row.created_at);
+    if (!Number.isFinite(timestamp) || timestamp < tenMinutesAgo) {
+      continue;
+    }
+    const bucket = byUser.get(row.telegram_user_id);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      byUser.set(row.telegram_user_id, [row]);
+    }
+  }
+
+  const features: Feature[] = [];
+  for (const [telegramUserId, userRows] of byUser) {
+    const sorted = [...userRows].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    if (sorted.length < 2) continue;
+
+    const lastPoint = sorted[sorted.length - 1];
+    const displayName = buildTelegramDisplayName(lastPoint);
+    const avatarUrl = buildTelegramAvatarUrl(lastPoint);
+
+    features.push({
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: sorted.map((point) => [point.longitude, point.latitude] as [number, number]),
+      },
+      properties: {
+        id: `telegram-track-${String(telegramUserId)}`,
+        name: `Трек ${displayName}`,
+        description: `Маршрут за последние 10 минут (${String(sorted.length)} точек).`,
+        type: 'telegramUser',
+        telegramUserId,
+        username: lastPoint.username,
+        firstName: lastPoint.first_name,
+        lastName: lastPoint.last_name,
+        updatedAt: lastPoint.created_at,
+        avatarUrl,
+      },
+    });
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features,
+  };
 }

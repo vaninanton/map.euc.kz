@@ -56,4 +56,33 @@ export function applySelectionOpacityById(
       buildSelectionOpacityExpression(LAYER_ID_TO_SOURCE[LAYER_IDS.bikeLanes], selected)
     );
   }
+  if (map.getLayer(LAYER_IDS.telegramTracks)) {
+    map.setPaintProperty(
+      LAYER_IDS.telegramTracks,
+      'line-opacity',
+      buildSelectionOpacityExpression(LAYER_ID_TO_SOURCE[LAYER_IDS.telegramTracks], selected)
+    );
+  }
+  if (map.getLayer(LAYER_IDS.telegramUsers)) {
+    map.setPaintProperty(
+      LAYER_IDS.telegramUsers,
+      'circle-opacity',
+      selected && selected.sourceId === LAYER_ID_TO_SOURCE[LAYER_IDS.telegramUsers]
+        ? [
+            'case',
+            ['==', ['id'], selected.id],
+            1,
+            0.18,
+          ]
+        : [
+            'interpolate',
+            ['linear'],
+            ['get', 'ageMinutes'],
+            0,
+            1,
+            10,
+            0.25,
+          ]
+    );
+  }
 }

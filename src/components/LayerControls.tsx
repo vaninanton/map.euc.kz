@@ -17,6 +17,7 @@ const LABELS: Record<LayerKey, string> = {
   sockets: 'Розетки',
   routes: 'Маршруты',
   bikeLanes: 'Велодорожки',
+  telegramUsers: 'Гео из чатов',
 };
 
 const ROW_COLORS: Record<LayerKey, string> = {
@@ -24,9 +25,10 @@ const ROW_COLORS: Record<LayerKey, string> = {
   sockets: COLORS.socket,
   routes: COLORS.route,
   bikeLanes: COLORS.bikeLane,
+  telegramUsers: COLORS.telegramUser,
 };
 
-const LAYER_ORDER: LayerKey[] = ['points', 'routes', 'bikeLanes', 'sockets'];
+const LAYER_ORDER: LayerKey[] = ['points', 'routes', 'telegramUsers', 'bikeLanes', 'sockets'];
 
 export function LayerControls({
   visibility,

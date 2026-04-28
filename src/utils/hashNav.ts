@@ -10,6 +10,7 @@ const NORMALIZED_TYPE: Record<string, HashFeatureType> = {
   socket: 'socket',
   route: 'route',
   bikelane: 'bikeLane',
+  telegramuser: 'telegramUser',
 };
 
 /** Соответствие ключа слоя и типа в hash. */
@@ -18,6 +19,7 @@ export const LAYER_KEY_TO_HASH_TYPE: Record<LayerKey, HashFeatureType> = {
   sockets: 'socket',
   routes: 'route',
   bikeLanes: 'bikeLane',
+  telegramUsers: 'telegramUser',
 };
 
 /** Обратное соответствие: тип в hash → ключ слоя (для getFeatureById). */
@@ -26,11 +28,12 @@ export const HASH_TYPE_TO_LAYER_KEY: Record<HashFeatureType, LayerKey> = {
   socket: 'sockets',
   route: 'routes',
   bikeLane: 'bikeLanes',
+  telegramUser: 'telegramUsers',
 };
 
 /**
  * Парсит текущий hash или переданную строку.
- * Формат: #point=11, #route=123, #socket=5, #bikeLane=alm84
+ * Формат: #point=11, #route=123, #socket=5, #bikeLane=alm84, #telegramUser=777
  */
 export function parseHash(hashOrEmpty?: string): { type: HashFeatureType; id: string } | null {
   const raw = hashOrEmpty ?? (typeof window === 'undefined' ? '' : window.location.hash.slice(1));

@@ -37,7 +37,7 @@ export function useMapClick(
       if (!existingLayers.length) return;
       let features = map.queryRenderedFeatures(e.point, { layers: existingLayers });
       if (!features.length && isTouchDevice) {
-        const lineLayers = [LAYER_IDS.routes, LAYER_IDS.bikeLanes].filter((id) => map.getLayer(id));
+        const lineLayers = [LAYER_IDS.routes, LAYER_IDS.bikeLanes, LAYER_IDS.telegramTracks].filter((id) => map.getLayer(id));
         if (lineLayers.length) {
           const hitBox: [[number, number], [number, number]] = [
             [e.point.x - touchLineHitPaddingPx, e.point.y - touchLineHitPaddingPx],
