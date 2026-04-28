@@ -33,7 +33,7 @@ export function mapPointsToFeatureCollection(
       name: row.title,
       description: row.description ?? undefined,
       type: row.type,
-      ...(row.is_meeting === true && { isMeeting: true }),
+      ...(row.flag_is_meeting === true && { isMeeting: true }),
     },
   }));
   return { type: 'FeatureCollection', features };

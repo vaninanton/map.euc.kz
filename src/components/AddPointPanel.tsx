@@ -49,7 +49,7 @@ export function AddPointPanel({
       title: titleTrimmed,
       description: description.trim() || null,
       coordinates,
-      is_meeting: type === 'point' ? isMeeting : false,
+      flag_is_meeting: type === 'point' ? isMeeting : false,
     });
   };
 

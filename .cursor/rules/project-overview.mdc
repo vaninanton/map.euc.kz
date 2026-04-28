@@ -27,7 +27,7 @@ alwaysApply: true
 
 ## Окружение
 
-- `VITE_MAPBOX_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` — см. `.env.example`
+- `VITE_MAPBOX_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` — см. `.env.example`
 - Локальный тест: Valet proxy на `map.euc.test` → `127.0.0.1:5173`
 
 ## Язык

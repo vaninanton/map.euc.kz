@@ -6,7 +6,7 @@ export interface MapPointRow {
   id: string;
   type: MapPointType;
   /** Точка — место встречи. */
-  is_meeting?: boolean | null;
+  flag_is_meeting?: boolean | null;
   title: string;
   description: string | null;
   coordinates: [number, number]; // [lon, lat]
@@ -14,7 +14,7 @@ export interface MapPointRow {
 
 export interface MapPointDraftInput {
   type: MapPointType;
-  is_meeting?: boolean | null;
+  flag_is_meeting?: boolean | null;
   title: string;
   description: string | null;
   coordinates: [number, number];

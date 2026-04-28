@@ -3,7 +3,7 @@ import type { MapPointDraftInput, MapPointRow, MapRouteRow } from '@/types';
 import { isRecord } from '@/utils/mapFeatureGuards';
 
 const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
-const key: string | undefined = import.meta.env.VITE_SUPABASE_KEY;
+const key: string | undefined = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!url || !key) {
   console.warn('Supabase URL or key missing. Map data will be empty.');
@@ -41,7 +41,7 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
   const title = row.title;
   const description = row.description;
   const coordinates = asPointCoordinates(row.coordinates);
-  const isMeeting = row.is_meeting;
+  const isMeeting = row.flag_is_meeting;
   if ((typeof id !== 'string' && typeof id !== 'number') || (type !== 'point' && type !== 'socket') || typeof title !== 'string' || !coordinates) {
     return null;
   }
@@ -51,7 +51,7 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
     title,
     description: typeof description === 'string' ? description : null,
     coordinates,
-    is_meeting: typeof isMeeting === 'boolean' ? isMeeting : null,
+    flag_is_meeting: typeof isMeeting === 'boolean' ? isMeeting : null,
   };
 }
 
@@ -74,12 +74,12 @@ function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
 
 export async function fetchMapPoints(): Promise<MapPointRow[]> {
   if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_KEY.');
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
   }
 
   const { data, error } = await supabase
     .from('map_points')
-    .select('id, type, title, description, coordinates, is_meeting')
+    .select('id, type, title, description, coordinates, flag_is_meeting')
     .eq('flag_disabled', false);
 
   if (error) {
@@ -97,7 +97,7 @@ export async function fetchMapPoints(): Promise<MapPointRow[]> {
 
 export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
   if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_KEY.');
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
   }
 
   const { data, error } = await supabase
@@ -120,7 +120,7 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
 
 export async function createMapPointDraft(input: MapPointDraftInput): Promise<void> {
   if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_KEY.');
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
   }
 
   const { error } = await supabase.from('map_points_submissions').insert({
@@ -128,7 +128,7 @@ export async function createMapPointDraft(input: MapPointDraftInput): Promise<vo
     title: input.title,
     description: input.description,
     coordinates: input.coordinates,
-    is_meeting: input.type === 'point' ? Boolean(input.is_meeting) : false,
+    flag_is_meeting: input.type === 'point' ? Boolean(input.flag_is_meeting) : false,
   });
 
   if (error) {
