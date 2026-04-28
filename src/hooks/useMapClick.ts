@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
-import { CLICKABLE_LAYER_IDS } from '@/constants';
+import { CLICKABLE_LAYER_IDS, LAYER_IDS } from '@/constants';
 import { LAYER_KEY_TO_HASH_TYPE } from '@/utils/hashNav';
 import type { Feature } from '@/types/geojson';
 import type { LayerKey } from '@/constants';
@@ -27,10 +27,25 @@ export function useMapClick(
   useEffect(() => {
     if (!map || !enabled) return;
 
+    const isTouchDevice =
+      typeof window !== 'undefined' &&
+      (window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window);
+    const touchLineHitPaddingPx = 12;
+
     const handleClick = (e: MapMouseEvent) => {
       const existingLayers = CLICKABLE_LAYER_IDS.filter((id) => map.getLayer(id));
       if (!existingLayers.length) return;
-      const features = map.queryRenderedFeatures(e.point, { layers: existingLayers });
+      let features = map.queryRenderedFeatures(e.point, { layers: existingLayers });
+      if (!features.length && isTouchDevice) {
+        const lineLayers = [LAYER_IDS.routes, LAYER_IDS.bikeLanes].filter((id) => map.getLayer(id));
+        if (lineLayers.length) {
+          const hitBox: [[number, number], [number, number]] = [
+            [e.point.x - touchLineHitPaddingPx, e.point.y - touchLineHitPaddingPx],
+            [e.point.x + touchLineHitPaddingPx, e.point.y + touchLineHitPaddingPx],
+          ];
+          features = map.queryRenderedFeatures(hitBox, { layers: lineLayers });
+        }
+      }
       if (!features.length) return;
       const f = features[0];
       const layerId = f.layer?.id;
