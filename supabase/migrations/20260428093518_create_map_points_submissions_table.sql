@@ -11,6 +11,7 @@ CREATE TABLE map_points_submissions (
     processed_at timestamp with time zone,
     type point_types NOT NULL,
     title text NOT NULL,
+    description text,
     coordinates jsonb NOT NULL,
     flag_is_meeting boolean DEFAULT false NOT NULL,
     status submission_status DEFAULT 'pending'::submission_status NOT NULL,
