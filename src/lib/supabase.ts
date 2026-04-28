@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { MapPointDraftInput, MapPointRow, MapRouteRow } from '@/types';
+import type { MapPointDraftInput, MapPointRow, MapRouteRow, MapPointPhotoRow } from '@/types';
 import { isRecord } from '@/utils/mapFeatureGuards';
 
 const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
@@ -43,6 +43,7 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
   const coordinates = asPointCoordinates(row.coordinates);
   const isMeeting = row.flag_is_meeting;
   const hasSocket = row.flag_has_socket;
+  const photos = normalizeMapPointPhotos(row.map_point_photos);
   if ((typeof id !== 'string' && typeof id !== 'number') || (type !== 'point' && type !== 'socket') || typeof title !== 'string' || !coordinates) {
     return null;
   }
@@ -54,7 +55,53 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
     coordinates,
     flag_is_meeting: typeof isMeeting === 'boolean' ? isMeeting : null,
     flag_has_socket: typeof hasSocket === 'boolean' ? hasSocket : null,
+    photos,
   };
+}
+
+function normalizeMapPointPhotos(value: unknown): MapPointPhotoRow[] {
+  if (!Array.isArray(value)) return [];
+  const items: MapPointPhotoRow[] = [];
+
+  for (const row of value) {
+    if (!isRecord(row)) continue;
+    const id = row.id;
+    const bucketName = row.bucket_name;
+    const storagePath = row.storage_path;
+    const altText = row.alt_text;
+    const sortOrder = row.sort_order;
+
+    if (
+      (typeof id !== 'string' && typeof id !== 'number') ||
+      typeof bucketName !== 'string' ||
+      typeof storagePath !== 'string'
+    ) {
+      continue;
+    }
+
+    const fallbackPublicUrl =
+      typeof url === 'string'
+        ? `${url}/storage/v1/object/public/${encodeURIComponent(bucketName)}/${storagePath
+            .split('/')
+            .map((part) => encodeURIComponent(part))
+            .join('/')}`
+        : '';
+    const publicUrl = supabase
+      ? supabase.storage.from(bucketName).getPublicUrl(storagePath).data.publicUrl
+      : fallbackPublicUrl;
+
+    items.push({
+      id: String(id),
+      bucket_name: bucketName,
+      storage_path: storagePath,
+      alt_text: typeof altText === 'string' ? altText : null,
+      sort_order: typeof sortOrder === 'number' && Number.isFinite(sortOrder) ? sortOrder : 0,
+      public_url: publicUrl,
+    });
+  }
+
+  items.sort((a, b) => a.sort_order - b.sort_order);
+  return items;
 }
 
 function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
@@ -81,7 +128,7 @@ export async function fetchMapPoints(): Promise<MapPointRow[]> {
 
   const { data, error } = await supabase
     .from('map_points')
-    .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket')
+    .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket, map_point_photos(id, bucket_name, storage_path, alt_text, sort_order)')
     .eq('flag_disabled', false);
 
   if (error) {

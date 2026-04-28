@@ -33,6 +33,14 @@ export function mapPointsToFeatureCollection(
       name: row.title,
       description: row.description ?? undefined,
       type: row.type,
+      ...(row.photos.length > 0 && {
+        photos: row.photos.map((photo) => ({
+          id: photo.id,
+          url: photo.public_url,
+          alt: photo.alt_text,
+          sortOrder: photo.sort_order,
+        })),
+      }),
       ...(row.flag_is_meeting === true && { isMeeting: true }),
       ...(row.flag_has_socket === true && { hasSocket: true }),
     },

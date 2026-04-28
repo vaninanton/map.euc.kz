@@ -22,16 +22,25 @@ interface BaseFeatureProperties {
   description?: string | null;
 }
 
+export interface PointPhoto {
+  id: string;
+  url: string;
+  alt?: string | null;
+  sortOrder: number;
+}
+
 export interface PointProperties extends BaseFeatureProperties {
   type: 'point';
   /** Точка — место встречи. */
   isMeeting?: boolean;
   /** Для точки доступна зарядка. */
   hasSocket?: boolean;
+  photos?: PointPhoto[];
 }
 
 export interface SocketProperties extends BaseFeatureProperties {
   type: 'socket';
+  photos?: PointPhoto[];
 }
 
 export interface RouteProperties extends BaseFeatureProperties {

@@ -2,6 +2,15 @@
 
 export type MapPointType = 'point' | 'socket';
 
+export interface MapPointPhotoRow {
+  id: string;
+  bucket_name: string;
+  storage_path: string;
+  alt_text: string | null;
+  sort_order: number;
+  public_url: string;
+}
+
 export interface MapPointRow {
   id: string;
   type: MapPointType;
@@ -12,6 +21,7 @@ export interface MapPointRow {
   title: string;
   description: string | null;
   coordinates: [number, number]; // [lon, lat]
+  photos: MapPointPhotoRow[];
 }
 
 export interface MapPointDraftInput {
