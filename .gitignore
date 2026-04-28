@@ -14,6 +14,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!supabase/seed.sql
 !supabase/migrations/*.sql
 
 # Test coverage
