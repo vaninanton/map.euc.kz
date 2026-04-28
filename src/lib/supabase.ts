@@ -42,6 +42,7 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
   const description = row.description;
   const coordinates = asPointCoordinates(row.coordinates);
   const isMeeting = row.flag_is_meeting;
+  const hasSocket = row.flag_has_socket;
   if ((typeof id !== 'string' && typeof id !== 'number') || (type !== 'point' && type !== 'socket') || typeof title !== 'string' || !coordinates) {
     return null;
   }
@@ -52,6 +53,7 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
     description: typeof description === 'string' ? description : null,
     coordinates,
     flag_is_meeting: typeof isMeeting === 'boolean' ? isMeeting : null,
+    flag_has_socket: typeof hasSocket === 'boolean' ? hasSocket : null,
   };
 }
 
@@ -79,7 +81,7 @@ export async function fetchMapPoints(): Promise<MapPointRow[]> {
 
   const { data, error } = await supabase
     .from('map_points')
-    .select('id, type, title, description, coordinates, flag_is_meeting')
+    .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket')
     .eq('flag_disabled', false);
 
   if (error) {

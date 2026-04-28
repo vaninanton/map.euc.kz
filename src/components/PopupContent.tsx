@@ -15,6 +15,7 @@ interface PopupContentProps {
 export function PopupContent({ feature, onCopied }: PopupContentProps) {
   const { type, name, description } = feature.properties;
   const isMeeting = type === 'point' ? feature.properties.isMeeting : false;
+  const hasSocket = type === 'point' ? feature.properties.hasSocket === true : false;
   const typeLabel =
     type === 'point' && isMeeting ? POINT_FLAG_LABELS.meeting : FEATURE_TYPE_LABELS[type];
   const typeColor = COLORS[type];
@@ -41,6 +42,11 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
         <h3 className="font-semibold text-neutral-900 mt-2 text-[15px]">
           {name || 'Без названия'}
         </h3>
+        {hasSocket && (
+          <span className="mt-1.5 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+            Можно зарядиться
+          </span>
+        )}
         {description && (
           <p className="text-xs text-neutral-600 mt-1.5" dangerouslySetInnerHTML={{ __html: typograf.execute(description) }} />
         )}

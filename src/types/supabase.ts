@@ -7,6 +7,8 @@ export interface MapPointRow {
   type: MapPointType;
   /** Точка — место встречи. */
   flag_is_meeting?: boolean | null;
+  /** Для точки доступна зарядка. */
+  flag_has_socket?: boolean | null;
   title: string;
   description: string | null;
   coordinates: [number, number]; // [lon, lat]

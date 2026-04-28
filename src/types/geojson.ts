@@ -26,6 +26,8 @@ export interface PointProperties extends BaseFeatureProperties {
   type: 'point';
   /** Точка — место встречи. */
   isMeeting?: boolean;
+  /** Для точки доступна зарядка. */
+  hasSocket?: boolean;
 }
 
 export interface SocketProperties extends BaseFeatureProperties {

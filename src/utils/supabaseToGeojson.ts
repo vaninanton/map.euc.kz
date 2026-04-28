@@ -34,6 +34,7 @@ export function mapPointsToFeatureCollection(
       description: row.description ?? undefined,
       type: row.type,
       ...(row.flag_is_meeting === true && { isMeeting: true }),
+      ...(row.flag_has_socket === true && { hasSocket: true }),
     },
   }));
   return { type: 'FeatureCollection', features };
