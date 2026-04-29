@@ -39,9 +39,15 @@ export function useMapClick(
     };
 
     const handleClick = (e: MapMouseEvent) => {
+      if (!existingLayers.length) {
+        refreshActiveLayers();
+      }
       if (!existingLayers.length) return;
       let features = map.queryRenderedFeatures(e.point, { layers: existingLayers });
       if (!features.length && isTouchDevice) {
+        if (!lineLayers.length) {
+          refreshActiveLayers();
+        }
         if (lineLayers.length) {
           const hitBox: [[number, number], [number, number]] = [
             [e.point.x - touchLineHitPaddingPx, e.point.y - touchLineHitPaddingPx],
@@ -69,9 +75,11 @@ export function useMapClick(
 
     map.on('click', handleClick);
     map.on('style.load', refreshActiveLayers);
+    map.on('idle', refreshActiveLayers);
     return () => {
       map.off('click', handleClick);
       map.off('style.load', refreshActiveLayers);
+      map.off('idle', refreshActiveLayers);
     };
   }, [map, enabled, getFeatureById, onFeatureSelect, setHash]);
 }

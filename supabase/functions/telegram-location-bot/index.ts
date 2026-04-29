@@ -45,6 +45,37 @@ type TelegramProfileRow = {
     avatar_url: string | null
 }
 
+type TelegramApiGetUserProfilePhotosResponse = {
+    ok: boolean
+    result?: {
+        photos?: Array<Array<{ file_id: string }>>
+    }
+}
+
+type TelegramApiGetFileResponse = {
+    ok: boolean
+    result?: {
+        file_path?: string
+    }
+}
+
+const TELEGRAM_AVATARS_BUCKET = 'telegram-avatars'
+const BACKFILL_ERROR_SAMPLE_LIMIT = 20
+
+type AvatarRefreshResult =
+    | { ok: true; avatarUrl: string }
+    | {
+          ok: false
+          reason:
+              | 'no_photo'
+              | 'telegram_get_photos_failed'
+              | 'telegram_get_file_failed'
+              | 'telegram_file_download_failed'
+              | 'unsupported_content_type'
+              | 'storage_upload_failed'
+              | 'unexpected_error'
+      }
+
 function getMessageWithLocation(update: TelegramUpdate): TelegramMessage | null {
     const candidates = [update.message, update.edited_message, update.channel_post, update.edited_channel_post]
 
@@ -66,8 +97,224 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
+function isAvatarUrlSafe(avatarUrl: string | null | undefined): boolean {
+    if (!avatarUrl) return false
+    return !avatarUrl.includes('api.telegram.org/file/bot')
+}
+
+async function resolveTelegramAvatarFilePath(
+    userId: number,
+    botToken: string,
+): Promise<{ ok: true; filePath: string } | { ok: false; reason: 'no_photo' | 'telegram_get_photos_failed' | 'telegram_get_file_failed' }> {
+    const photosResponse = await fetch(`https://api.telegram.org/bot${botToken}/getUserProfilePhotos`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+            user_id: userId,
+            limit: 1,
+        }),
+    })
+
+    if (!photosResponse.ok) return { ok: false, reason: 'telegram_get_photos_failed' }
+
+    const photosPayload = (await photosResponse.json()) as TelegramApiGetUserProfilePhotosResponse
+    if (!photosPayload.ok) return { ok: false, reason: 'telegram_get_photos_failed' }
+
+    const firstPhotoSizes = photosPayload.result?.photos?.[0]
+    if (!firstPhotoSizes?.length) return { ok: false, reason: 'no_photo' }
+
+    const bestSize = firstPhotoSizes[firstPhotoSizes.length - 1]
+    if (!bestSize?.file_id) return { ok: false, reason: 'no_photo' }
+
+    const fileResponse = await fetch(`https://api.telegram.org/bot${botToken}/getFile`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+            file_id: bestSize.file_id,
+        }),
+    })
+
+    if (!fileResponse.ok) return { ok: false, reason: 'telegram_get_file_failed' }
+
+    const filePayload = (await fileResponse.json()) as TelegramApiGetFileResponse
+    const filePath = filePayload.result?.file_path
+    if (!filePayload.ok || !filePath) return { ok: false, reason: 'telegram_get_file_failed' }
+    return { ok: true, filePath }
+}
+
+async function uploadTelegramAvatarToStorage(
+    userId: number,
+    filePath: string,
+    botToken: string,
+): Promise<{ ok: true; avatarUrl: string } | { ok: false; reason: 'telegram_file_download_failed' | 'unsupported_content_type' | 'storage_upload_failed' }> {
+    const fileUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`
+    const fileResponse = await fetch(fileUrl)
+    if (!fileResponse.ok) return { ok: false, reason: 'telegram_file_download_failed' }
+
+    const fileExt = filePath.split('.').pop()?.toLowerCase()
+    const normalizedExt = fileExt && ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt) ? fileExt : 'jpg'
+    const mimeByExt: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+    }
+    const headerContentType = fileResponse.headers.get('content-type')?.toLowerCase() ?? ''
+    const normalizedHeaderContentType = headerContentType.split(';')[0]?.trim() ?? ''
+    let contentType = mimeByExt[normalizedExt] ?? 'image/jpeg'
+    if (normalizedHeaderContentType.startsWith('image/')) {
+        contentType = normalizedHeaderContentType
+    } else if (normalizedHeaderContentType && normalizedHeaderContentType !== 'application/octet-stream') {
+        return { ok: false, reason: 'unsupported_content_type' }
+    }
+
+    const objectPath = `${String(userId)}/avatar.${normalizedExt}`
+    const fileBytes = await fileResponse.arrayBuffer()
+
+    const { error: uploadError } = await supabase.storage.from(TELEGRAM_AVATARS_BUCKET).upload(objectPath, fileBytes, {
+        contentType,
+        upsert: true,
+    })
+    if (uploadError) {
+        console.warn('[telegram-location-bot] Не удалось загрузить аватар в Storage', {
+            user_id: userId,
+            error: uploadError,
+        })
+        return { ok: false, reason: 'storage_upload_failed' }
+    }
+
+    const { data } = supabase.storage.from(TELEGRAM_AVATARS_BUCKET).getPublicUrl(objectPath)
+    return { ok: true, avatarUrl: data.publicUrl }
+}
+
+async function refreshTelegramAvatarUrl(userId: number, botToken: string): Promise<AvatarRefreshResult> {
+    try {
+        const filePathResult = await resolveTelegramAvatarFilePath(userId, botToken)
+        if (!filePathResult.ok) {
+            return { ok: false, reason: filePathResult.reason }
+        }
+        const uploadResult = await uploadTelegramAvatarToStorage(userId, filePathResult.filePath, botToken)
+        if (!uploadResult.ok) {
+            return { ok: false, reason: uploadResult.reason }
+        }
+        return { ok: true, avatarUrl: uploadResult.avatarUrl }
+    } catch (error) {
+        console.warn('[telegram-location-bot] Не удалось обновить avatar_url', {
+            user_id: userId,
+            error,
+        })
+        return { ok: false, reason: 'unexpected_error' }
+    }
+}
+
+async function handleAvatarBackfill(req: Request): Promise<Response> {
+    const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')
+    if (webhookSecret) {
+        const incomingSecret = req.headers.get('x-telegram-bot-api-secret-token')
+        if (incomingSecret !== webhookSecret) {
+            return new Response('Unauthorized', { status: 401 })
+        }
+    }
+
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+    if (!botToken) {
+        return new Response('TELEGRAM_BOT_TOKEN не задан', { status: 500 })
+    }
+
+    let from = 0
+    const pageSize = 200
+    let processed = 0
+    let updated = 0
+    let failed = 0
+    let skippedSafe = 0
+    let skippedNoPhoto = 0
+    const failuresByReason: Record<string, number> = {}
+    const errorSamples: Array<{ telegram_user_id: number; reason: string }> = []
+
+    while (true) {
+        const to = from + pageSize - 1
+        const { data: profiles, error } = await supabase
+            .from('telegram_profiles')
+            .select('telegram_user_id, avatar_url')
+            .order('telegram_user_id', { ascending: true })
+            .range(from, to)
+        if (error) {
+            console.error('[telegram-location-bot] Ошибка чтения профилей для backfill', error)
+            return new Response('Ошибка чтения профилей', { status: 500 })
+        }
+        if (!profiles || profiles.length === 0) break
+
+        for (const profile of profiles) {
+            processed += 1
+            const avatarUrl = typeof profile.avatar_url === 'string' ? profile.avatar_url : null
+            if (isAvatarUrlSafe(avatarUrl)) {
+                skippedSafe += 1
+                continue
+            }
+
+            const refreshResult = await refreshTelegramAvatarUrl(profile.telegram_user_id, botToken)
+            if (!refreshResult.ok) {
+                if (refreshResult.reason === 'no_photo') {
+                    skippedNoPhoto += 1
+                } else {
+                    failed += 1
+                    failuresByReason[refreshResult.reason] = (failuresByReason[refreshResult.reason] ?? 0) + 1
+                    if (errorSamples.length < BACKFILL_ERROR_SAMPLE_LIMIT) {
+                        errorSamples.push({
+                            telegram_user_id: profile.telegram_user_id,
+                            reason: refreshResult.reason,
+                        })
+                    }
+                    console.warn('[telegram-location-bot] Backfill avatar failed', {
+                        telegram_user_id: profile.telegram_user_id,
+                        reason: refreshResult.reason,
+                    })
+                }
+                continue
+            }
+
+            const { error: updateError } = await supabase
+                .from('telegram_profiles')
+                .update({ avatar_url: refreshResult.avatarUrl })
+                .eq('telegram_user_id', profile.telegram_user_id)
+            if (updateError) {
+                failed += 1
+                failuresByReason.db_update_failed = (failuresByReason.db_update_failed ?? 0) + 1
+                if (errorSamples.length < BACKFILL_ERROR_SAMPLE_LIMIT) {
+                    errorSamples.push({
+                        telegram_user_id: profile.telegram_user_id,
+                        reason: 'db_update_failed',
+                    })
+                }
+                console.warn('[telegram-location-bot] Backfill DB update failed', {
+                    telegram_user_id: profile.telegram_user_id,
+                    error: updateError,
+                })
+                continue
+            }
+            updated += 1
+        }
+
+        if (profiles.length < pageSize) break
+        from += pageSize
+    }
+
+    return Response.json({
+        ok: true,
+        processed,
+        updated,
+        failed,
+        skipped_safe: skippedSafe,
+        skipped_no_photo: skippedNoPhoto,
+        failures_by_reason: failuresByReason,
+        error_samples: errorSamples,
+    })
+}
+
 Deno.serve(async (req) => {
     const requestPath = new URL(req.url).pathname
+    const isBackfillRequest =
+        requestPath.endsWith('/backfill') || req.headers.get('x-telegram-avatar-backfill') === '1'
 
     console.info('[telegram-location-bot] Входящий запрос', {
         method: req.method,
@@ -81,6 +328,10 @@ Deno.serve(async (req) => {
         return new Response('Method Not Allowed', { status: 405 })
     }
 
+    if (isBackfillRequest) {
+        return handleAvatarBackfill(req)
+    }
+
     const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')
     if (webhookSecret) {
         const incomingSecret = req.headers.get('x-telegram-bot-api-secret-token')
@@ -92,7 +343,12 @@ Deno.serve(async (req) => {
 
     let update: TelegramUpdate
     try {
-        update = (await req.json()) as TelegramUpdate
+        const rawBody = await req.text()
+        if (!rawBody.trim()) {
+            console.warn('[telegram-location-bot] Пустой JSON body')
+            return new Response('Bad Request: empty JSON body', { status: 400 })
+        }
+        update = JSON.parse(rawBody) as TelegramUpdate
     } catch (error) {
         console.error('[telegram-location-bot] Ошибка парсинга JSON', error)
         return new Response('Bad Request', { status: 400 })
@@ -142,7 +398,14 @@ Deno.serve(async (req) => {
         return new Response('Internal Server Error', { status: 500 })
     }
 
-    const avatarUrl = existingProfile?.avatar_url ?? null
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+    let avatarUrl = isAvatarUrlSafe(existingProfile?.avatar_url) ? existingProfile?.avatar_url ?? null : null
+    if (!avatarUrl && botToken) {
+        const refreshResult = await refreshTelegramAvatarUrl(telegramUserId, botToken)
+        if (refreshResult.ok) {
+            avatarUrl = refreshResult.avatarUrl
+        }
+    }
 
     const shouldUpdateProfile =
         !existingProfile ||

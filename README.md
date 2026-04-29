@@ -106,13 +106,13 @@ npm run lint
 
 ## Telegram-бот для сбора геопозиций
 
-Реализован через Edge Function `telegram-location-bot`. Он принимает `update` от Telegram и сохраняет сообщения с `location` в таблицу `telegram_locations`.
+Реализован через Edge Function `telegram-location-bot`. Он принимает `update` от Telegram и сохраняет сообщения с `location` в таблицу `telegram_locations`. Аватары пользователей сохраняются в Storage-бакет `telegram-avatars`, а в `telegram_profiles.avatar_url` хранится безопасный public URL без bot token.
 
 Развёртывание:
 
-1. Задайте секрет для функции:
+1. Задайте секреты для функции:
     ```bash
-    supabase secrets set TELEGRAM_WEBHOOK_SECRET=<random_secret>
+    supabase secrets set TELEGRAM_BOT_TOKEN=<bot_token> TELEGRAM_WEBHOOK_SECRET=<random_secret>
     ```
 2. Задеплойте функцию:
     ```bash
@@ -126,6 +126,17 @@ npm run lint
     ```
 
 После этого любые сообщения с геопозицией в чате, где есть бот, будут попадать в `telegram_locations` и автоматически отображаться на карте.
+
+### Обновление аватаров для уже существующих профилей
+
+Если нужно переобновить аватары для уже заполненных `telegram_profiles` (например, после security-фикса), запустите backfill:
+
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-bot/backfill" \
+  -H "x-telegram-bot-api-secret-token: <random_secret>"
+```
+
+Функция пройдёт по `telegram_profiles` и обновит только небезопасные/пустые `avatar_url`.
 
 ## База данных (Supabase)
 

@@ -71,6 +71,9 @@ export function useMapHover(map: MapboxMap | null) {
 
     const processMouseMove = (e: MapMouseEvent) => {
       if (!activeLayers.length) {
+        refreshActiveLayers();
+      }
+      if (!activeLayers.length) {
         clearHover();
         return;
       }
@@ -127,10 +130,12 @@ export function useMapHover(map: MapboxMap | null) {
     map.on('mousemove', handleMouseMove);
     map.on('mouseleave', handleMouseLeave);
     map.on('style.load', refreshActiveLayers);
+    map.on('idle', refreshActiveLayers);
     return () => {
       map.off('mousemove', handleMouseMove);
       map.off('mouseleave', handleMouseLeave);
       map.off('style.load', refreshActiveLayers);
+      map.off('idle', refreshActiveLayers);
       if (rafRef.current !== null) {
         window.cancelAnimationFrame(rafRef.current);
         rafRef.current = null;

@@ -8,12 +8,41 @@ export interface SelectedFeatureState {
 
 export const DIM_OPACITY = 0.4;
 
+function getSelectedTelegramUserId(selected: SelectedFeatureState | null): number | null {
+  if (!selected) return null;
+  const match = /^telegram-(?:user|track)-(\d+)$/.exec(selected.id);
+  if (!match) return null;
+  const parsed = Number.parseInt(match[1], 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildTelegramSelectionExpression(selected: SelectedFeatureState): ExpressionSpecification {
+  const selectedTelegramUserId = getSelectedTelegramUserId(selected);
+  if (selectedTelegramUserId !== null) {
+    return [
+      'case',
+      ['==', ['get', 'telegramUserId'], selectedTelegramUserId],
+      1,
+      DIM_OPACITY,
+    ];
+  }
+  return [
+    'case',
+    ['==', ['id'], selected.id],
+    1,
+    DIM_OPACITY,
+  ];
+}
+
 export function buildSelectionOpacityExpression(
   sourceId: string,
   selected: SelectedFeatureState | null
 ): number | ExpressionSpecification {
   if (!selected) return 1;
   if (selected.sourceId !== sourceId) return DIM_OPACITY;
+  if (sourceId === LAYER_ID_TO_SOURCE[LAYER_IDS.telegramUsers]) {
+    return buildTelegramSelectionExpression(selected);
+  }
   return [
     'case',
     ['==', ['id'], selected.id],
@@ -64,16 +93,16 @@ export function applySelectionOpacityById(
     );
   }
   if (map.getLayer(LAYER_IDS.telegramUsers)) {
+    const telegramSourceId = LAYER_ID_TO_SOURCE[LAYER_IDS.telegramUsers];
+    const telegramSelectedExpression =
+      selected && selected.sourceId === telegramSourceId
+        ? buildTelegramSelectionExpression(selected)
+        : null;
     map.setPaintProperty(
       LAYER_IDS.telegramUsers,
       'circle-opacity',
-      selected && selected.sourceId === LAYER_ID_TO_SOURCE[LAYER_IDS.telegramUsers]
-        ? [
-            'case',
-            ['==', ['id'], selected.id],
-            1,
-            0.18,
-          ]
+      telegramSelectedExpression
+        ? telegramSelectedExpression
         : [
             'interpolate',
             ['linear'],
