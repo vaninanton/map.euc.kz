@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_YANDEX_METRIKA_ID: string | undefined
   readonly VITE_TELEGRAM_GEO_TTL_MINUTES: string | undefined
   readonly VITE_TELEGRAM_TRACK_TAIL_MINUTES: string | undefined
+  readonly VITE_TELEGRAM_MAX_ACCURACY_METERS: string | undefined
 }
 
 interface ImportMeta {

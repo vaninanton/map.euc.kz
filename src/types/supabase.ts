@@ -51,6 +51,7 @@ export interface TelegramLocationRow {
   avatar_url: string | null;
   longitude: number;
   latitude: number;
+  location_accuracy_meters: number | null;
 }
 
 export interface TelegramProfileRow {

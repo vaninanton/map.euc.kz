@@ -141,6 +141,7 @@ function normalizeTelegramLocationRow(row: unknown): TelegramLocationRow | null 
   const avatarUrl = row.avatar_url;
   const longitude = row.longitude;
   const latitude = row.latitude;
+  const locationAccuracyMeters = row.location_accuracy_meters;
 
   if (
     (typeof id !== 'string' && typeof id !== 'number') ||
@@ -165,6 +166,10 @@ function normalizeTelegramLocationRow(row: unknown): TelegramLocationRow | null 
     avatar_url: typeof avatarUrl === 'string' ? avatarUrl : null,
     longitude,
     latitude,
+    location_accuracy_meters:
+      typeof locationAccuracyMeters === 'number' && Number.isFinite(locationAccuracyMeters)
+        ? locationAccuracyMeters
+        : null,
   };
 }
 
@@ -244,7 +249,9 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
 
   const { data, error } = await supabase
     .from('telegram_locations')
-    .select('id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude')
+    .select(
+      'id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters'
+    )
     .order('created_at', { ascending: true });
 
   if (error) {
