@@ -67,4 +67,22 @@ describe('supabaseToGeojson telegram conversion', () => {
       [3, 3],
     ]);
   });
+
+  it('считает среднюю скорость для telegramUser', () => {
+    const rows = [
+      row({ telegram_user_id: 42, created_at: '2026-01-01T00:00:00.000Z', longitude: 76.90, latitude: 43.20 }),
+      row({ telegram_user_id: 42, created_at: '2026-01-01T00:05:00.000Z', longitude: 76.91, latitude: 43.20 }),
+      row({ telegram_user_id: 42, created_at: '2026-01-01T00:10:00.000Z', longitude: 76.92, latitude: 43.20 }),
+    ];
+
+    const users = telegramLocationsToUsersFeatureCollection(rows);
+    const userFeature = users.features[0];
+    expect(userFeature).toBeDefined();
+    expect(userFeature?.properties.type).toBe('telegramUser');
+    if (!userFeature || userFeature.properties.type !== 'telegramUser') {
+      throw new Error('Ожидали telegramUser фичу');
+    }
+    expect(typeof userFeature.properties.avgSpeedKmh).toBe('number');
+    expect((userFeature.properties.avgSpeedKmh ?? 0) > 0).toBe(true);
+  });
 });

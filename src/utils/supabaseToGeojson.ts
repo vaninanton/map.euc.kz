@@ -3,6 +3,7 @@ import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supa
 import { parsePositiveInt } from '@/utils/numberParsers';
 
 const DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES = 30;
+const TELEGRAM_SPEED_SAMPLE_POINTS = 5;
 
 function getTelegramTrackTailMinutes(): number {
   return parsePositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
@@ -87,12 +88,66 @@ function buildTelegramAvatarUrl(row: TelegramLocationRow): string {
   return `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 }
 
+function toRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+function distanceKm(a: TelegramLocationRow, b: TelegramLocationRow): number {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(b.latitude - a.latitude);
+  const dLon = toRadians(b.longitude - a.longitude);
+  const lat1 = toRadians(a.latitude);
+  const lat2 = toRadians(b.latitude);
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 2 * earthRadiusKm * Math.asin(Math.sqrt(h));
+}
+
+function computeAverageSpeedKmh(rows: TelegramLocationRow[]): number | null {
+  if (rows.length < 2) return null;
+  const sample = rows.slice(-TELEGRAM_SPEED_SAMPLE_POINTS);
+  if (sample.length < 2) return null;
+
+  let distanceSumKm = 0;
+  for (let i = 1; i < sample.length; i += 1) {
+    distanceSumKm += distanceKm(sample[i - 1], sample[i]);
+  }
+
+  const firstTs = Date.parse(sample[0].created_at);
+  const lastTs = Date.parse(sample[sample.length - 1].created_at);
+  if (!Number.isFinite(firstTs) || !Number.isFinite(lastTs) || lastTs <= firstTs) return null;
+
+  const durationHours = (lastTs - firstTs) / (1000 * 60 * 60);
+  if (durationHours <= 0) return null;
+  return distanceSumKm / durationHours;
+}
+
+function buildAverageSpeedByUser(rows: TelegramLocationRow[]): Map<number, number | null> {
+  const byUser = new Map<number, TelegramLocationRow[]>();
+  for (const row of rows) {
+    const list = byUser.get(row.telegram_user_id);
+    if (list) {
+      list.push(row);
+    } else {
+      byUser.set(row.telegram_user_id, [row]);
+    }
+  }
+
+  const avgSpeedByUser = new Map<number, number | null>();
+  for (const [telegramUserId, userRows] of byUser) {
+    avgSpeedByUser.set(telegramUserId, computeAverageSpeedKmh(userRows));
+  }
+  return avgSpeedByUser;
+}
+
 export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocationRow[]): FeatureCollection {
   if (rows.length === 0) {
     return { type: 'FeatureCollection', features: [] };
   }
 
   const nowTs = Date.now();
+  const avgSpeedByUser = buildAverageSpeedByUser(rows);
   const latestByUser = new Map<number, TelegramLocationRow>();
   for (const row of rows) {
     const existing = latestByUser.get(row.telegram_user_id);
@@ -122,6 +177,7 @@ export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocation
         updatedAt: row.created_at,
         ageMinutes: Math.max(0, (nowTs - Date.parse(row.created_at)) / 60000),
         avatarUrl: buildTelegramAvatarUrl(row),
+        avgSpeedKmh: avgSpeedByUser.get(row.telegram_user_id) ?? null,
       },
     }));
 
@@ -137,6 +193,7 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
   }
 
   const trackTailMinutes = getTelegramTrackTailMinutes();
+  const avgSpeedByUser = buildAverageSpeedByUser(rows);
   const tailThresholdTs = Date.now() - trackTailMinutes * 60 * 1000;
   const byUser = new Map<number, TelegramLocationRow[]>();
 
@@ -178,6 +235,7 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
         lastName: lastPoint.last_name,
         updatedAt: lastPoint.created_at,
         avatarUrl,
+        avgSpeedKmh: avgSpeedByUser.get(telegramUserId) ?? null,
       },
     });
   }

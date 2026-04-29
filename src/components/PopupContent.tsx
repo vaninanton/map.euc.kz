@@ -118,9 +118,16 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
           <p className="text-xs text-neutral-600 mt-1.5" dangerouslySetInnerHTML={{ __html: typograf.execute(description) }} />
         )}
         {feature.properties.type === 'telegramUser' && (
-          <p className="text-xs text-neutral-500 mt-1">
-            Последняя гео: {humanizeRelativeTime(feature.properties.updatedAt)}
-          </p>
+          <>
+            <p className="text-xs text-neutral-500 mt-1">
+              Последняя гео: {humanizeRelativeTime(feature.properties.updatedAt)}
+            </p>
+            {typeof feature.properties.avgSpeedKmh === 'number' && Number.isFinite(feature.properties.avgSpeedKmh) && (
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Средняя скорость (последние точки): {feature.properties.avgSpeedKmh.toFixed(1)} км/ч
+              </p>
+            )}
+          </>
         )}
         {photos.length > 0 && (
           <div className="mt-3 -mx-2 px-2 overflow-x-auto">
