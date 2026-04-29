@@ -51,7 +51,8 @@ function upsertGeoJsonLayer(
   sourceId: string,
   layerId: string,
   data: FeatureCollection,
-  paint: LineLayerSpecification['paint']
+  paint: LineLayerSpecification['paint'],
+  visible: boolean
 ): void {
   if (!map.getSource(sourceId)) {
     map.addSource(sourceId, { type: 'geojson', data, promoteId: 'id' });
@@ -59,9 +60,17 @@ function upsertGeoJsonLayer(
     (map.getSource(sourceId) as GeoJSONSource).setData(data);
   }
   if (!map.getLayer(layerId)) {
-    const layer: LineLayerSpecification = { id: layerId, type: 'line', source: sourceId, paint };
+    const layer: LineLayerSpecification = {
+      id: layerId,
+      type: 'line',
+      source: sourceId,
+      layout: { visibility: visible ? 'visible' : 'none' },
+      paint,
+    };
     map.addLayer(layer);
+    return;
   }
+  map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
 }
 
 const PLUG_ICON_ID = 'plug-icon';
@@ -102,7 +111,13 @@ export interface AddLayersOptions {
   routesGeo: FeatureCollection | null;
   bikeLanesGeo: FeatureCollection | null;
   telegramUsersGeo: FeatureCollection | null;
-  socketsVisible: boolean;
+  visibility: {
+    points: boolean;
+    sockets: boolean;
+    routes: boolean;
+    bikeLanes: boolean;
+    telegramUsers: boolean;
+  };
 }
 
 /**
@@ -110,7 +125,7 @@ export interface AddLayersOptions {
  * Вызывать после загрузки стиля (style.load или после load).
  */
 export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void {
-  const { pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, socketsVisible } = options;
+  const { pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility } = options;
   // Стиль может быть ещё не загружен (mapbox-gl)
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getStyle() может быть undefined до load
   if (map.getStyle() === undefined) return;
@@ -121,7 +136,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
       'line-color': COLORS.route,
       'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
       'line-opacity': stateHighlight.opacity(),
-    });
+    }, visibility.routes);
   }
   if (bikeLanesGeo?.features.length) {
     upsertGeoJsonLayer(map, SOURCE_IDS.bikeLanes, LAYER_IDS.bikeLanes, bikeLanesGeo, {
@@ -129,7 +144,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
       'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
       'line-dasharray': [2, 1.5],
       'line-opacity': stateHighlight.opacity(),
-    });
+    }, visibility.bikeLanes);
   }
   if (telegramUsersGeo?.features.length) {
     if (!map.getSource(SOURCE_IDS.telegramUsers)) {
@@ -147,18 +162,19 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         id: LAYER_IDS.telegramTracks,
         type: 'line',
         source: SOURCE_IDS.telegramUsers,
+        layout: { visibility: visibility.telegramUsers ? 'visible' : 'none' },
         filter: ['==', ['geometry-type'], 'LineString'],
         paint: {
-          'line-width': stateHighlight.lineWidth(3, 4.2, 3.6),
+          'line-width': stateHighlight.lineWidth(3.6, 5, 4.4),
           'line-opacity': stateHighlight.opacity(),
           'line-gradient': [
             'interpolate',
             ['linear'],
             ['line-progress'],
             0,
-            'rgba(20,184,166,0.05)',
-            0.35,
-            'rgba(20,184,166,0.25)',
+            'rgba(139,92,246,0.35)',
+            0.4,
+            'rgba(139,92,246,0.7)',
             1,
             COLORS.telegramTrack,
           ],
@@ -171,6 +187,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         id: LAYER_IDS.telegramUsers,
         type: 'circle',
         source: SOURCE_IDS.telegramUsers,
+        layout: { visibility: visibility.telegramUsers ? 'visible' : 'none' },
         filter: ['==', ['geometry-type'], 'Point'],
         paint: {
           'circle-radius': stateHighlight.circleRadius(7, 9, 12),
@@ -189,6 +206,11 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         },
       };
       map.addLayer(layer);
+    } else {
+      map.setLayoutProperty(LAYER_IDS.telegramUsers, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
+    }
+    if (map.getLayer(LAYER_IDS.telegramTracks)) {
+      map.setLayoutProperty(LAYER_IDS.telegramTracks, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
     }
   }
 
@@ -204,6 +226,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         id: LAYER_IDS.points,
         type: 'circle',
         source: SOURCE_IDS.points,
+        layout: { visibility: visibility.points ? 'visible' : 'none' },
         filter: ['==', ['get', 'type'], 'point'],
         paint: {
           'circle-radius': stateHighlight.circleRadius(8, 10, 13),
@@ -214,6 +237,8 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         },
       };
       map.addLayer(pointLayer);
+    } else {
+      map.setLayoutProperty(LAYER_IDS.points, 'visibility', visibility.points ? 'visible' : 'none');
     }
     if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points);
     if (!map.getLayer(LAYER_IDS.sockets)) {
@@ -232,7 +257,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
             'icon-allow-overlap': true,
             'icon-ignore-placement': true,
             'icon-anchor': 'bottom',
-            visibility: socketsVisible ? 'visible' : 'none',
+            visibility: visibility.sockets ? 'visible' : 'none',
           },
           paint: {
             'icon-opacity': [
@@ -250,6 +275,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets);
       });
     } else {
+      map.setLayoutProperty(LAYER_IDS.sockets, 'visibility', visibility.sockets ? 'visible' : 'none');
       if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets);
     }
   }

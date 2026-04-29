@@ -18,14 +18,9 @@ import { FeatureSidebar } from '@/components/FeatureSidebar';
 import { LayerControls } from '@/components/LayerControls';
 import { AddPointPanel } from '@/components/AddPointPanel';
 
-const LINE_LAYERS: LayerKey[] = ['routes', 'bikeLanes'];
 const SIDEBAR_DESKTOP_WIDTH = 320;
 const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
 const FOCUS_PADDING_BASE = 40;
-
-function isLineLayer(layerKey: LayerKey): layerKey is 'routes' | 'bikeLanes' {
-  return LINE_LAYERS.includes(layerKey);
-}
 
 function getRouteFocusPadding(): number | { top: number; right: number; bottom: number; left: number } {
   if (typeof window === 'undefined') return FOCUS_PADDING_BASE;
@@ -60,6 +55,10 @@ export function EucMap() {
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [draftSubmitError, setDraftSubmitError] = useState<string | null>(null);
   const [draftSubmitSuccess, setDraftSubmitSuccess] = useState<string | null>(null);
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  });
   const draftMarkerRef = useRef<Marker | null>(null);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
@@ -98,6 +97,21 @@ export function EucMap() {
     clearHash();
     setIsAddingPoint((prev) => !prev);
     setDraftCoordinates(null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const handleMediaChange = () => {
+      setIsDesktop(mediaQuery.matches);
+    };
+
+    handleMediaChange();
+    mediaQuery.addEventListener('change', handleMediaChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleMediaChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -153,7 +167,7 @@ export function EucMap() {
       const id = feature.properties.id;
       setSelectedFeatureState(sourceId ? { sourceId, id } : null);
       setSelectedFeature(feature);
-      if (isLineLayer(layerKey)) {
+      if (feature.geometry.type === 'LineString') {
         flyToBounds(getFeatureBounds(feature), { padding: getRouteFocusPadding() });
       } else {
         const center = lngLat ?? getFeatureCenter(feature);
@@ -292,7 +306,7 @@ export function EucMap() {
 
   useEffect(() => {
     applyVisibility(map);
-  }, [visibility, map, applyVisibility]);
+  }, [visibility, map, applyVisibility, pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo]);
 
   useHashSelectionSync({
     enabled: Boolean(map && isMapReady),
@@ -333,7 +347,7 @@ export function EucMap() {
           <span>{draftSubmitSuccess}</span>
         </div>
       )}
-      {!selectedFeature && (
+      {(!selectedFeature || isDesktop) && (
         <LayerControls
           visibility={visibility}
           onToggle={toggleLayer}

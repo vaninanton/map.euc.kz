@@ -1,6 +1,26 @@
 import type { Feature, FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
 import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supabase';
 
+const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
+const DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES = 30;
+
+function parseEnvPositiveInt(rawValue: string | undefined, fallback: number): number {
+  if (!rawValue) return fallback;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function getTelegramGeoTtlMinutes(): number {
+  return parseEnvPositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
+}
+
+function getTelegramTrackTailMinutes(): number {
+  return parseEnvPositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
+}
+
 function isPointCoordinates(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number';
 }
@@ -85,7 +105,7 @@ export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocation
     return { type: 'FeatureCollection', features: [] };
   }
 
-  const pointsTtlMs = 15 * 60 * 1000;
+  const pointsTtlMs = getTelegramGeoTtlMinutes() * 60 * 1000;
   const nowTs = Date.now();
   const latestByUser = new Map<number, TelegramLocationRow>();
   for (const row of rows) {
@@ -134,12 +154,13 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
     return { type: 'FeatureCollection', features: [] };
   }
 
-  const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+  const trackTailMinutes = getTelegramTrackTailMinutes();
+  const tailThresholdTs = Date.now() - trackTailMinutes * 60 * 1000;
   const byUser = new Map<number, TelegramLocationRow[]>();
 
   for (const row of rows) {
     const timestamp = Date.parse(row.created_at);
-    if (!Number.isFinite(timestamp) || timestamp < tenMinutesAgo) {
+    if (!Number.isFinite(timestamp) || timestamp < tailThresholdTs) {
       continue;
     }
     const bucket = byUser.get(row.telegram_user_id);
@@ -168,7 +189,7 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
       properties: {
         id: `telegram-track-${String(telegramUserId)}`,
         name: `Трек ${displayName}`,
-        description: `Маршрут за последние 10 минут (${String(sorted.length)} точек).`,
+        description: `Маршрут за последние ${String(trackTailMinutes)} минут (${String(sorted.length)} точек).`,
         type: 'telegramUser',
         telegramUserId,
         username: lastPoint.username,

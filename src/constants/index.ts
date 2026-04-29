@@ -62,8 +62,8 @@ export const COLORS = {
   socket: '#eab308',
   route: '#f25824',
   bikeLane: '#2563eb',
-  telegramUser: '#10b981',
-  telegramTrack: '#14b8a6',
+  telegramUser: '#8b5cf6',
+  telegramTrack: '#a855f7',
 } as const;
 
 export const FEATURE_TYPE_LABELS: Record<string, string> = {

@@ -273,10 +273,10 @@ export function useLayers() {
         routesGeo,
         bikeLanesGeo,
         telegramUsersGeo,
-        socketsVisible: visibility.sockets,
+        visibility,
       });
     },
-    [pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility.sockets]
+    [pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility]
   );
 
   const applyVisibility = useCallback(
