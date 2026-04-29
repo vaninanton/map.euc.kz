@@ -5,29 +5,33 @@ alwaysApply: true
 
 # Проект map.euc.kz
 
-Карта точек, розеток и маршрутов для моноколёс в Алматы.
+PWA-карта для райдеров на моноколёсах в Алматы: точки, розетки, маршруты, велодорожки и геопозиции из Telegram-чатов.
 
 ## Стек
 
 - **React 19** + **TypeScript** (strict)
-- **Vite 7** — сборка и dev-сервер
+- **Vite 8** — сборка и dev-сервер
 - **Tailwind CSS 4** — стили (`@tailwindcss/vite`)
-- **Mapbox GL JS** — карта
-- **Supabase** — данные (map_points, map_routes)
+- **Mapbox GL JS 3** — карта
+- **Supabase** — PostgreSQL + RLS + Storage + Edge Functions
+- **Vitest + ESLint + Prettier** — качество кода
 
 ## Структура
 
-- `src/components/` — React-компоненты (EucMap, LayerControls, PopupContent, ShareBlock, TelegramChannels)
-- `src/hooks/` — хуки (useMapbox, useLayers, useYandexMetrika)
-- `src/lib/` — клиент Supabase и загрузка данных
-- `src/constants/` — ID слоёв/источников, цвета, центр карты, стили Mapbox
-- `src/types/` — типы GeoJSON, Supabase, velojol; реэкспорт из `index.ts`
-- `src/utils/` — bounds, mapPopup, routeStats, shareLinks, supabaseToGeojson
-- `src/data/` — статичные GeoJSON (например almaty.json для велодорожек)
+- `src/components/` — UI и карта (`EucMap`, `FeatureSidebar`, `LayerControls`, `AddPointPanel`, `PwaPrompts`)
+- `src/hooks/` — хуки карты и UI-состояния (`useMapbox`, `useLayers`, `useMapClick`, `useMapHover`, `useHashSelectionSync`)
+- `src/lib/` — загрузка данных и описание слоёв (`supabase.ts`, `mapLayers.ts`)
+- `src/constants/` — ID слоёв/источников, цвета, стиль, центр и ограничения карты
+- `src/types/` — типы GeoJSON, Supabase и велодорожек
+- `src/utils/` — hash-навигация, popups, bounds, share-ссылки, конвертация Supabase -> GeoJSON
+- `src/data/` — статичный GeoJSON велодорожек (`almaty.json`)
+- `supabase/` — миграции, seed и Edge Function `telegram-location-bot`
 
 ## Окружение
 
-- `VITE_MAPBOX_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` — см. `.env.example`
+- Основные env: `VITE_MAPBOX_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
+- Дополнительные env: `VITE_YANDEX_METRIKA_ID`, `VITE_TELEGRAM_GEO_TTL_MINUTES`, `VITE_TELEGRAM_TRACK_TAIL_MINUTES`, `VITE_TELEGRAM_MAX_ACCURACY_METERS`
+- Деплой: GitHub Pages (`.github/workflows/deploy.yml`) + Telegram-уведомления об успехе/ошибке
 - Локальный тест: Valet proxy на `map.euc.test` → `127.0.0.1:5173`
 
 ## Язык
