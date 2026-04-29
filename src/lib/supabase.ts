@@ -11,6 +11,8 @@ import { isRecord } from '@/utils/mapFeatureGuards';
 
 const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
 const key: string | undefined = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
+const DEFAULT_TELEGRAM_MAX_ACCURACY_METERS = 100;
 
 if (!url || !key) {
   console.warn('Supabase URL or key missing. Map data will be empty.');
@@ -18,6 +20,21 @@ if (!url || !key) {
 
 export const supabase =
   typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null;
+
+function parsePositiveInt(rawValue: string | undefined, fallback: number): number {
+  if (!rawValue) return fallback;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function getTelegramGeoTtlMinutes(): number {
+  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
+}
+
+function getTelegramMaxAccuracyMeters(): number {
+  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_MAX_ACCURACY_METERS, DEFAULT_TELEGRAM_MAX_ACCURACY_METERS);
+}
 
 function asPointCoordinates(value: unknown): [number, number] | null {
   if (!Array.isArray(value) || value.length < 2) return null;
@@ -247,35 +264,60 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
     throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
   }
 
-  const { data, error } = await supabase
-    .from('telegram_locations')
-    .select(
-      'id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters'
-    )
-    .order('created_at', { ascending: true });
+  const pageSize = 1000;
+  const ttlMinutes = getTelegramGeoTtlMinutes();
+  const maxAccuracyMeters = getTelegramMaxAccuracyMeters();
+  const ttlThresholdIso = new Date(Date.now() - ttlMinutes * 60 * 1000).toISOString();
+  const locationRowsRaw: unknown[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await supabase
+      .from('telegram_locations')
+      .select(
+        'id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters'
+      )
+      .gte('created_at', ttlThresholdIso)
+      .or(`location_accuracy_meters.is.null,location_accuracy_meters.lte.${String(maxAccuracyMeters)}`)
+      .order('created_at', { ascending: true })
+      .range(from, to);
 
-  if (error) {
-    console.error('fetchTelegramLocations:', error);
-    throw new Error('Не удалось загрузить telegram-локации.');
+    if (error) {
+      console.error('fetchTelegramLocations:', error);
+      throw new Error('Не удалось загрузить telegram-локации.');
+    }
+
+    const batch = data ?? [];
+    locationRowsRaw.push(...batch);
+    if (batch.length < pageSize) break;
   }
 
-  const { data: profilesData, error: profilesError } = await supabase
-    .from('telegram_profiles')
-    .select('telegram_user_id, username, first_name, last_name, avatar_url, updated_at');
+  const profileRowsRaw: unknown[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('telegram_profiles')
+      .select('telegram_user_id, username, first_name, last_name, avatar_url, updated_at')
+      .order('telegram_user_id', { ascending: true })
+      .range(from, to);
 
-  if (profilesError) {
-    console.error('fetchTelegramLocations: profiles', profilesError);
-    throw new Error('Не удалось загрузить профили Telegram.');
+    if (profilesError) {
+      console.error('fetchTelegramLocations: profiles', profilesError);
+      throw new Error('Не удалось загрузить профили Telegram.');
+    }
+
+    const batch = profilesData ?? [];
+    profileRowsRaw.push(...batch);
+    if (batch.length < pageSize) break;
   }
 
   const profilesByUserId = new Map<number, TelegramProfileRow>();
-  for (const row of profilesData ?? []) {
+  for (const row of profileRowsRaw) {
     const normalized = normalizeTelegramProfileRow(row);
     if (normalized) profilesByUserId.set(normalized.telegram_user_id, normalized);
   }
 
   const rows: TelegramLocationRow[] = [];
-  for (const row of data ?? []) {
+  for (const row of locationRowsRaw) {
     const normalized = normalizeTelegramLocationRow(row);
     if (!normalized) continue;
     const profile = profilesByUserId.get(normalized.telegram_user_id);

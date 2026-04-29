@@ -1,9 +1,7 @@
 import type { Feature, FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
 import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supabase';
 
-const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
 const DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES = 30;
-const DEFAULT_TELEGRAM_MAX_ACCURACY_METERS = 100;
 
 function parseEnvPositiveInt(rawValue: string | undefined, fallback: number): number {
   if (!rawValue) return fallback;
@@ -14,21 +12,8 @@ function parseEnvPositiveInt(rawValue: string | undefined, fallback: number): nu
   return parsed;
 }
 
-function getTelegramGeoTtlMinutes(): number {
-  return parseEnvPositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
-}
-
 function getTelegramTrackTailMinutes(): number {
   return parseEnvPositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
-}
-
-function getTelegramMaxAccuracyMeters(): number {
-  return parseEnvPositiveInt(import.meta.env.VITE_TELEGRAM_MAX_ACCURACY_METERS, DEFAULT_TELEGRAM_MAX_ACCURACY_METERS);
-}
-
-function hasAcceptableLocationAccuracy(row: TelegramLocationRow, maxAccuracyMeters: number): boolean {
-  if (row.location_accuracy_meters === null) return true;
-  return row.location_accuracy_meters <= maxAccuracyMeters;
 }
 
 function isPointCoordinates(value: unknown): value is [number, number] {
@@ -115,12 +100,9 @@ export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocation
     return { type: 'FeatureCollection', features: [] };
   }
 
-  const maxAccuracyMeters = getTelegramMaxAccuracyMeters();
-  const pointsTtlMs = getTelegramGeoTtlMinutes() * 60 * 1000;
   const nowTs = Date.now();
   const latestByUser = new Map<number, TelegramLocationRow>();
   for (const row of rows) {
-    if (!hasAcceptableLocationAccuracy(row, maxAccuracyMeters)) continue;
     const existing = latestByUser.get(row.telegram_user_id);
     if (!existing || existing.created_at < row.created_at) {
       latestByUser.set(row.telegram_user_id, row);
@@ -128,10 +110,6 @@ export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocation
   }
 
   const features: PointFeature[] = Array.from(latestByUser.values())
-    .filter((row) => {
-      const ts = Date.parse(row.created_at);
-      return Number.isFinite(ts) && nowTs - ts <= pointsTtlMs;
-    })
     .map((row) => ({
       type: 'Feature',
       geometry: {
@@ -166,13 +144,11 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
     return { type: 'FeatureCollection', features: [] };
   }
 
-  const maxAccuracyMeters = getTelegramMaxAccuracyMeters();
   const trackTailMinutes = getTelegramTrackTailMinutes();
   const tailThresholdTs = Date.now() - trackTailMinutes * 60 * 1000;
   const byUser = new Map<number, TelegramLocationRow[]>();
 
   for (const row of rows) {
-    if (!hasAcceptableLocationAccuracy(row, maxAccuracyMeters)) continue;
     const timestamp = Date.parse(row.created_at);
     if (!Number.isFinite(timestamp) || timestamp < tailThresholdTs) {
       continue;
