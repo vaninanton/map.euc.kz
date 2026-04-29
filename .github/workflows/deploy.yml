@@ -34,10 +34,13 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_YANDEX_METRIKA_ID: ${{ secrets.VITE_YANDEX_METRIKA_ID }}
+          VITE_MAPBOX_TOKEN: ${{ vars.VITE_MAPBOX_TOKEN }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_YANDEX_METRIKA_ID: ${{ vars.VITE_YANDEX_METRIKA_ID }}
+          VITE_TELEGRAM_GEO_TTL_MINUTES: ${{ vars.VITE_TELEGRAM_GEO_TTL_MINUTES }}
+          VITE_TELEGRAM_TRACK_TAIL_MINUTES: ${{ vars.VITE_TELEGRAM_TRACK_TAIL_MINUTES }}
+          VITE_TELEGRAM_MAX_ACCURACY_METERS: ${{ vars.VITE_TELEGRAM_MAX_ACCURACY_METERS }}
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: Upload artifact

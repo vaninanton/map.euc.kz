@@ -1,19 +1,11 @@
 import type { Feature, FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
 import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supabase';
+import { parsePositiveInt } from '@/utils/numberParsers';
 
 const DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES = 30;
 
-function parseEnvPositiveInt(rawValue: string | undefined, fallback: number): number {
-  if (!rawValue) return fallback;
-  const parsed = Number.parseInt(rawValue, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-  return parsed;
-}
-
 function getTelegramTrackTailMinutes(): number {
-  return parseEnvPositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
+  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
 }
 
 function isPointCoordinates(value: unknown): value is [number, number] {
@@ -163,10 +155,9 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
 
   const features: Feature[] = [];
   for (const [telegramUserId, userRows] of byUser) {
-    const sorted = [...userRows].sort((a, b) => a.created_at.localeCompare(b.created_at));
-    if (sorted.length < 2) continue;
-
-    const lastPoint = sorted[sorted.length - 1];
+    if (userRows.length < 2) continue;
+    // На входе строки уже отсортированы по created_at (asc), повторно не сортируем.
+    const lastPoint = userRows[userRows.length - 1];
     const displayName = buildTelegramDisplayName(lastPoint);
     const avatarUrl = buildTelegramAvatarUrl(lastPoint);
 
@@ -174,12 +165,12 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
       type: 'Feature',
       geometry: {
         type: 'LineString',
-        coordinates: sorted.map((point) => [point.longitude, point.latitude] as [number, number]),
+        coordinates: userRows.map((point) => [point.longitude, point.latitude] as [number, number]),
       },
       properties: {
         id: `telegram-track-${String(telegramUserId)}`,
         name: `Трек ${displayName}`,
-        description: `Маршрут за последние ${String(trackTailMinutes)} минут (${String(sorted.length)} точек).`,
+        description: `Маршрут за последние ${String(trackTailMinutes)} минут (${String(userRows.length)} точек).`,
         type: 'telegramUser',
         telegramUserId,
         username: lastPoint.username,

@@ -14,6 +14,10 @@ export function useMapHover(map: MapboxMap | null) {
 
   useEffect(() => {
     if (!map) return;
+    let activeLayers = CLICKABLE_LAYER_IDS.filter((id) => map.getLayer(id));
+    const refreshActiveLayers = () => {
+      activeLayers = CLICKABLE_LAYER_IDS.filter((id) => map.getLayer(id));
+    };
     const supportsHover =
       typeof window.matchMedia === 'function'
         ? window.matchMedia('(hover: hover) and (pointer: fine)').matches
@@ -66,12 +70,11 @@ export function useMapHover(map: MapboxMap | null) {
     };
 
     const processMouseMove = (e: MapMouseEvent) => {
-      const layers = CLICKABLE_LAYER_IDS.filter((id) => map.getLayer(id));
-      if (!layers.length) {
+      if (!activeLayers.length) {
         clearHover();
         return;
       }
-      const features = map.queryRenderedFeatures(e.point, { layers: [...layers] });
+      const features = map.queryRenderedFeatures(e.point, { layers: [...activeLayers] });
       if (features.length === 0) {
         clearHover();
         return;
@@ -123,9 +126,11 @@ export function useMapHover(map: MapboxMap | null) {
 
     map.on('mousemove', handleMouseMove);
     map.on('mouseleave', handleMouseLeave);
+    map.on('style.load', refreshActiveLayers);
     return () => {
       map.off('mousemove', handleMouseMove);
       map.off('mouseleave', handleMouseLeave);
+      map.off('style.load', refreshActiveLayers);
       if (rafRef.current !== null) {
         window.cancelAnimationFrame(rafRef.current);
         rafRef.current = null;

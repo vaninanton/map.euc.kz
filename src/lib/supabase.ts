@@ -8,11 +8,14 @@ import type {
   TelegramProfileRow,
 } from '@/types';
 import { isRecord } from '@/utils/mapFeatureGuards';
+import { parsePositiveInt } from '@/utils/numberParsers';
 
 const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
 const key: string | undefined = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
 const DEFAULT_TELEGRAM_MAX_ACCURACY_METERS = 100;
+const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_RETRY_ATTEMPTS = 2;
 
 if (!url || !key) {
   console.warn('Supabase URL or key missing. Map data will be empty.');
@@ -21,11 +24,54 @@ if (!url || !key) {
 export const supabase =
   typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null;
 
-function parsePositiveInt(rawValue: string | undefined, fallback: number): number {
-  if (!rawValue) return fallback;
-  const parsed = Number.parseInt(rawValue, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return parsed;
+async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label}: превышено время ожидания запроса`));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isTransientError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('timeout') ||
+    message.includes('network') ||
+    message.includes('failed to fetch') ||
+    message.includes('temporar') ||
+    message.includes('429') ||
+    message.includes('5')
+  );
+}
+
+async function withTimeoutAndRetry<T>(label: string, fn: () => PromiseLike<T>): Promise<T> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= REQUEST_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await withTimeout(fn(), REQUEST_TIMEOUT_MS, label);
+    } catch (error) {
+      lastError = error;
+      if (attempt === REQUEST_RETRY_ATTEMPTS || !isTransientError(error)) {
+        throw error;
+      }
+      const delay = 250 * Math.pow(2, attempt);
+      await sleep(delay);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`${label}: неизвестная ошибка запроса`);
 }
 
 function getTelegramGeoTtlMinutes(): number {
@@ -180,7 +226,7 @@ function normalizeTelegramLocationRow(row: unknown): TelegramLocationRow | null 
     username: typeof username === 'string' ? username : null,
     first_name: typeof firstName === 'string' ? firstName : null,
     last_name: typeof lastName === 'string' ? lastName : null,
-    avatar_url: typeof avatarUrl === 'string' ? avatarUrl : null,
+    avatar_url: sanitizeTelegramAvatarUrl(avatarUrl),
     longitude,
     latitude,
     location_accuracy_meters:
@@ -208,9 +254,16 @@ function normalizeTelegramProfileRow(row: unknown): TelegramProfileRow | null {
     username: typeof username === 'string' ? username : null,
     first_name: typeof firstName === 'string' ? firstName : null,
     last_name: typeof lastName === 'string' ? lastName : null,
-    avatar_url: typeof avatarUrl === 'string' ? avatarUrl : null,
+    avatar_url: sanitizeTelegramAvatarUrl(avatarUrl),
     updated_at: updatedAt,
   };
+}
+
+function sanitizeTelegramAvatarUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  // Не допускаем утечки токена Telegram из URL вида /file/bot<TOKEN>/...
+  if (value.includes('api.telegram.org/file/bot')) return null;
+  return value;
 }
 
 export async function fetchMapPoints(): Promise<MapPointRow[]> {
@@ -218,10 +271,12 @@ export async function fetchMapPoints(): Promise<MapPointRow[]> {
     throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
   }
 
-  const { data, error } = await supabase
-    .from('map_points')
-    .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket, map_point_photos(id, bucket_name, storage_path, alt_text, sort_order)')
-    .eq('flag_disabled', false);
+  const { data, error } = await withTimeoutAndRetry('fetchMapPoints', () =>
+    supabase
+      .from('map_points')
+      .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket, map_point_photos(id, bucket_name, storage_path, alt_text, sort_order)')
+      .eq('flag_disabled', false)
+  );
 
   if (error) {
     console.error('fetchMapPoints:', error);
@@ -241,10 +296,9 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
     throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
   }
 
-  const { data, error } = await supabase
-    .from('map_routes')
-    .select('id, title, description, coordinates')
-    .eq('flag_disabled', false);
+  const { data, error } = await withTimeoutAndRetry('fetchMapRoutes', () =>
+    supabase.from('map_routes').select('id, title, description, coordinates').eq('flag_disabled', false)
+  );
 
   if (error) {
     console.error('fetchMapRoutes:', error);
@@ -271,15 +325,17 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
   const locationRowsRaw: unknown[] = [];
   for (let from = 0; ; from += pageSize) {
     const to = from + pageSize - 1;
-    const { data, error } = await supabase
-      .from('telegram_locations')
-      .select(
-        'id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters'
-      )
-      .gte('created_at', ttlThresholdIso)
-      .or(`location_accuracy_meters.is.null,location_accuracy_meters.lte.${String(maxAccuracyMeters)}`)
-      .order('created_at', { ascending: true })
-      .range(from, to);
+    const { data, error } = await withTimeoutAndRetry('fetchTelegramLocations:locations', () =>
+      supabase
+        .from('telegram_locations')
+        .select(
+          'id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters'
+        )
+        .gte('created_at', ttlThresholdIso)
+        .or(`location_accuracy_meters.is.null,location_accuracy_meters.lte.${String(maxAccuracyMeters)}`)
+        .order('created_at', { ascending: true })
+        .range(from, to)
+    );
 
     if (error) {
       console.error('fetchTelegramLocations:', error);
@@ -294,11 +350,15 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
   const profileRowsRaw: unknown[] = [];
   for (let from = 0; ; from += pageSize) {
     const to = from + pageSize - 1;
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('telegram_profiles')
-      .select('telegram_user_id, username, first_name, last_name, avatar_url, updated_at')
-      .order('telegram_user_id', { ascending: true })
-      .range(from, to);
+    const { data: profilesData, error: profilesError } = await withTimeoutAndRetry(
+      'fetchTelegramLocations:profiles',
+      () =>
+        supabase
+          .from('telegram_profiles')
+          .select('telegram_user_id, username, first_name, last_name, avatar_url, updated_at')
+          .order('telegram_user_id', { ascending: true })
+          .range(from, to)
+    );
 
     if (profilesError) {
       console.error('fetchTelegramLocations: profiles', profilesError);
@@ -337,13 +397,15 @@ export async function createMapPointDraft(input: MapPointDraftInput): Promise<vo
     throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
   }
 
-  const { error } = await supabase.from('map_points_submissions').insert({
-    type: input.type,
-    title: input.title,
-    description: input.description,
-    coordinates: input.coordinates,
-    flag_is_meeting: input.type === 'point' ? Boolean(input.flag_is_meeting) : false,
-  });
+  const { error } = await withTimeoutAndRetry('createMapPointDraft', () =>
+    supabase.from('map_points_submissions').insert({
+      type: input.type,
+      title: input.title,
+      description: input.description,
+      coordinates: input.coordinates,
+      flag_is_meeting: input.type === 'point' ? Boolean(input.flag_is_meeting) : false,
+    })
+  );
 
   if (error) {
     console.error('createMapPointDraft:', error);

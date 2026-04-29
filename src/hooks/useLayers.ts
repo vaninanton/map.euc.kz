@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import type { Feature, FeatureCollection, BikeLaneFeature } from '@/types/geojson';
 import type { VelojolSegment } from '@/types/velojol';
 import { fetchMapPoints, fetchMapRoutes, fetchTelegramLocations, supabase } from '@/lib/supabase';
@@ -11,7 +11,9 @@ import {
 import { addLayersToMap as addLayersToMapImpl } from '@/lib/mapLayers';
 import { LAYER_IDS, type LayerKey } from '@/constants';
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { getFeatureId, isRecord } from '@/utils/mapFeatureGuards';
+import { useLayerVisibilityStore } from '@/hooks/useLayerVisibilityStore';
+import { useFeatureIndexes } from '@/hooks/useFeatureIndexes';
+import { useTelegramRealtime } from '@/hooks/useTelegramRealtime';
 
 export type { LayerKey };
 
@@ -21,34 +23,6 @@ export interface LayerVisibility {
   routes: boolean;
   bikeLanes: boolean;
   telegramUsers: boolean;
-}
-
-const STORAGE_KEY = 'map-euc-layer-visibility';
-
-const DEFAULT_VISIBILITY: LayerVisibility = {
-  points: true,
-  sockets: true,
-  routes: true,
-  bikeLanes: true,
-  telegramUsers: true,
-};
-
-function loadStoredVisibility(): LayerVisibility {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_VISIBILITY;
-    const parsed: unknown = JSON.parse(raw);
-    const source = isRecord(parsed) ? parsed : {};
-    return {
-      points: typeof source.points === 'boolean' ? source.points : DEFAULT_VISIBILITY.points,
-      sockets: typeof source.sockets === 'boolean' ? source.sockets : DEFAULT_VISIBILITY.sockets,
-      routes: typeof source.routes === 'boolean' ? source.routes : DEFAULT_VISIBILITY.routes,
-      bikeLanes: typeof source.bikeLanes === 'boolean' ? source.bikeLanes : DEFAULT_VISIBILITY.bikeLanes,
-      telegramUsers: typeof source.telegramUsers === 'boolean' ? source.telegramUsers : DEFAULT_VISIBILITY.telegramUsers,
-    };
-  } catch {
-    return DEFAULT_VISIBILITY;
-  }
 }
 
 /** ID велодорожек, которые не показываем на карте. */
@@ -78,14 +52,18 @@ export function useLayers() {
   const [routesGeo, setRoutesGeo] = useState<FeatureCollection | null>(null);
   const [bikeLanesGeo, setBikeLanesGeo] = useState<FeatureCollection | null>(null);
   const [telegramUsersGeo, setTelegramUsersGeo] = useState<FeatureCollection | null>(null);
-  const [visibility, setVisibility] = useState<LayerVisibility>(loadStoredVisibility);
+  const { visibility, toggleLayer } = useLayerVisibilityStore();
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
+  const telegramRefreshSeqRef = useRef(0);
+  const refreshTimerIdRef = useRef<number | null>(null);
 
   const refreshTelegramUsers = useCallback(async () => {
+    const requestSeq = ++telegramRefreshSeqRef.current;
     try {
       const rows = await fetchTelegramLocations();
+      if (requestSeq !== telegramRefreshSeqRef.current) return;
       const pointsGeo = telegramLocationsToUsersFeatureCollection(rows);
       const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(rows);
       setTelegramUsersGeo({
@@ -180,91 +158,31 @@ export function useLayers() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!supabase) return;
-    const supabaseClient = supabase;
-
-    let refreshTimerId: number | null = null;
-    const scheduleRefresh = () => {
-      if (refreshTimerId !== null) {
-        window.clearTimeout(refreshTimerId);
-      }
-      // Немного дебаунсим, чтобы пачка апдейтов не вызывала лишние запросы.
-      refreshTimerId = window.setTimeout(() => {
-        void refreshTelegramUsers();
-      }, 300);
-    };
-
-    const channel = supabaseClient
-      .channel('telegram-live-points')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'telegram_locations' },
-        scheduleRefresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'telegram_profiles' },
-        scheduleRefresh
-      )
-      .subscribe();
-
-    return () => {
-      if (refreshTimerId !== null) {
-        window.clearTimeout(refreshTimerId);
-      }
-      void supabaseClient.removeChannel(channel);
-    };
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (refreshTimerIdRef.current !== null) {
+      window.clearTimeout(refreshTimerIdRef.current);
+    }
+    refreshTimerIdRef.current = window.setTimeout(() => {
+      void refreshTelegramUsers();
+    }, 300);
   }, [refreshTelegramUsers]);
 
-  const pointsById = useMemo(() => {
-    const map = new Map<string, Feature>();
-    for (const feature of pointsGeo?.features ?? []) {
-      const id = getFeatureId(feature);
-      map.set(`all:${id}`, feature);
-      map.set(`${feature.properties.type}:${id}`, feature);
-    }
-    return map;
-  }, [pointsGeo]);
+  useTelegramRealtime(supabase, scheduleRealtimeRefresh);
 
-  const routesById = useMemo(() => {
-    const map = new Map<string, Feature>();
-    for (const feature of routesGeo?.features ?? []) {
-      const id = getFeatureId(feature);
-      map.set(id, feature);
-    }
-    return map;
-  }, [routesGeo]);
-
-  const bikeLanesById = useMemo(() => {
-    const map = new Map<string, Feature>();
-    for (const feature of bikeLanesGeo?.features ?? []) {
-      const id = getFeatureId(feature);
-      map.set(id, feature);
-    }
-    return map;
-  }, [bikeLanesGeo]);
-
-  const telegramUsersById = useMemo(() => {
-    const map = new Map<string, Feature>();
-    for (const feature of telegramUsersGeo?.features ?? []) {
-      const id = getFeatureId(feature);
-      map.set(id, feature);
-    }
-    return map;
-  }, [telegramUsersGeo]);
-
-  const toggleLayer = useCallback((layer: LayerKey) => {
-    setVisibility((v) => {
-      const next = { ...v, [layer]: !v[layer] };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // ignore storage errors
+  useEffect(() => {
+    return () => {
+      if (refreshTimerIdRef.current !== null) {
+        window.clearTimeout(refreshTimerIdRef.current);
       }
-      return next;
-    });
+    };
   }, []);
+
+  const { pointsById, routesById, bikeLanesById, telegramUsersById } = useFeatureIndexes(
+    pointsGeo,
+    routesGeo,
+    bikeLanesGeo,
+    telegramUsersGeo
+  );
 
   const addLayersToMap = useCallback(
     (map: MapboxMap) => {

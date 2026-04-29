@@ -37,20 +37,6 @@ type TelegramUpdate = {
     edited_channel_post?: TelegramMessage
 }
 
-type TelegramApiGetUserProfilePhotosResponse = {
-    ok: boolean
-    result?: {
-        photos?: Array<Array<{ file_id: string }>>
-    }
-}
-
-type TelegramApiGetFileResponse = {
-    ok: boolean
-    result?: {
-        file_path?: string
-    }
-}
-
 type TelegramProfileRow = {
     telegram_user_id: number
     username: string | null
@@ -69,64 +55,6 @@ function getMessageWithLocation(update: TelegramUpdate): TelegramMessage | null 
     }
 
     return null
-}
-
-async function resolveTelegramAvatarUrl(userId: number, botToken: string): Promise<string | null> {
-    try {
-        const photosResponse = await fetch(`https://api.telegram.org/bot${botToken}/getUserProfilePhotos`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                user_id: userId,
-                limit: 1,
-            }),
-        })
-
-        if (!photosResponse.ok) {
-            return null
-        }
-
-        const photosPayload = (await photosResponse.json()) as TelegramApiGetUserProfilePhotosResponse
-        if (!photosPayload.ok) {
-            return null
-        }
-
-        const firstPhotoSizes = photosPayload.result?.photos?.[0]
-        if (!firstPhotoSizes || firstPhotoSizes.length === 0) {
-            return null
-        }
-
-        const bestSize = firstPhotoSizes[firstPhotoSizes.length - 1]
-        if (!bestSize?.file_id) {
-            return null
-        }
-
-        const fileResponse = await fetch(`https://api.telegram.org/bot${botToken}/getFile`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                file_id: bestSize.file_id,
-            }),
-        })
-
-        if (!fileResponse.ok) {
-            return null
-        }
-
-        const filePayload = (await fileResponse.json()) as TelegramApiGetFileResponse
-        const filePath = filePayload.result?.file_path
-        if (!filePayload.ok || !filePath) {
-            return null
-        }
-
-        return `https://api.telegram.org/file/bot${botToken}/${filePath}`
-    } catch (error) {
-        console.warn('[telegram-location-bot] Не удалось получить avatar_url', {
-            user_id: userId,
-            error,
-        })
-        return null
-    }
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -158,15 +86,6 @@ Deno.serve(async (req) => {
         const incomingSecret = req.headers.get('x-telegram-bot-api-secret-token')
         if (incomingSecret !== webhookSecret) {
             console.warn('[telegram-location-bot] Отклонено: неверный secret token')
-            return new Response('Unauthorized', { status: 401 })
-        }
-    }
-
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
-    if (botToken) {
-        const tokenInPath = requestPath.split('/').pop()
-        if (tokenInPath !== botToken) {
-            console.warn('[telegram-location-bot] Отклонено: неверный bot token в URL')
             return new Response('Unauthorized', { status: 401 })
         }
     }
@@ -223,8 +142,7 @@ Deno.serve(async (req) => {
         return new Response('Internal Server Error', { status: 500 })
     }
 
-    const shouldRefreshAvatar = botToken && !existingProfile?.avatar_url
-    const avatarUrl = shouldRefreshAvatar ? await resolveTelegramAvatarUrl(telegramUserId, botToken) : existingProfile?.avatar_url ?? null
+    const avatarUrl = existingProfile?.avatar_url ?? null
 
     const shouldUpdateProfile =
         !existingProfile ||

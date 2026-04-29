@@ -110,19 +110,19 @@ npm run lint
 
 Развёртывание:
 
-1. Задайте секреты для функции:
+1. Задайте секрет для функции:
     ```bash
-    supabase secrets set TELEGRAM_BOT_TOKEN=<bot_token> TELEGRAM_WEBHOOK_SECRET=<random_secret>
+    supabase secrets set TELEGRAM_WEBHOOK_SECRET=<random_secret>
     ```
 2. Задеплойте функцию:
     ```bash
     supabase functions deploy telegram-location-bot --no-verify-jwt
     ```
-3. Подключите webhook у бота:
+3. Подключите webhook у бота (без передачи bot token в URL):
     ```bash
     curl -X POST "https://api.telegram.org/bot<bot_token>/setWebhook" \
       -H "Content-Type: application/json" \
-      -d '{"url":"https://<project-ref>.supabase.co/functions/v1/telegram-location-bot/<bot_token>","secret_token":"<random_secret>"}'
+      -d '{"url":"https://<project-ref>.supabase.co/functions/v1/telegram-location-bot","secret_token":"<random_secret>"}'
     ```
 
 После этого любые сообщения с геопозицией в чате, где есть бот, будут попадать в `telegram_locations` и автоматически отображаться на карте.

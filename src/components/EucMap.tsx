@@ -5,13 +5,12 @@ import { useMapClick } from '@/hooks/useMapClick';
 import { useMapHover } from '@/hooks/useMapHover';
 import { useHashSelectionSync } from '@/hooks/useHashSelectionSync';
 import { useSelectedFeatureState } from '@/hooks/useSelectedFeatureState';
+import { useDraftPointFlow } from '@/hooks/useDraftPointFlow';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
 import { setHash, clearHash } from '@/utils/hashNav';
-import { createMapPointDraft } from '@/lib/supabase';
 import { Marker } from 'mapbox-gl';
 import type { Feature } from '@/types/geojson';
-import type { MapPointDraftInput } from '@/types';
 import type { LayerKey } from '@/constants';
 import { applySelectionOpacityById, type SelectedFeatureState } from '@/utils/selectionOpacity';
 import { FeatureSidebar } from '@/components/FeatureSidebar';
@@ -50,16 +49,15 @@ export function EucMap() {
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
-  const [isAddingPoint, setIsAddingPoint] = useState(false);
-  const [draftCoordinates, setDraftCoordinates] = useState<[number, number] | null>(null);
-  const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
-  const [draftSubmitError, setDraftSubmitError] = useState<string | null>(null);
-  const [draftSubmitSuccess, setDraftSubmitSuccess] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(min-width: 768px)').matches;
   });
   const draftMarkerRef = useRef<Marker | null>(null);
+  const clearSelection = useCallback(() => {
+    setSelectedFeature(null);
+    setSelectedFeatureState(null);
+  }, []);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
   const {
@@ -76,28 +74,23 @@ export function EucMap() {
     emptyMessage,
     loading,
   } = useLayers();
+  const {
+    isAddingPoint,
+    draftCoordinates,
+    setDraftCoordinates,
+    isSubmittingDraft,
+    draftSubmitError,
+    draftSubmitSuccess,
+    clearDraftSubmitError,
+    handleCancelAddPoint,
+    handleToggleAddPoint,
+    handleSubmitDraft,
+  } = useDraftPointFlow(clearSelection);
 
   const handleSidebarClose = useCallback(() => {
-    setSelectedFeature(null);
-    setSelectedFeatureState(null);
+    clearSelection();
     clearHash();
-  }, []);
-
-  const handleCancelAddPoint = useCallback(() => {
-    setIsAddingPoint(false);
-    setDraftCoordinates(null);
-    setDraftSubmitError(null);
-  }, []);
-
-  const handleToggleAddPoint = useCallback(() => {
-    setDraftSubmitSuccess(null);
-    setDraftSubmitError(null);
-    setSelectedFeature(null);
-    setSelectedFeatureState(null);
-    clearHash();
-    setIsAddingPoint((prev) => !prev);
-    setDraftCoordinates(null);
-  }, []);
+  }, [clearSelection]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -157,9 +150,13 @@ export function EucMap() {
   const selectedFeatureStateRef = useRef<SelectedFeatureState | null>(null);
   useEffect(() => {
     addLayersRef.current = addLayersToMap;
+  }, [addLayersToMap]);
+  useEffect(() => {
     applyVisibilityRef.current = applyVisibility;
+  }, [applyVisibility]);
+  useEffect(() => {
     selectedFeatureStateRef.current = selectedFeatureState;
-  });
+  }, [selectedFeatureState]);
 
   const openFeature = useCallback(
     (feature: Feature, layerKey: LayerKey, lngLat?: [number, number]) => {
@@ -199,14 +196,14 @@ export function EucMap() {
 
     const onMapClick = (event: { lngLat: { lng: number; lat: number } }) => {
       setDraftCoordinates([event.lngLat.lng, event.lngLat.lat]);
-      setDraftSubmitError(null);
+      clearDraftSubmitError();
     };
 
     map.on('click', onMapClick);
     return () => {
       map.off('click', onMapClick);
     };
-  }, [map, isAddingPoint]);
+  }, [map, isAddingPoint, setDraftCoordinates, clearDraftSubmitError]);
 
   useEffect(() => {
     if (!map) return;
@@ -239,25 +236,6 @@ export function EucMap() {
       draftMarkerRef.current = null;
     };
   }, []);
-
-  const handleSubmitDraft = useCallback(async (payload: MapPointDraftInput) => {
-    if (isSubmittingDraft) return;
-    setIsSubmittingDraft(true);
-    setDraftSubmitError(null);
-    setDraftSubmitSuccess(null);
-
-    try {
-      await createMapPointDraft(payload);
-      setDraftSubmitSuccess('Заявка отправлена на модерацию.');
-      setIsAddingPoint(false);
-      setDraftCoordinates(null);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось отправить заявку. Попробуйте позже.';
-      setDraftSubmitError(message);
-    } finally {
-      setIsSubmittingDraft(false);
-    }
-  }, [isSubmittingDraft]);
 
   // ПКМ по карте — вывести координаты в консоль
   useEffect(() => {
@@ -306,7 +284,7 @@ export function EucMap() {
 
   useEffect(() => {
     applyVisibility(map);
-  }, [visibility, map, applyVisibility, pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo]);
+  }, [visibility, map, applyVisibility]);
 
   useHashSelectionSync({
     enabled: Boolean(map && isMapReady),

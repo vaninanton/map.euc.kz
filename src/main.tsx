@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import '@/index.css';
 import { useYandexMetrika } from '@/hooks/useYandexMetrika';
 import { PwaPrompts } from '@/components/PwaPrompts';
+import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 
 const EucMap = lazy(async () => {
   const module = await import('@/components/EucMap');
@@ -14,7 +15,9 @@ function AppRoot() {
   return (
     <>
       <Suspense fallback={<div className="h-dvh w-full bg-neutral-100" />}>
-        <EucMap />
+        <AppErrorBoundary>
+          <EucMap />
+        </AppErrorBoundary>
       </Suspense>
       <PwaPrompts />
     </>

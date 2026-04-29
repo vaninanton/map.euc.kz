@@ -12,6 +12,7 @@ interface UseHashSelectionSyncOptions {
 export function useHashSelectionSync(options: UseHashSelectionSyncOptions) {
   const { enabled, getFeatureById, openFeature } = options;
   const lastSyncedHashRef = useRef<string | null>(null);
+  const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -30,7 +31,10 @@ export function useHashSelectionSync(options: UseHashSelectionSyncOptions) {
       const feature = getFeatureById(layerKey, parsed.id);
       if (!feature) return;
 
-      requestAnimationFrame(() => {
+      if (rafIdRef.current !== null) {
+        window.cancelAnimationFrame(rafIdRef.current);
+      }
+      rafIdRef.current = requestAnimationFrame(() => {
         openFeature(feature, layerKey);
       });
 
@@ -41,6 +45,10 @@ export function useHashSelectionSync(options: UseHashSelectionSyncOptions) {
     window.addEventListener('hashchange', syncFromHash);
     return () => {
       window.removeEventListener('hashchange', syncFromHash);
+      if (rafIdRef.current !== null) {
+        window.cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
     };
   }, [enabled, getFeatureById, openFeature]);
 }
