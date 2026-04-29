@@ -10,6 +10,7 @@ interface LayerControlsProps {
   onBaseStyleChange: (style: BaseMapStyle) => void;
   isAddingPoint: boolean;
   onToggleAddPoint: () => void;
+  onOpenRiderGeoModal: () => void;
 }
 
 const LABELS: Record<LayerKey, string> = {
@@ -37,6 +38,7 @@ export function LayerControls({
   onBaseStyleChange,
   isAddingPoint,
   onToggleAddPoint,
+  onOpenRiderGeoModal,
 }: LayerControlsProps) {
   return (
     <div
@@ -112,6 +114,13 @@ export function LayerControls({
           }`}
         >
           {isAddingPoint ? 'Отменить' : 'Добавить точку'}
+        </button>
+        <button
+          type="button"
+          onClick={onOpenRiderGeoModal}
+          className="mt-2 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 sm:text-sm"
+        >
+          Радар
         </button>
       </div>
       <TelegramChannels />

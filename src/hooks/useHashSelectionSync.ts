@@ -7,10 +7,11 @@ interface UseHashSelectionSyncOptions {
   enabled: boolean;
   getFeatureById: (layer: LayerKey, id: string) => Feature | null;
   openFeature: (feature: Feature, layerKey: LayerKey) => void;
+  ensureLayerVisible: (layer: LayerKey) => void;
 }
 
 export function useHashSelectionSync(options: UseHashSelectionSyncOptions) {
-  const { enabled, getFeatureById, openFeature } = options;
+  const { enabled, getFeatureById, openFeature, ensureLayerVisible } = options;
   const lastSyncedHashRef = useRef<string | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
@@ -28,6 +29,7 @@ export function useHashSelectionSync(options: UseHashSelectionSyncOptions) {
       }
 
       const layerKey = HASH_TYPE_TO_LAYER_KEY[parsed.type];
+      ensureLayerVisible(layerKey);
       const feature = getFeatureById(layerKey, parsed.id);
       if (!feature) return;
 
@@ -50,5 +52,5 @@ export function useHashSelectionSync(options: UseHashSelectionSyncOptions) {
         rafIdRef.current = null;
       }
     };
-  }, [enabled, getFeatureById, openFeature]);
+  }, [enabled, getFeatureById, openFeature, ensureLayerVisible]);
 }

@@ -16,6 +16,7 @@ import { applySelectionOpacityById, type SelectedFeatureState } from '@/utils/se
 import { FeatureSidebar } from '@/components/FeatureSidebar';
 import { LayerControls } from '@/components/LayerControls';
 import { AddPointPanel } from '@/components/AddPointPanel';
+import { RiderGeoModal } from '@/components/RiderGeoModal';
 
 const SIDEBAR_DESKTOP_WIDTH = 320;
 const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
@@ -49,6 +50,7 @@ export function EucMap() {
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
+  const [isRiderGeoModalOpen, setIsRiderGeoModalOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(min-width: 768px)').matches;
@@ -63,6 +65,7 @@ export function EucMap() {
   const {
     visibility,
     toggleLayer,
+    setLayerVisibility,
     addLayersToMap,
     applyVisibility,
     getFeatureById,
@@ -290,7 +293,14 @@ export function EucMap() {
     enabled: Boolean(map && isMapReady),
     getFeatureById,
     openFeature,
+    ensureLayerVisible: (layerKey) => {
+      setLayerVisibility(layerKey, true);
+    },
   });
+
+  const riderPointFeatures = telegramUsersGeo?.features.filter(
+    (feature) => feature.geometry.type === 'Point' && feature.properties.type === 'telegramUser'
+  ) ?? [];
 
   return (
     <div>
@@ -333,6 +343,9 @@ export function EucMap() {
           onBaseStyleChange={setBaseMapStyle}
           isAddingPoint={isAddingPoint}
           onToggleAddPoint={handleToggleAddPoint}
+          onOpenRiderGeoModal={() => {
+            setIsRiderGeoModalOpen(true);
+          }}
         />
       )}
       {isAddingPoint && (
@@ -348,6 +361,14 @@ export function EucMap() {
         <FeatureSidebar
           feature={selectedFeature}
           onClose={handleSidebarClose}
+        />
+      )}
+      {isRiderGeoModalOpen && (
+        <RiderGeoModal
+          riders={riderPointFeatures}
+          onClose={() => {
+            setIsRiderGeoModalOpen(false);
+          }}
         />
       )}
     </div>

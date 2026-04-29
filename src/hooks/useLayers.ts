@@ -52,7 +52,7 @@ export function useLayers() {
   const [routesGeo, setRoutesGeo] = useState<FeatureCollection | null>(null);
   const [bikeLanesGeo, setBikeLanesGeo] = useState<FeatureCollection | null>(null);
   const [telegramUsersGeo, setTelegramUsersGeo] = useState<FeatureCollection | null>(null);
-  const { visibility, toggleLayer } = useLayerVisibilityStore();
+  const { visibility, toggleLayer, setLayerVisibility } = useLayerVisibilityStore();
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
@@ -237,6 +237,7 @@ export function useLayers() {
     errorMessage,
     emptyMessage,
     toggleLayer,
+    setLayerVisibility,
     addLayersToMap,
     applyVisibility,
     getFeatureById,

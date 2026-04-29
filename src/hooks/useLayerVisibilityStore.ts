@@ -33,17 +33,30 @@ function loadStoredVisibility(): LayerVisibility {
 export function useLayerVisibilityStore() {
   const [visibility, setVisibility] = useState<LayerVisibility>(loadStoredVisibility);
 
+  const persistVisibility = useCallback((next: LayerVisibility) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
   const toggleLayer = useCallback((layer: keyof LayerVisibility) => {
     setVisibility((current) => {
       const next = { ...current, [layer]: !current[layer] };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // ignore storage errors
-      }
+      persistVisibility(next);
       return next;
     });
-  }, []);
+  }, [persistVisibility]);
 
-  return { visibility, toggleLayer };
+  const setLayerVisibility = useCallback((layer: keyof LayerVisibility, visible: boolean) => {
+    setVisibility((current) => {
+      if (current[layer] === visible) return current;
+      const next = { ...current, [layer]: visible };
+      persistVisibility(next);
+      return next;
+    });
+  }, [persistVisibility]);
+
+  return { visibility, toggleLayer, setLayerVisibility };
 }
