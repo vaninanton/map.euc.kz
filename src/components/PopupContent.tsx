@@ -124,7 +124,7 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
             </p>
             {typeof feature.properties.avgSpeedKmh === 'number' && Number.isFinite(feature.properties.avgSpeedKmh) && (
               <p className="text-xs text-neutral-500 mt-0.5">
-                Средняя скорость (последние точки): {feature.properties.avgSpeedKmh.toFixed(1)} км/ч
+                Средняя скорость (по последним {feature.properties.avgSpeedWindowPoints ?? 5} точкам): {feature.properties.avgSpeedKmh.toFixed(1)} км/ч
               </p>
             )}
           </>

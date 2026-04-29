@@ -24,9 +24,10 @@ function row(partial: Partial<TelegramLocationRow>): TelegramLocationRow {
 
 describe('supabaseToGeojson telegram conversion', () => {
   it('берет последнюю точку пользователя для user-фичи', () => {
+    const now = Date.now();
     const rows = [
-      row({ telegram_user_id: 7, created_at: '2026-01-01T00:00:00.000Z', longitude: 10, latitude: 10 }),
-      row({ telegram_user_id: 7, created_at: '2026-01-01T00:01:00.000Z', longitude: 20, latitude: 20 }),
+      row({ telegram_user_id: 7, created_at: new Date(now - 2 * 60 * 1000).toISOString(), longitude: 10, latitude: 10 }),
+      row({ telegram_user_id: 7, created_at: new Date(now - 1 * 60 * 1000).toISOString(), longitude: 20, latitude: 20 }),
     ];
 
     const collection = telegramLocationsToUsersFeatureCollection(rows);
@@ -69,10 +70,11 @@ describe('supabaseToGeojson telegram conversion', () => {
   });
 
   it('считает среднюю скорость для telegramUser', () => {
+    const now = Date.now();
     const rows = [
-      row({ telegram_user_id: 42, created_at: '2026-01-01T00:00:00.000Z', longitude: 76.90, latitude: 43.20 }),
-      row({ telegram_user_id: 42, created_at: '2026-01-01T00:05:00.000Z', longitude: 76.91, latitude: 43.20 }),
-      row({ telegram_user_id: 42, created_at: '2026-01-01T00:10:00.000Z', longitude: 76.92, latitude: 43.20 }),
+      row({ telegram_user_id: 42, created_at: new Date(now - 10 * 60 * 1000).toISOString(), longitude: 76.90, latitude: 43.20 }),
+      row({ telegram_user_id: 42, created_at: new Date(now - 5 * 60 * 1000).toISOString(), longitude: 76.91, latitude: 43.20 }),
+      row({ telegram_user_id: 42, created_at: new Date(now - 1 * 60 * 1000).toISOString(), longitude: 76.92, latitude: 43.20 }),
     ];
 
     const users = telegramLocationsToUsersFeatureCollection(rows);
@@ -84,5 +86,53 @@ describe('supabaseToGeojson telegram conversion', () => {
     }
     expect(typeof userFeature.properties.avgSpeedKmh).toBe('number');
     expect((userFeature.properties.avgSpeedKmh ?? 0) > 0).toBe(true);
+  });
+
+  it('строит шлейф для всех райдеров, считая tail от их последней точки', () => {
+    const now = Date.now();
+    const rows = [
+      row({
+        telegram_user_id: 1,
+        created_at: new Date(now - 10 * 60 * 1000).toISOString(),
+        longitude: 76.90,
+        latitude: 43.20,
+      }),
+      row({
+        telegram_user_id: 1,
+        created_at: new Date(now - 5 * 60 * 1000).toISOString(),
+        longitude: 76.91,
+        latitude: 43.21,
+      }),
+      row({
+        telegram_user_id: 2,
+        created_at: new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString(),
+        longitude: 76.80,
+        latitude: 43.10,
+      }),
+      row({
+        telegram_user_id: 2,
+        created_at: new Date(now - (10 * 24 * 60 * 60 * 1000 - 5 * 60 * 1000)).toISOString(),
+        longitude: 76.81,
+        latitude: 43.11,
+      }),
+    ];
+
+    const users = telegramLocationsToUsersFeatureCollection(rows);
+    expect(users.features).toHaveLength(1);
+    expect(users.features[0]?.properties.type).toBe('telegramUser');
+    if (!users.features[0] || users.features[0].properties.type !== 'telegramUser') {
+      throw new Error('Ожидали telegramUser фичу');
+    }
+    expect(users.features[0].properties.telegramUserId).toBe(1);
+
+    const tracks = telegramLocationsToRecentTracksFeatureCollection(rows);
+    expect(tracks.features).toHaveLength(2);
+    const trackUserIds = tracks.features
+      .filter((feature) => feature.properties.type === 'telegramUser')
+      .map((feature) =>
+        feature.properties.type === 'telegramUser' ? feature.properties.telegramUserId : null
+      );
+    expect(trackUserIds).toContain(1);
+    expect(trackUserIds).toContain(2);
   });
 });

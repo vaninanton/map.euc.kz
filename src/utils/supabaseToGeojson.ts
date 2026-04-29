@@ -3,10 +3,15 @@ import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supa
 import { parsePositiveInt } from '@/utils/numberParsers';
 
 const DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES = 30;
+const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
 const TELEGRAM_SPEED_SAMPLE_POINTS = 5;
 
 function getTelegramTrackTailMinutes(): number {
   return parsePositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
+}
+
+function getTelegramGeoTtlMinutes(): number {
+  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
 }
 
 function isPointCoordinates(value: unknown): value is [number, number] {
@@ -147,9 +152,14 @@ export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocation
   }
 
   const nowTs = Date.now();
+  const ttlThresholdTs = nowTs - getTelegramGeoTtlMinutes() * 60 * 1000;
   const avgSpeedByUser = buildAverageSpeedByUser(rows);
   const latestByUser = new Map<number, TelegramLocationRow>();
   for (const row of rows) {
+    const timestamp = Date.parse(row.created_at);
+    if (!Number.isFinite(timestamp) || timestamp < ttlThresholdTs) {
+      continue;
+    }
     const existing = latestByUser.get(row.telegram_user_id);
     if (!existing || existing.created_at < row.created_at) {
       latestByUser.set(row.telegram_user_id, row);
@@ -178,6 +188,7 @@ export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocation
         ageMinutes: Math.max(0, (nowTs - Date.parse(row.created_at)) / 60000),
         avatarUrl: buildTelegramAvatarUrl(row),
         avgSpeedKmh: avgSpeedByUser.get(row.telegram_user_id) ?? null,
+        avgSpeedWindowPoints: TELEGRAM_SPEED_SAMPLE_POINTS,
       },
     }));
 
@@ -194,14 +205,11 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
 
   const trackTailMinutes = getTelegramTrackTailMinutes();
   const avgSpeedByUser = buildAverageSpeedByUser(rows);
-  const tailThresholdTs = Date.now() - trackTailMinutes * 60 * 1000;
   const byUser = new Map<number, TelegramLocationRow[]>();
 
   for (const row of rows) {
     const timestamp = Date.parse(row.created_at);
-    if (!Number.isFinite(timestamp) || timestamp < tailThresholdTs) {
-      continue;
-    }
+    if (!Number.isFinite(timestamp)) continue;
     const bucket = byUser.get(row.telegram_user_id);
     if (bucket) {
       bucket.push(row);
@@ -213,8 +221,14 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
   const features: Feature[] = [];
   for (const [telegramUserId, userRows] of byUser) {
     if (userRows.length < 2) continue;
-    // На входе строки уже отсортированы по created_at (asc), повторно не сортируем.
     const lastPoint = userRows[userRows.length - 1];
+    const lastPointTs = Date.parse(lastPoint.created_at);
+    if (!Number.isFinite(lastPointTs)) continue;
+    const tailThresholdTs = lastPointTs - trackTailMinutes * 60 * 1000;
+    const tailRows = userRows.filter((row) => Date.parse(row.created_at) >= tailThresholdTs);
+    if (tailRows.length < 2) continue;
+
+    // На входе строки уже отсортированы по created_at (asc), повторно не сортируем.
     const displayName = buildTelegramDisplayName(lastPoint);
     const avatarUrl = buildTelegramAvatarUrl(lastPoint);
 
@@ -222,12 +236,12 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
       type: 'Feature',
       geometry: {
         type: 'LineString',
-        coordinates: userRows.map((point) => [point.longitude, point.latitude] as [number, number]),
+        coordinates: tailRows.map((point) => [point.longitude, point.latitude] as [number, number]),
       },
       properties: {
         id: `telegram-track-${String(telegramUserId)}`,
         name: `Трек ${displayName}`,
-        description: `Маршрут за последние ${String(trackTailMinutes)} минут (${String(userRows.length)} точек).`,
+        description: `Маршрут за последние ${String(trackTailMinutes)} минут (${String(tailRows.length)} точек).`,
         type: 'telegramUser',
         telegramUserId,
         username: lastPoint.username,
@@ -236,6 +250,7 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
         updatedAt: lastPoint.created_at,
         avatarUrl,
         avgSpeedKmh: avgSpeedByUser.get(telegramUserId) ?? null,
+        avgSpeedWindowPoints: TELEGRAM_SPEED_SAMPLE_POINTS,
       },
     });
   }
