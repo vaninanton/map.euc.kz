@@ -6,6 +6,7 @@ import { useMapHover } from '@/hooks/useMapHover';
 import { useHashSelectionSync } from '@/hooks/useHashSelectionSync';
 import { useSelectedFeatureState } from '@/hooks/useSelectedFeatureState';
 import { useDraftPointFlow } from '@/hooks/useDraftPointFlow';
+import { useUserLocationMarker } from '@/hooks/useUserLocationMarker';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
 import { setHash, clearHash } from '@/utils/hashNav';
@@ -13,10 +14,12 @@ import { Marker } from 'mapbox-gl';
 import type { Feature } from '@/types/geojson';
 import type { LayerKey } from '@/constants';
 import { applySelectionOpacityById, type SelectedFeatureState } from '@/utils/selectionOpacity';
-import { FeatureSidebar } from '@/components/FeatureSidebar';
 import { LayerControls } from '@/components/LayerControls';
 import { AddPointPanel } from '@/components/AddPointPanel';
-import { RiderGeoModal } from '@/components/RiderGeoModal';
+import { ProjectInfoModal } from '@/components/ProjectInfoModal';
+import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
+import { MapNotificationModals } from '@/components/MapNotificationModals';
+import { MapRiderGeoModal } from '@/components/MapRiderGeoModal';
 
 const SIDEBAR_DESKTOP_WIDTH = 320;
 const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
@@ -51,6 +54,7 @@ export function EucMap() {
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isRiderGeoModalOpen, setIsRiderGeoModalOpen] = useState(false);
+  const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(min-width: 768px)').matches;
@@ -62,6 +66,7 @@ export function EucMap() {
   }, []);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
+  const { isLocatingUser, locateUser, locationErrorMessage, clearLocationError } = useUserLocationMarker(map);
   const {
     visibility,
     toggleLayer,
@@ -310,31 +315,18 @@ export function EucMap() {
           Задайте VITE_MAPBOX_TOKEN в .env
         </div>
       )}
-      {errorMessage && (
-        <div className="absolute top-0 left-1/2 z-20 flex max-w-100 -translate-x-1/2 items-center gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-md overlay-safe-inset">
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => {
-              void handleResetCacheAndReload();
-            }}
-            disabled={isResettingCache}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
-          >
-            Обновить страницу
-          </button>
-        </div>
-      )}
-      {!errorMessage && !loading && emptyMessage && (
-        <div className="absolute top-0 left-1/2 z-20 flex max-w-100 -translate-x-1/2 items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 shadow-md overlay-safe-inset">
-          <span>{emptyMessage}</span>
-        </div>
-      )}
-      {draftSubmitSuccess && (
-        <div className="absolute top-0 left-1/2 z-20 flex max-w-100 -translate-x-1/2 items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-md overlay-safe-inset">
-          <span>{draftSubmitSuccess}</span>
-        </div>
-      )}
+      <MapNotificationModals
+        errorMessage={errorMessage}
+        emptyMessage={emptyMessage}
+        loading={loading}
+        draftSubmitSuccess={draftSubmitSuccess}
+        locationErrorMessage={locationErrorMessage}
+        isResettingCache={isResettingCache}
+        onResetCacheAndReload={() => {
+          void handleResetCacheAndReload();
+        }}
+        onCloseLocationError={clearLocationError}
+      />
       {(!selectedFeature || isDesktop) && (
         <LayerControls
           visibility={visibility}
@@ -345,6 +337,11 @@ export function EucMap() {
           onToggleAddPoint={handleToggleAddPoint}
           onOpenRiderGeoModal={() => {
             setIsRiderGeoModalOpen(true);
+          }}
+          onLocateUser={locateUser}
+          isLocatingUser={isLocatingUser}
+          onOpenProjectInfo={() => {
+            setIsProjectInfoOpen(true);
           }}
         />
       )}
@@ -357,20 +354,23 @@ export function EucMap() {
           onCancel={handleCancelAddPoint}
         />
       )}
-      {selectedFeature && (
-        <FeatureSidebar
-          feature={selectedFeature}
-          onClose={handleSidebarClose}
-        />
-      )}
-      {isRiderGeoModalOpen && (
-        <RiderGeoModal
-          riders={riderPointFeatures}
-          onClose={() => {
-            setIsRiderGeoModalOpen(false);
-          }}
-        />
-      )}
+      <MapFeatureInfoModal feature={selectedFeature} onClose={handleSidebarClose} />
+      <MapRiderGeoModal
+        isOpen={isRiderGeoModalOpen}
+        riders={riderPointFeatures}
+        onClose={() => {
+          setIsRiderGeoModalOpen(false);
+        }}
+      />
+      <ProjectInfoModal
+        isOpen={isProjectInfoOpen}
+        onClose={() => {
+          setIsProjectInfoOpen(false);
+        }}
+        onClearCache={() => {
+          void handleResetCacheAndReload();
+        }}
+      />
     </div>
   );
 }

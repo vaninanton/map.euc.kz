@@ -11,6 +11,9 @@ type UserPosition = {
   lon: number;
 };
 
+const STALE_AGE_MINUTES = 10;
+const MIN_OLD_OPACITY = 0.35;
+
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
@@ -94,12 +97,20 @@ export function RiderGeoModal({ riders, onClose }: RiderGeoModalProps) {
         const target = { lat, lon };
         const distanceKm = computeDistanceKm(userPosition, target);
         const bearingDeg = computeBearingDeg(userPosition, target);
+        const ageMinutes =
+          typeof feature.properties.ageMinutes === 'number' && Number.isFinite(feature.properties.ageMinutes)
+            ? feature.properties.ageMinutes
+            : 0;
+        const oldnessFactor = Math.max(0, Math.min(1, (ageMinutes - STALE_AGE_MINUTES) / STALE_AGE_MINUTES));
+        const opacity = 1 - oldnessFactor * (1 - MIN_OLD_OPACITY);
         return {
           id: feature.properties.id,
           name: feature.properties.name || 'Без имени',
           distanceKm,
           bearingDeg,
           bearingLabel: bearingToCompassRu(bearingDeg),
+          ageMinutes,
+          opacity,
         };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
@@ -177,9 +188,9 @@ export function RiderGeoModal({ riders, onClose }: RiderGeoModalProps) {
 
                   {radarPoints.map((rider) => (
                     <g key={rider.id}>
-                      <circle cx={rider.x} cy={rider.y} r="5" fill="#7c3aed" />
+                      <circle cx={rider.x} cy={rider.y} r="5" fill="#7c3aed" fillOpacity={rider.opacity} />
                       <title>
-                        {rider.name}: {rider.distanceKm.toFixed(2)} км, {rider.bearingLabel} ({Math.round(rider.bearingDeg)}°)
+                        {rider.name}: {rider.distanceKm.toFixed(2)} км, {rider.bearingLabel} ({Math.round(rider.bearingDeg)}°), возраст {Math.round(rider.ageMinutes)} мин
                       </title>
                     </g>
                   ))}
@@ -188,8 +199,12 @@ export function RiderGeoModal({ riders, onClose }: RiderGeoModalProps) {
 
               <ul className="mt-3 space-y-1.5">
                 {riderRows.map((rider) => (
-                  <li key={rider.id} className="text-xs text-neutral-700">
-                    {rider.name}: {rider.distanceKm.toFixed(2)} км · {rider.bearingLabel} ({Math.round(rider.bearingDeg)}°)
+                  <li
+                    key={rider.id}
+                    className="text-xs text-neutral-700"
+                    style={rider.opacity < 1 ? { opacity: rider.opacity } : undefined}
+                  >
+                    {rider.name}: {rider.distanceKm.toFixed(2)} км · {rider.bearingLabel} ({Math.round(rider.bearingDeg)}°) · {Math.round(rider.ageMinutes)} мин назад
                   </li>
                 ))}
               </ul>

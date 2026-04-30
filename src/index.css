@@ -40,6 +40,14 @@
     max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 }
 
+/* Паддинги контейнера с учётом safe-area (для полноэкранных модалок) */
+.safe-area-padding {
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
 @media (pointer: coarse) {
   .mapboxgl-ctrl-attrib { font-size: 9px; }
 }
