@@ -29,7 +29,7 @@ export default defineConfig({
   base: process.env.GITHUB_PAGES === 'true' ? '/map.euc/' : '/',
   server: {
     host: true,
-    allowedHosts: ['map.euc.test'],
+    allowedHosts: ['map.euc.test', 'test.euc.kz'],
   },
   build: {
     rolldownOptions: {
