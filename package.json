@@ -13,6 +13,10 @@
     "generate:pwa-startup": "pwa-asset-generator public/favicon.svg public/icons --splash-only --index index.html --path-override /icons --background \"#0f172a\" --type png"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.2.0",
+    "@fortawesome/free-brands-svg-icons": "^7.2.0",
+    "@fortawesome/free-solid-svg-icons": "^7.2.0",
+    "@fortawesome/react-fontawesome": "^3.3.1",
     "@supabase/supabase-js": "^2.105.1",
     "mapbox-gl": "^3.22.0",
     "react": "^19.2.5",
