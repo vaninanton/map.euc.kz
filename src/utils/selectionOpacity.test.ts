@@ -6,7 +6,7 @@ import {
   type SelectedFeatureState,
 } from '@/utils/selectionOpacity';
 
-describe('selectionOpacity smoke', () => {
+describe('selectionOpacity', () => {
   it('не меняет прозрачность без выбранной фичи', () => {
     const expr = buildSelectionOpacityExpression(SOURCE_IDS.points, null);
     expect(expr).toBe(1);
@@ -25,6 +25,20 @@ describe('selectionOpacity smoke', () => {
     expect(sameSourceExpr).toEqual([
       'case',
       ['==', ['id'], 'p-1'],
+      1,
+      DIM_OPACITY,
+    ]);
+  });
+
+  it('для Telegram-слоя с id telegram-user-N использует свойство telegramUserId', () => {
+    const selected: SelectedFeatureState = {
+      sourceId: SOURCE_IDS.telegramUsers,
+      id: 'telegram-user-7',
+    };
+    const expr = buildSelectionOpacityExpression(SOURCE_IDS.telegramUsers, selected);
+    expect(expr).toEqual([
+      'case',
+      ['==', ['get', 'telegramUserId'], 7],
       1,
       DIM_OPACITY,
     ]);
