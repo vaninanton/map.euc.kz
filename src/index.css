@@ -5,7 +5,7 @@
   line-height: 1.5;
   font-weight: 400;
   color: #1a1a1a;
-  background-color: transparent;
+  background-color: darkgray;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,15 +18,10 @@
 }
 
 .map-container {
-  position: fixed !important;
+  position: relative;
+  min-width: 100dvw;
+  min-height: 100dvh;
   top: env(safe-area-inset-top);
-  right: env(safe-area-inset-right);
-  bottom: env(safe-area-inset-bottom);
-  left: env(safe-area-inset-left);
-  height: 100%;
-  width: 100%;
-  min-width: 100%;
-  min-height: 100%;
 }
 
 /* Отступы для фиксированных контролов: не менее 0.5rem и не меньше safe-area */
