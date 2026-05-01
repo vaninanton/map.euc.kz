@@ -35,9 +35,7 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     if (!button) return;
 
     const isSatellite = baseStyleRef.current === 'satellite';
-    const iconMarkup = icon(isSatellite ? faMap : faSatellite, {
-      styles: { width: '16px', height: '16px' },
-    }).html.join('');
+    const iconMarkup = icon(isSatellite ? faMap : faSatellite).html.join('');
     button.innerHTML = iconMarkup;
     button.setAttribute('aria-label', isSatellite ? 'Переключить на карту' : 'Переключить на спутник');
     button.setAttribute('title', isSatellite ? 'Переключить на карту' : 'Переключить на спутник');
@@ -121,11 +119,6 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'euc-style-toggle-btn';
-    button.style.padding = '0';
-    button.style.display = 'inline-flex';
-    button.style.alignItems = 'center';
-    button.style.justifyContent = 'center';
     button.onclick = () => {
       const nextStyle: BaseMapStyle = baseStyleRef.current === 'satellite' ? 'streets' : 'satellite';
       setBaseMapStyle(nextStyle);
@@ -134,7 +127,7 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     updateStyleToggleButton();
 
     const group = document.createElement('div');
-    group.className = 'mapboxgl-ctrl mapboxgl-ctrl-group euc-style-toggle-control';
+    group.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
     group.appendChild(button);
 
     const styleControl: mapboxgl.IControl = {

@@ -322,6 +322,8 @@ export function EucMap() {
       />
       {(!selectedFeature || isDesktop) && (
         <LayerControls
+          map={map}
+          isMapReady={isMapReady}
           visibility={visibility}
           onToggle={toggleLayer}
           isAddingPoint={isAddingPoint}

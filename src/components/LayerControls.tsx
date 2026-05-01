@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { IControl, Map as MapboxMap } from 'mapbox-gl'
+import { createRoot, type Root } from 'react-dom/client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSliders } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faSliders, faXmark } from '@fortawesome/free-solid-svg-icons'
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
 import { LayerPanel } from '@/components/LayerPanel'
-import { MapOverlayButtons } from '@/components/MapOverlayButtons'
+import { ProjectInfoButton } from '@/components/ProjectInfoButton'
 
 interface LayerControlsProps {
+    map: MapboxMap | null
+    isMapReady: boolean
     visibility: LayerVisibility
     onToggle: (layer: LayerKey) => void
     isAddingPoint: boolean
@@ -14,44 +18,134 @@ interface LayerControlsProps {
 }
 
 export function LayerControls({
+    map,
+    isMapReady,
     visibility,
     onToggle,
     isAddingPoint,
     onToggleAddPoint,
     onOpenProjectInfo,
 }: LayerControlsProps) {
-    const [isCollapsed, setIsCollapsed] = useState(false)
+    const [isCollapsed, setIsCollapsed] = useState(true)
+    const layersRootRef = useRef<Root | null>(null)
+    const addPointRootRef = useRef<Root | null>(null)
+    const infoRootRef = useRef<Root | null>(null)
 
-    return (
-        <>
-            <MapOverlayButtons
-                onOpenProjectInfo={onOpenProjectInfo}
-            />
+    useEffect(() => {
+        if (!map || !isMapReady) return
 
-            {isCollapsed ? (
+        const layersContainer = document.createElement('div')
+        layersContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
+        const layersRootNode = document.createElement('div')
+        layersContainer.appendChild(layersRootNode)
+        layersRootRef.current = createRoot(layersRootNode)
+
+        const infoContainer = document.createElement('div')
+        infoContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
+        const infoRootNode = document.createElement('div')
+        infoContainer.appendChild(infoRootNode)
+        infoRootRef.current = createRoot(infoRootNode)
+
+        const addPointContainer = document.createElement('div')
+        addPointContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
+        const addPointRootNode = document.createElement('div')
+        addPointContainer.appendChild(addPointRootNode)
+        addPointRootRef.current = createRoot(addPointRootNode)
+
+        const layersControl: IControl = {
+            onAdd() {
+                return layersContainer
+            },
+            onRemove() {
+                layersContainer.remove()
+            },
+            getDefaultPosition() {
+                return 'top-left'
+            },
+        }
+
+        const infoControl: IControl = {
+            onAdd() {
+                return infoContainer
+            },
+            onRemove() {
+                infoContainer.remove()
+            },
+            getDefaultPosition() {
+                return 'bottom-right'
+            },
+        }
+
+        const addPointControl: IControl = {
+            onAdd() {
+                return addPointContainer
+            },
+            onRemove() {
+                addPointContainer.remove()
+            },
+            getDefaultPosition() {
+                return 'top-left'
+            },
+        }
+
+        map.addControl(layersControl, 'bottom-left')
+        map.addControl(addPointControl, 'top-left')
+        map.addControl(infoControl, 'bottom-right')
+
+        return () => {
+            layersRootRef.current?.unmount()
+            addPointRootRef.current?.unmount()
+            infoRootRef.current?.unmount()
+            layersRootRef.current = null
+            addPointRootRef.current = null
+            infoRootRef.current = null
+            map.removeControl(layersControl)
+            map.removeControl(addPointControl)
+            map.removeControl(infoControl)
+        }
+    }, [map, isMapReady])
+
+    useEffect(() => {
+        layersRootRef.current?.render(
+            isCollapsed ? (
                 <button
                     type="button"
                     onClick={() => {
                         setIsCollapsed(false)
                     }}
-                    className="fixed bottom-0 left-0 z-10 h-11 w-11 sm:h-12 sm:w-12 rounded-xl border border-neutral-200/80 bg-white/95 text-neutral-700 shadow-lg shadow-neutral-900/10 backdrop-blur-xl transition hover:bg-neutral-100 control-inset-left control-inset-bottom inline-flex items-center justify-center cursor-pointer"
                     aria-label="Развернуть панель слоев"
                     title="Развернуть панель слоев"
                 >
-                    <FontAwesomeIcon icon={faSliders} className="h-4 w-4" aria-hidden />
+                    <FontAwesomeIcon icon={faSliders} aria-hidden />
                 </button>
             ) : (
                 <LayerPanel
                     visibility={visibility}
                     onToggle={onToggle}
-                    isAddingPoint={isAddingPoint}
-                    onToggleAddPoint={onToggleAddPoint}
                     onCollapse={() => {
                         setIsCollapsed(true)
                     }}
                 />
-            )}
+            )
+        )
+    }, [map, isMapReady, isCollapsed, visibility, onToggle, isAddingPoint, onToggleAddPoint])
 
-        </>
-    )
+    useEffect(() => {
+        addPointRootRef.current?.render(
+            <button
+                type="button"
+                onClick={onToggleAddPoint}
+                aria-label={isAddingPoint ? 'Отменить добавление точки' : 'Добавить точку'}
+                title={isAddingPoint ? 'Отменить добавление точки' : 'Добавить точку'}
+            >
+                <FontAwesomeIcon icon={isAddingPoint ? faXmark : faPlus} aria-hidden />
+            </button>
+        )
+    }, [map, isMapReady, isAddingPoint, onToggleAddPoint])
+
+    useEffect(() => {
+        infoRootRef.current?.render(<ProjectInfoButton onClick={onOpenProjectInfo} />)
+    }, [map, isMapReady, onOpenProjectInfo])
+
+    return null
 }
