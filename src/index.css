@@ -24,28 +24,12 @@
   top: env(safe-area-inset-top);
 }
 
-/* Отступы для фиксированных контролов: не менее 0.5rem и не меньше safe-area */
-.control-inset-top { margin-top: max(0.5rem, env(safe-area-inset-top)); }
-.control-inset-right { margin-right: max(0.5rem, env(safe-area-inset-right)); }
-.control-inset-bottom { margin-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
-.control-inset-left { margin-left: max(0.5rem, env(safe-area-inset-left)); }
-
-/* Оверлей по центру экрана: отступ от краёв с учётом safe-area */
-.overlay-safe-inset {
-  margin: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
-    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
-}
-
 /* Паддинги контейнера с учётом safe-area (для полноэкранных модалок) */
 .safe-area-padding {
   padding-top: max(1rem, env(safe-area-inset-top));
   padding-right: max(1rem, env(safe-area-inset-right));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
   padding-left: max(1rem, env(safe-area-inset-left));
-}
-
-@media (pointer: coarse) {
-  .mapboxgl-ctrl-attrib { font-size: 9px; }
 }
 
 .mapboxgl-popup-content {
@@ -55,16 +39,6 @@
   max-width: 340px;
   overflow: hidden;
   box-shadow: var(--panel-shadow), 0 0 0 1px var(--panel-border);
-}
-
-.mapboxgl-popup-close-button {
-  font-size: 20px;
-  padding: 8px 12px;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
-}
-.mapboxgl-popup-close-button:hover {
-  opacity: 1;
 }
 
 /* Тултип при наведении на точку/маршрут */
@@ -84,4 +58,18 @@
   max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.mapboxgl-ctrl-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0px) !important;
+}
+
+.mapboxgl-ctrl-bottom-right {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0px) !important;
+  padding-right: calc(env(safe-area-inset-right) + 0px) !important;
+}
+
+.mapboxgl-ctrl-bottom-left {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0px) !important;
+  padding-left: calc(env(safe-area-inset-left) + 0px) !important;
 }

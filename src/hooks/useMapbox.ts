@@ -50,6 +50,8 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
       style: MAPBOX_STYLES[baseStyle],
       center: MAP_CENTER,
       zoom: MAP_ZOOM_DEFAULT,
+      logoPosition: 'bottom-right',
+      attributionControl: false,
       // Отключаем телеметрию Mapbox — запросы на events.mapbox.com блокируются CORS в части окружений
       transformRequest: (url) => {
         if (!url) {
@@ -72,6 +74,12 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     });
     mapRef.current = mapInstance;
     setMap(mapInstance);
+    mapInstance.addControl(
+      new mapboxgl.AttributionControl({
+        customAttribution: 'velojol.kz',
+      }),
+      'bottom-right'
+    );
 
     const onLoad = () => {
       setIsMapReady(true);
