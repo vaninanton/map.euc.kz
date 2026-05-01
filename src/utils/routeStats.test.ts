@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { computeRouteStats } from '@/utils/routeStats';
-import type { RouteFeature } from '@/types/geojson';
+import type { Position, RouteFeature } from '@/types/geojson';
 
-function route(coords: [number, number][]): RouteFeature {
+function route(coords: Position[]): RouteFeature {
   return {
     type: 'Feature',
     geometry: { type: 'LineString', coordinates: coords },
