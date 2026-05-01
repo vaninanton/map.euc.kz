@@ -6,7 +6,6 @@ interface LayerPanelProps {
   onToggle: (layer: LayerKey) => void;
   isAddingPoint: boolean;
   onToggleAddPoint: () => void;
-  onOpenRiderGeoModal: () => void;
   onCollapse: () => void;
 }
 
@@ -33,7 +32,6 @@ export function LayerPanel({
   onToggle,
   isAddingPoint,
   onToggleAddPoint,
-  onOpenRiderGeoModal,
   onCollapse,
 }: LayerPanelProps) {
   return (
@@ -103,13 +101,6 @@ export function LayerPanel({
           }`}
         >
           {isAddingPoint ? 'Отменить' : 'Добавить точку'}
-        </button>
-        <button
-          type="button"
-          onClick={onOpenRiderGeoModal}
-          className="mt-2 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 sm:text-sm cursor-pointer"
-        >
-          Радар
         </button>
       </div>
     </div>

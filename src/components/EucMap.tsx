@@ -19,8 +19,6 @@ import { AddPointPanel } from '@/components/AddPointPanel';
 import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
-import { MapRiderGeoModal } from '@/components/MapRiderGeoModal';
-
 const SIDEBAR_DESKTOP_WIDTH = 320;
 const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
 const FOCUS_PADDING_BASE = 40;
@@ -53,7 +51,6 @@ export function EucMap() {
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
-  const [isRiderGeoModalOpen, setIsRiderGeoModalOpen] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -303,10 +300,6 @@ export function EucMap() {
     },
   });
 
-  const riderPointFeatures = telegramUsersGeo?.features.filter(
-    (feature) => feature.geometry.type === 'Point' && feature.properties.type === 'telegramUser'
-  ) ?? [];
-
   return (
     <div>
       <div ref={containerRef} className="map-container" />
@@ -335,9 +328,6 @@ export function EucMap() {
           onBaseStyleChange={setBaseMapStyle}
           isAddingPoint={isAddingPoint}
           onToggleAddPoint={handleToggleAddPoint}
-          onOpenRiderGeoModal={() => {
-            setIsRiderGeoModalOpen(true);
-          }}
           onLocateUser={locateUser}
           isLocatingUser={isLocatingUser}
           onOpenProjectInfo={() => {
@@ -355,13 +345,6 @@ export function EucMap() {
         />
       )}
       <MapFeatureInfoModal feature={selectedFeature} onClose={handleSidebarClose} />
-      <MapRiderGeoModal
-        isOpen={isRiderGeoModalOpen}
-        riders={riderPointFeatures}
-        onClose={() => {
-          setIsRiderGeoModalOpen(false);
-        }}
-      />
       <ProjectInfoModal
         isOpen={isProjectInfoOpen}
         onClose={() => {

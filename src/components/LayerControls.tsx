@@ -13,7 +13,6 @@ interface LayerControlsProps {
     onBaseStyleChange: (style: BaseMapStyle) => void
     isAddingPoint: boolean
     onToggleAddPoint: () => void
-    onOpenRiderGeoModal: () => void
     onLocateUser: () => void
     isLocatingUser: boolean
     onOpenProjectInfo: () => void
@@ -26,7 +25,6 @@ export function LayerControls({
     onBaseStyleChange,
     isAddingPoint,
     onToggleAddPoint,
-    onOpenRiderGeoModal,
     onLocateUser,
     isLocatingUser,
     onOpenProjectInfo,
@@ -61,7 +59,6 @@ export function LayerControls({
                     onToggle={onToggle}
                     isAddingPoint={isAddingPoint}
                     onToggleAddPoint={onToggleAddPoint}
-                    onOpenRiderGeoModal={onOpenRiderGeoModal}
                     onCollapse={() => {
                         setIsCollapsed(true)
                     }}

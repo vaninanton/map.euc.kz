@@ -73,7 +73,6 @@ Orchestrates 10+ hooks; owns the `<div ref={containerRef}>` Mapbox mount point. 
 - `LayerControls` — toggle layer visibility (persisted to localStorage via `useLayerVisibilityStore`)
 - `FeatureSidebar` / `PopupContent` — selected feature details + photo gallery
 - `AddPointPanel` — draft point submission form (`useDraftPointFlow` hook)
-- `RiderGeoModal` — Telegram users list with distances + avg speeds
 
 ### Supabase Backend
 
