@@ -90,7 +90,7 @@ export function LayerControls({
 
         map.addControl(layersControl, 'bottom-left')
         map.addControl(addPointControl, 'top-left')
-        map.addControl(infoControl, 'bottom-right')
+        map.addControl(infoControl, 'bottom-left')
 
         return () => {
             layersRootRef.current?.unmount()

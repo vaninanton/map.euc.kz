@@ -226,11 +226,13 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
       </div>
       {showCopied && (
         <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg bg-neutral-800 text-white text-sm font-medium shadow-lg"
+          className="fixed inset-x-0 z-50 bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1.5rem))] flex justify-center px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pointer-events-none"
           role="status"
           aria-live="polite"
         >
-          Ссылка скопирована
+          <div className="pointer-events-auto px-4 py-2.5 rounded-lg bg-neutral-800 text-white text-sm font-medium shadow-lg">
+            Ссылка скопирована
+          </div>
         </div>
       )}
     </div>

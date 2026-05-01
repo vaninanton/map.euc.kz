@@ -176,7 +176,7 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
       <ShareBlock feature={feature} onCopied={onCopied} />
       {activePhoto && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-[max(1rem,env(safe-area-inset-top))_max(1rem,env(safe-area-inset-right))_max(1rem,env(safe-area-inset-bottom))_max(1rem,env(safe-area-inset-left))]"
           role="dialog"
           aria-modal="true"
           aria-label="Просмотр фотографии"

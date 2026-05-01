@@ -49,7 +49,7 @@ export function useMapPopup(
       }
       popupRef.current?.remove();
       const div = document.createElement('div');
-      div.style.paddingRight = '28px'; // место под кнопку закрытия Mapbox
+      div.style.paddingRight = 'calc(28px + env(safe-area-inset-right, 0px))'; // место под кнопку закрытия Mapbox + safe-area
       const root = createRoot(div);
       flushSync(() => {
         root.render(React.createElement(PopupContent, { feature }));
