@@ -20,7 +20,7 @@ function baseUrlMetaPlugin() {
 // https://vite.dev/config/
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.GITHUB_SHA ?? `${Date.now()}`),
+    __APP_VERSION__: JSON.stringify(process.env.GITHUB_SHA ?? String(Date.now())),
   },
   plugins: [baseUrlMetaPlugin(), react(), tailwindcss()],
   resolve: {

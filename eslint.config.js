@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules', 'coverage', 'eslint.config.js']),
+  globalIgnores(['dist', 'node_modules', 'coverage', 'eslint.config.js', 'supabase/functions/**']),
   {
     files: ['public/sw.js'],
     languageOptions: { globals: globals.serviceworker },

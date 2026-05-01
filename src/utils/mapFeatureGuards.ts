@@ -38,7 +38,8 @@ export function getStringProperty(
 }
 
 export function getFeatureId(feature: Feature): string {
-  return String(feature.properties.id);
+  const id = feature.properties.id;
+  return typeof id === 'string' ? id : String(id);
 }
 
 export function isRouteFeature(feature: Feature): feature is RouteFeature {

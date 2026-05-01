@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type SyntheticEvent } from 'react';
 import type { MapPointDraftInput, MapPointType } from '@/types';
 
 interface AddPointPanelProps {
@@ -39,7 +39,7 @@ export function AddPointPanel({
     return `${lng.toFixed(6)}, ${lat.toFixed(6)}`;
   }, [coordinates]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     setTouched(true);
     if (!coordinates || !titleTrimmed) return;
@@ -58,7 +58,12 @@ export function AddPointPanel({
       <h2 className="text-sm font-semibold text-neutral-900">Добавить объект</h2>
       <p className="mt-1 text-xs text-neutral-600">Кликните по карте, затем заполните форму и отправьте заявку.</p>
 
-      <form className="mt-3 flex flex-col gap-3" onSubmit={handleSubmit}>
+      <form
+        className="mt-3 flex flex-col gap-3"
+        onSubmit={(event) => {
+          void handleSubmit(event);
+        }}
+      >
         <div>
           <label htmlFor="add-point-type" className="mb-1 block text-xs font-medium text-neutral-700">
             Тип

@@ -25,7 +25,7 @@ export const supabase =
   typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null;
 
 async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
       reject(new Error(`${label}: превышено время ожидания запроса`));
@@ -34,7 +34,7 @@ async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label:
   try {
     return await Promise.race([promise, timeoutPromise]);
   } finally {
-    if (timeoutId !== null) clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
   }
 }
 
@@ -84,7 +84,8 @@ function getTelegramMaxAccuracyMeters(): number {
 
 function asPointCoordinates(value: unknown): [number, number] | null {
   if (!Array.isArray(value) || value.length < 2) return null;
-  const [lon, lat] = value;
+  const lon: unknown = value[0];
+  const lat: unknown = value[1];
   if (typeof lon !== 'number' || typeof lat !== 'number') return null;
   return [lon, lat];
 }
@@ -94,7 +95,9 @@ function asLineCoordinates(value: unknown): Array<[number, number] | [number, nu
   const points: Array<[number, number] | [number, number, number]> = [];
   for (const item of value) {
     if (!Array.isArray(item) || item.length < 2) return null;
-    const [lon, lat, elevation] = item;
+    const lon: unknown = item[0];
+    const lat: unknown = item[1];
+    const elevation: unknown = item[2];
     if (typeof lon !== 'number' || typeof lat !== 'number') return null;
     if (elevation !== undefined && typeof elevation !== 'number') return null;
     points.push(
@@ -284,7 +287,7 @@ export async function fetchMapPoints(): Promise<MapPointRow[]> {
   }
 
   const rows: MapPointRow[] = [];
-  for (const row of data ?? []) {
+  for (const row of data) {
     const normalized = normalizeMapPointRow(row);
     if (normalized) rows.push(normalized);
   }
@@ -306,7 +309,7 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
   }
 
   const rows: MapRouteRow[] = [];
-  for (const row of data ?? []) {
+  for (const row of data) {
     const normalized = normalizeMapRouteRow(row);
     if (normalized) rows.push(normalized);
   }
@@ -342,9 +345,8 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
       throw new Error('Не удалось загрузить telegram-локации.');
     }
 
-    const batch = data ?? [];
-    locationRowsRaw.push(...batch);
-    if (batch.length < pageSize) break;
+    locationRowsRaw.push(...data);
+    if (data.length < pageSize) break;
   }
 
   const profileRowsRaw: unknown[] = [];
@@ -365,9 +367,8 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
       throw new Error('Не удалось загрузить профили Telegram.');
     }
 
-    const batch = profilesData ?? [];
-    profileRowsRaw.push(...batch);
-    if (batch.length < pageSize) break;
+    profileRowsRaw.push(...profilesData);
+    if (profilesData.length < pageSize) break;
   }
 
   const profilesByUserId = new Map<number, TelegramProfileRow>();

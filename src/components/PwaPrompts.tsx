@@ -4,6 +4,8 @@ export function PwaPrompts() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
     let isMounted = true;
     let trackedRegistration: ServiceWorkerRegistration | null = null;
     let trackedWorker: ServiceWorker | null = null;
@@ -29,9 +31,9 @@ export function PwaPrompts() {
       trackedWorker.addEventListener('statechange', onWorkerStateChange);
     };
 
-    navigator.serviceWorker?.addEventListener('controllerchange', onControllerChange);
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
-    void navigator.serviceWorker?.getRegistration().then((registration) => {
+    void navigator.serviceWorker.getRegistration().then((registration) => {
       if (!isMounted || !registration) return;
       trackedRegistration = registration;
       trackedRegistration.addEventListener('updatefound', onUpdateFound);
@@ -48,7 +50,7 @@ export function PwaPrompts() {
 
     return () => {
       isMounted = false;
-      navigator.serviceWorker?.removeEventListener('controllerchange', onControllerChange);
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
       trackedRegistration?.removeEventListener('updatefound', onUpdateFound);
       trackedWorker?.removeEventListener('statechange', onWorkerStateChange);
     };
@@ -61,15 +63,17 @@ export function PwaPrompts() {
   return (
     <>
       {waitingWorker && (
-        <div className="fixed left-1/2 top-0 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-xs font-medium text-white shadow-md control-inset-top">
+        <div className="fixed inset-x-0 top-0 z-30 flex justify-center px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] control-inset-top">
+          <div className="flex max-w-[min(100%,24rem)] items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-xs font-medium text-white shadow-md">
           <span title={`Версия: ${__APP_VERSION__}`}>Доступно обновление</span>
           <button
             type="button"
             onClick={updateApp}
-            className="rounded bg-white/15 px-2 py-1 text-white hover:bg-white/25"
+            className="shrink-0 rounded bg-white/15 px-2 py-1 text-white hover:bg-white/25"
           >
             Обновить
           </button>
+          </div>
         </div>
       )}
     </>

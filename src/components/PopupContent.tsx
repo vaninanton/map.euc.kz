@@ -66,7 +66,9 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
       }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [lightboxIndex, photos.length]);
 
   useEffect(() => {
@@ -136,12 +138,14 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
                 <button
                   key={photo.id}
                   type="button"
-                  onClick={() => setLightboxIndex(index)}
+                  onClick={() => {
+                    setLightboxIndex(index);
+                  }}
                   className="block shrink-0 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-100"
                 >
                   <img
                     src={photo.url}
-                    alt={photo.alt?.trim() || `${name || 'Точка'} — фото ${index + 1}`}
+                    alt={photo.alt?.trim() || `${name || 'Точка'} — фото ${String(index + 1)}`}
                     className="w-28 h-20 object-cover"
                     loading="lazy"
                   />
@@ -180,11 +184,15 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
           role="dialog"
           aria-modal="true"
           aria-label="Просмотр фотографии"
-          onClick={() => setLightboxIndex(null)}
+          onClick={() => {
+            setLightboxIndex(null);
+          }}
         >
           <button
             type="button"
-            onClick={() => setLightboxIndex(null)}
+            onClick={() => {
+              setLightboxIndex(null);
+            }}
             className="absolute top-4 right-4 text-white/90 hover:text-white text-3xl leading-none"
             aria-label="Закрыть просмотр"
           >
@@ -205,15 +213,17 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
           )}
           <figure
             className="max-w-5xl w-full flex flex-col items-center"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
           >
             <img
               src={activePhoto.url}
-              alt={activePhoto.alt?.trim() || `${name || 'Точка'} — фото ${(lightboxIndex ?? 0) + 1}`}
+              alt={activePhoto.alt?.trim() || `${name || 'Точка'} — фото ${String((lightboxIndex ?? 0) + 1)}`}
               className="max-h-[80vh] w-auto max-w-full object-contain rounded-lg"
             />
             <figcaption className="mt-3 text-sm text-white/90">
-              {activePhoto.alt?.trim() || `${(lightboxIndex ?? 0) + 1} из ${photos.length}`}
+              {activePhoto.alt?.trim() || `${String((lightboxIndex ?? 0) + 1)} из ${String(photos.length)}`}
             </figcaption>
           </figure>
           {photos.length > 1 && (

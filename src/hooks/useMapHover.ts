@@ -50,9 +50,7 @@ export function useMapHover(map: MapboxMap | null) {
     };
 
     const setCanvasCursor = (value: string) => {
-      const canvas = map.getCanvas();
-      if (!canvas) return;
-      canvas.style.cursor = value;
+      map.getCanvas().style.cursor = value;
     };
 
     const clearHover = () => {

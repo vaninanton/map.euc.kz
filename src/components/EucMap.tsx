@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
 import { useMapClick } from '@/hooks/useMapClick';
@@ -189,12 +189,14 @@ export function EucMap() {
   useMapClick(map, { enabled: !isAddingPoint, getFeatureById, onFeatureSelect: handleFeatureSelect, setHash });
   useMapHover(map);
 
-  useEffect(() => {
-    if (!selectedFeature || selectedFeature.properties.type !== 'telegramUser') return;
-    const freshFeature = getFeatureById('telegramUsers', selectedFeature.properties.id);
-    if (!freshFeature) return;
-    setSelectedFeature(freshFeature);
-  }, [selectedFeature, getFeatureById, telegramUsersGeo]);
+  const displaySelectedFeature = useMemo(() => {
+    if (!selectedFeature || selectedFeature.properties.type !== 'telegramUser') {
+      return selectedFeature;
+    }
+    const id = selectedFeature.properties.id;
+    const idStr = typeof id === 'string' ? id : String(id);
+    return getFeatureById('telegramUsers', idStr) ?? selectedFeature;
+  }, [selectedFeature, getFeatureById]);
 
   useEffect(() => {
     if (!map || !isAddingPoint) return;
@@ -342,7 +344,7 @@ export function EucMap() {
           onCancel={handleCancelAddPoint}
         />
       )}
-      <MapFeatureInfoModal feature={selectedFeature} onClose={handleSidebarClose} />
+      <MapFeatureInfoModal feature={displaySelectedFeature} onClose={handleSidebarClose} />
       <ProjectInfoModal
         isOpen={isProjectInfoOpen}
         onClose={() => {

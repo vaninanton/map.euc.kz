@@ -1,28 +1,7 @@
-import { StrictMode, Suspense, lazy } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@/index.css';
-import { useYandexMetrika } from '@/hooks/useYandexMetrika';
-import { PwaPrompts } from '@/components/PwaPrompts';
-import { AppErrorBoundary } from '@/components/AppErrorBoundary';
-
-const EucMap = lazy(async () => {
-  const module = await import('@/components/EucMap');
-  return { default: module.EucMap };
-});
-
-function AppRoot() {
-  useYandexMetrika()
-  return (
-    <>
-      <Suspense fallback={<div className="h-dvh w-full bg-neutral-100" />}>
-        <AppErrorBoundary>
-          <EucMap />
-        </AppErrorBoundary>
-      </Suspense>
-      <PwaPrompts />
-    </>
-  )
-}
+import '@/index.css'
+import App from '@/App'
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return
@@ -39,7 +18,7 @@ const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('Root element #root not found')
 createRoot(rootEl).render(
   <StrictMode>
-    <AppRoot />
+    <App />
   </StrictMode>,
 )
 registerServiceWorker()

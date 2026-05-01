@@ -89,7 +89,7 @@ function buildTelegramDisplayName(row: TelegramLocationRow): string {
 
 function buildTelegramAvatarUrl(row: TelegramLocationRow): string {
   if (row.avatar_url) return row.avatar_url;
-  const seed = row.username ?? `${row.telegram_user_id}`;
+  const seed = row.username ?? String(row.telegram_user_id);
   return `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 }
 

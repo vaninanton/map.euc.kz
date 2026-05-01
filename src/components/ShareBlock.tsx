@@ -151,7 +151,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
   return (
     <div className="mt-3 pt-3 px-2 pb-4 border-t border-neutral-200">
       <div className="flex flex-wrap gap-2">
-        {showMapLinks && mapLinkCoords && (
+        {showMapLinks && (
           <>
             <a
               href={buildYandexLink(mapLinkCoords.lat, mapLinkCoords.lon)}

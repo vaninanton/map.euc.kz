@@ -76,85 +76,88 @@ export function useLayers() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setErrorMessage(null);
-    setEmptyMessage(null);
-    void (async () => {
-      const [pointsResult, routesResult, telegramLocationsResult, bikeLanesModule] = await Promise.allSettled([
-        fetchMapPoints(),
-        fetchMapRoutes(),
-        fetchTelegramLocations(),
-        import('@/data/almaty.json'),
-      ]);
-      if (cancelled) return;
+    const abort = { aborted: false };
+    void Promise.resolve().then(() => {
+      if (abort.aborted) return;
+      setLoading(true);
+      setErrorMessage(null);
+      setEmptyMessage(null);
+      void (async () => {
+        const [pointsResult, routesResult, telegramLocationsResult, bikeLanesModule] = await Promise.allSettled([
+          fetchMapPoints(),
+          fetchMapRoutes(),
+          fetchTelegramLocations(),
+          import('@/data/almaty.json'),
+        ]);
+        if (abort.aborted) return;
 
-      if (pointsResult.status === 'fulfilled') {
-        setPointsGeo(mapPointsToFeatureCollection(pointsResult.value));
-      } else {
-        setPointsGeo(null);
-      }
+        if (pointsResult.status === 'fulfilled') {
+          setPointsGeo(mapPointsToFeatureCollection(pointsResult.value));
+        } else {
+          setPointsGeo(null);
+        }
 
-      if (routesResult.status === 'fulfilled') {
-        setRoutesGeo(mapRoutesToFeatureCollection(routesResult.value));
-      } else {
-        setRoutesGeo(null);
-      }
+        if (routesResult.status === 'fulfilled') {
+          setRoutesGeo(mapRoutesToFeatureCollection(routesResult.value));
+        } else {
+          setRoutesGeo(null);
+        }
 
-      if (telegramLocationsResult.status === 'fulfilled') {
-        const pointsGeo = telegramLocationsToUsersFeatureCollection(telegramLocationsResult.value);
-        const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(telegramLocationsResult.value);
-        setTelegramUsersGeo({
-          type: 'FeatureCollection',
-          features: [...tracksGeo.features, ...pointsGeo.features],
-        });
-      } else {
-        setTelegramUsersGeo(null);
-      }
+        if (telegramLocationsResult.status === 'fulfilled') {
+          const pointsGeo = telegramLocationsToUsersFeatureCollection(telegramLocationsResult.value);
+          const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(telegramLocationsResult.value);
+          setTelegramUsersGeo({
+            type: 'FeatureCollection',
+            features: [...tracksGeo.features, ...pointsGeo.features],
+          });
+        } else {
+          setTelegramUsersGeo(null);
+        }
 
-      if (bikeLanesModule.status === 'fulfilled') {
-        const raw = bikeLanesModule.value.default;
-        if (Array.isArray(raw) && raw.length > 0) {
-          const segments = (raw as VelojolSegment[]).filter(
-            (seg) => !EXCLUDED_BIKE_LANE_IDS.has(seg.id)
-          );
-          setBikeLanesGeo(velojolToFeatureCollection(segments));
+        if (bikeLanesModule.status === 'fulfilled') {
+          const raw = bikeLanesModule.value.default;
+          if (Array.isArray(raw) && raw.length > 0) {
+            const segments = (raw as VelojolSegment[]).filter(
+              (seg) => !EXCLUDED_BIKE_LANE_IDS.has(seg.id)
+            );
+            setBikeLanesGeo(velojolToFeatureCollection(segments));
+          } else {
+            setBikeLanesGeo(null);
+          }
         } else {
           setBikeLanesGeo(null);
         }
-      } else {
-        setBikeLanesGeo(null);
-      }
 
-      const errors: string[] = [];
-      if (pointsResult.status === 'rejected') {
-        const msg = pointsResult.reason instanceof Error ? pointsResult.reason.message : 'Не удалось загрузить точки.';
-        errors.push(msg);
-      }
-      if (routesResult.status === 'rejected') {
-        const msg = routesResult.reason instanceof Error ? routesResult.reason.message : 'Не удалось загрузить маршруты.';
-        errors.push(msg);
-      }
-      if (telegramLocationsResult.status === 'rejected') {
-        const msg =
-          telegramLocationsResult.reason instanceof Error
-            ? telegramLocationsResult.reason.message
-            : 'Не удалось загрузить Telegram-участников.';
-        errors.push(msg);
-      }
-      if (errors.length > 0) setErrorMessage(errors.join(' '));
+        const errors: string[] = [];
+        if (pointsResult.status === 'rejected') {
+          const msg = pointsResult.reason instanceof Error ? pointsResult.reason.message : 'Не удалось загрузить точки.';
+          errors.push(msg);
+        }
+        if (routesResult.status === 'rejected') {
+          const msg = routesResult.reason instanceof Error ? routesResult.reason.message : 'Не удалось загрузить маршруты.';
+          errors.push(msg);
+        }
+        if (telegramLocationsResult.status === 'rejected') {
+          const msg =
+            telegramLocationsResult.reason instanceof Error
+              ? telegramLocationsResult.reason.message
+              : 'Не удалось загрузить Telegram-участников.';
+          errors.push(msg);
+        }
+        if (errors.length > 0) setErrorMessage(errors.join(' '));
 
-      const pointsCount = pointsResult.status === 'fulfilled' ? pointsResult.value.length : 0;
-      const routesCount = routesResult.status === 'fulfilled' ? routesResult.value.length : 0;
-      const telegramPointsCount =
-        telegramLocationsResult.status === 'fulfilled' ? telegramLocationsResult.value.length : 0;
-      if (pointsCount + routesCount + telegramPointsCount === 0) {
-        setEmptyMessage('Пока нет опубликованных точек, маршрутов и Telegram-локаций.');
-      }
-      setLoading(false);
-    })();
+        const pointsCount = pointsResult.status === 'fulfilled' ? pointsResult.value.length : 0;
+        const routesCount = routesResult.status === 'fulfilled' ? routesResult.value.length : 0;
+        const telegramPointsCount =
+          telegramLocationsResult.status === 'fulfilled' ? telegramLocationsResult.value.length : 0;
+        if (pointsCount + routesCount + telegramPointsCount === 0) {
+          setEmptyMessage('Пока нет опубликованных точек, маршрутов и Telegram-локаций.');
+        }
+        setLoading(false);
+      })();
+    });
     return () => {
-      cancelled = true;
+      abort.aborted = true;
     };
   }, []);
 
@@ -217,12 +220,11 @@ export function useLayers() {
 
   const getFeatureById = useCallback(
     (layer: LayerKey, id: string): Feature | null => {
-      const idNorm = String(id);
-      if (layer === 'points') return pointsById.get(`point:${idNorm}`) ?? null;
-      if (layer === 'sockets') return pointsById.get(`socket:${idNorm}`) ?? null;
-      if (layer === 'routes') return routesById.get(idNorm) ?? null;
-      if (layer === 'bikeLanes') return bikeLanesById.get(idNorm) ?? null;
-      return telegramUsersById.get(idNorm) ?? null;
+      if (layer === 'points') return pointsById.get(`point:${id}`) ?? null;
+      if (layer === 'sockets') return pointsById.get(`socket:${id}`) ?? null;
+      if (layer === 'routes') return routesById.get(id) ?? null;
+      if (layer === 'bikeLanes') return bikeLanesById.get(id) ?? null;
+      return telegramUsersById.get(id) ?? null;
     },
     [pointsById, routesById, bikeLanesById, telegramUsersById]
   );

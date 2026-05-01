@@ -79,10 +79,9 @@ describe('supabaseToGeojson telegram conversion', () => {
 
     const users = telegramLocationsToUsersFeatureCollection(rows);
     const userFeature = users.features[0];
-    expect(userFeature).toBeDefined();
-    expect(userFeature?.properties.type).toBe('telegramUser');
-    if (!userFeature || userFeature.properties.type !== 'telegramUser') {
-      throw new Error('Ожидали telegramUser фичу');
+    expect(userFeature.properties.type).toBe('telegramUser');
+    if (userFeature.properties.type !== 'telegramUser') {
+      throw new Error('Ожидали telegramUser');
     }
     expect(typeof userFeature.properties.avgSpeedKmh).toBe('number');
     expect((userFeature.properties.avgSpeedKmh ?? 0) > 0).toBe(true);
