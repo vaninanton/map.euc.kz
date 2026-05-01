@@ -62,7 +62,7 @@ export function EucMap() {
     setSelectedFeatureState(null);
   }, []);
 
-  const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
+  const { map, isMapReady, flyTo, flyToBounds } = useMapbox(containerRef);
   const { locationErrorMessage, clearLocationError } = useGeolocateControl(map, isMapReady);
   const {
     visibility,
@@ -324,8 +324,6 @@ export function EucMap() {
         <LayerControls
           visibility={visibility}
           onToggle={toggleLayer}
-          baseStyle={baseStyle}
-          onBaseStyleChange={setBaseMapStyle}
           isAddingPoint={isAddingPoint}
           onToggleAddPoint={handleToggleAddPoint}
           onOpenProjectInfo={() => {

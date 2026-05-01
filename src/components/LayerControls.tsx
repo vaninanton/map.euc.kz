@@ -2,15 +2,12 @@ import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSliders } from '@fortawesome/free-solid-svg-icons'
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
-import type { BaseMapStyle } from '@/hooks/useMapbox'
 import { LayerPanel } from '@/components/LayerPanel'
 import { MapOverlayButtons } from '@/components/MapOverlayButtons'
 
 interface LayerControlsProps {
     visibility: LayerVisibility
     onToggle: (layer: LayerKey) => void
-    baseStyle: BaseMapStyle
-    onBaseStyleChange: (style: BaseMapStyle) => void
     isAddingPoint: boolean
     onToggleAddPoint: () => void
     onOpenProjectInfo: () => void
@@ -19,8 +16,6 @@ interface LayerControlsProps {
 export function LayerControls({
     visibility,
     onToggle,
-    baseStyle,
-    onBaseStyleChange,
     isAddingPoint,
     onToggleAddPoint,
     onOpenProjectInfo,
@@ -30,8 +25,6 @@ export function LayerControls({
     return (
         <>
             <MapOverlayButtons
-                baseStyle={baseStyle}
-                onBaseStyleChange={onBaseStyleChange}
                 onOpenProjectInfo={onOpenProjectInfo}
             />
 

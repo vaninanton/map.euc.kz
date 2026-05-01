@@ -19,13 +19,14 @@
 
 .map-container {
   position: fixed !important;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  height: auto;
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+  height: 100%;
+  width: 100%;
   min-width: 100%;
   min-height: 100%;
-  left: 0;
 }
 
 /* Отступы для фиксированных контролов: не менее 0.5rem и не меньше safe-area */

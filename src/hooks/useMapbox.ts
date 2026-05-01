@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { icon } from '@fortawesome/fontawesome-svg-core';
+import { faMap, faSatellite } from '@fortawesome/free-solid-svg-icons';
 import { MAP_CENTER, MAP_ZOOM_DEFAULT, MAPBOX_STYLES } from '@/constants';
 
 const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -25,6 +27,21 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
   const [baseStyle, setBaseStyle] = useState<BaseMapStyle>(getStoredStyle);
   const [isMapReady, setIsMapReady] = useState(false);
   const isInitialStyleApplied = useRef(true);
+  const baseStyleRef = useRef<BaseMapStyle>(baseStyle);
+  const styleToggleButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const updateStyleToggleButton = useCallback(() => {
+    const button = styleToggleButtonRef.current;
+    if (!button) return;
+
+    const isSatellite = baseStyleRef.current === 'satellite';
+    const iconMarkup = icon(isSatellite ? faMap : faSatellite, {
+      styles: { width: '16px', height: '16px' },
+    }).html.join('');
+    button.innerHTML = iconMarkup;
+    button.setAttribute('aria-label', isSatellite ? 'Переключить на карту' : 'Переключить на спутник');
+    button.setAttribute('title', isSatellite ? 'Переключить на карту' : 'Переключить на спутник');
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -74,6 +91,20 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: init once
   }, []);
 
+  const setBaseMapStyle = useCallback((style: BaseMapStyle) => {
+    setBaseStyle(style);
+    try {
+      localStorage.setItem(STORAGE_KEY, style);
+    } catch {
+      // ignore quota / private mode
+    }
+  }, []);
+
+  useEffect(() => {
+    baseStyleRef.current = baseStyle;
+    updateStyleToggleButton();
+  }, [baseStyle, updateStyleToggleButton]);
+
   useEffect(() => {
     if (!map || !isMapReady) return;
     // Не вызываем setStyle при первой загрузке — стиль уже задан в конструкторе.
@@ -85,14 +116,46 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     map.setStyle(MAPBOX_STYLES[baseStyle]);
   }, [baseStyle, isMapReady, map]);
 
-  const setBaseMapStyle = (style: BaseMapStyle) => {
-    setBaseStyle(style);
-    try {
-      localStorage.setItem(STORAGE_KEY, style);
-    } catch {
-      // ignore quota / private mode
-    }
-  };
+  useEffect(() => {
+    if (!map || !isMapReady) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'euc-style-toggle-btn';
+    button.style.padding = '0';
+    button.style.display = 'inline-flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.onclick = () => {
+      const nextStyle: BaseMapStyle = baseStyleRef.current === 'satellite' ? 'streets' : 'satellite';
+      setBaseMapStyle(nextStyle);
+    };
+    styleToggleButtonRef.current = button;
+    updateStyleToggleButton();
+
+    const group = document.createElement('div');
+    group.className = 'mapboxgl-ctrl mapboxgl-ctrl-group euc-style-toggle-control';
+    group.appendChild(button);
+
+    const styleControl: mapboxgl.IControl = {
+      onAdd() {
+        return group;
+      },
+      onRemove() {
+        group.remove();
+      },
+      getDefaultPosition() {
+        return 'top-right';
+      },
+    };
+
+    map.addControl(styleControl, 'top-right');
+
+    return () => {
+      styleToggleButtonRef.current = null;
+      map.removeControl(styleControl);
+    };
+  }, [map, isMapReady, setBaseMapStyle, updateStyleToggleButton]);
 
   const flyTo = (center: [number, number], zoom?: number) => {
     map?.flyTo({ center, zoom: zoom ?? MAP_ZOOM_DEFAULT });
