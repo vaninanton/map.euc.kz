@@ -6,7 +6,7 @@ import { useMapHover } from '@/hooks/useMapHover';
 import { useHashSelectionSync } from '@/hooks/useHashSelectionSync';
 import { useSelectedFeatureState } from '@/hooks/useSelectedFeatureState';
 import { useDraftPointFlow } from '@/hooks/useDraftPointFlow';
-import { useUserLocationMarker } from '@/hooks/useUserLocationMarker';
+import { useGeolocateControl } from '@/hooks/useGeolocateControl';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
 import { setHash, clearHash } from '@/utils/hashNav';
@@ -63,7 +63,7 @@ export function EucMap() {
   }, []);
 
   const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
-  const { isLocatingUser, locateUser, locationErrorMessage, clearLocationError } = useUserLocationMarker(map);
+  const { isLocatingUser, locateUser, locationErrorMessage, clearLocationError } = useGeolocateControl(map, isMapReady);
   const {
     visibility,
     toggleLayer,
