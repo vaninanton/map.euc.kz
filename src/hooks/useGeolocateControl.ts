@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import type { Map as MapboxMap } from 'mapbox-gl';
-
-const GEOLOCATE_TIMEOUT_MS = 15000;
 
 function geolocationErrorMessage(error: GeolocationPositionError): string {
   if (error.code === error.PERMISSION_DENIED) {
@@ -16,24 +14,13 @@ function geolocationErrorMessage(error: GeolocationPositionError): string {
 
 /**
  * Встроенный {@link mapboxgl.GeolocateControl}: трекинг позиции, точка и направление (компас/GPS),
- * как в официальном примере Mapbox. Стандартная кнопка скрыта — вызывается {@link mapboxgl.GeolocateControl.trigger} с нашей кнопки.
+ * как в официальном примере Mapbox.
  */
 export function useGeolocateControl(map: MapboxMap | null, isMapReady: boolean) {
-  const [isLocatingUser, setIsLocatingUser] = useState(false);
   const [locationErrorMessage, setLocationErrorMessage] = useState<string | null>(null);
-  const geolocateRef = useRef<mapboxgl.GeolocateControl | null>(null);
-  const locateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearLocateTimeout = useCallback(() => {
-    if (locateTimeoutRef.current !== null) {
-      clearTimeout(locateTimeoutRef.current);
-      locateTimeoutRef.current = null;
-    }
-  }, []);
 
   useEffect(() => {
     if (!map || !isMapReady) {
-      geolocateRef.current = null;
       return;
     }
 
@@ -47,24 +34,18 @@ export function useGeolocateControl(map: MapboxMap | null, isMapReady: boolean) 
       showUserLocation: true,
       showUserHeading: true,
       showAccuracyCircle: true,
-      showButton: false,
+      showButton: true,
     });
 
     const onGeolocate = () => {
-      clearLocateTimeout();
-      setIsLocatingUser(false);
       setLocationErrorMessage(null);
     };
 
     const onError = (e: GeolocationPositionError) => {
-      clearLocateTimeout();
-      setIsLocatingUser(false);
       setLocationErrorMessage(geolocationErrorMessage(e));
     };
 
     const onOutOfMaxBounds = () => {
-      clearLocateTimeout();
-      setIsLocatingUser(false);
       setLocationErrorMessage('Геопозиция за пределами области карты');
     };
 
@@ -72,47 +53,17 @@ export function useGeolocateControl(map: MapboxMap | null, isMapReady: boolean) 
     geolocate.on('error', onError);
     geolocate.on('outofmaxbounds', onOutOfMaxBounds);
 
-    map.addControl(geolocate);
-    geolocateRef.current = geolocate;
+    map.addControl(geolocate, 'right');
 
     return () => {
       geolocate.off('geolocate', onGeolocate);
       geolocate.off('error', onError);
       geolocate.off('outofmaxbounds', onOutOfMaxBounds);
-      clearLocateTimeout();
       map.removeControl(geolocate);
-      geolocateRef.current = null;
     };
-  }, [map, isMapReady, clearLocateTimeout]);
-
-  const locateUser = useCallback(() => {
-    if (!map || isLocatingUser) return;
-
-    const geolocate = geolocateRef.current;
-    if (!geolocate) {
-      setLocationErrorMessage('Карта ещё загружается, подождите секунду');
-      return;
-    }
-
-    setLocationErrorMessage(null);
-    setIsLocatingUser(true);
-    clearLocateTimeout();
-    locateTimeoutRef.current = setTimeout(() => {
-      locateTimeoutRef.current = null;
-      setIsLocatingUser(false);
-    }, GEOLOCATE_TIMEOUT_MS);
-
-    const triggered = geolocate.trigger();
-    if (!triggered) {
-      clearLocateTimeout();
-      setIsLocatingUser(false);
-      setLocationErrorMessage('Геолокация не поддерживается в этом браузере');
-    }
-  }, [map, isLocatingUser, clearLocateTimeout]);
+  }, [map, isMapReady]);
 
   return {
-    isLocatingUser,
-    locateUser,
     locationErrorMessage,
     clearLocationError: () => {
       setLocationErrorMessage(null);

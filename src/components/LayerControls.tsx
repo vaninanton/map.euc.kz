@@ -13,8 +13,6 @@ interface LayerControlsProps {
     onBaseStyleChange: (style: BaseMapStyle) => void
     isAddingPoint: boolean
     onToggleAddPoint: () => void
-    onLocateUser: () => void
-    isLocatingUser: boolean
     onOpenProjectInfo: () => void
 }
 
@@ -25,8 +23,6 @@ export function LayerControls({
     onBaseStyleChange,
     isAddingPoint,
     onToggleAddPoint,
-    onLocateUser,
-    isLocatingUser,
     onOpenProjectInfo,
 }: LayerControlsProps) {
     const [isCollapsed, setIsCollapsed] = useState(false)
@@ -36,8 +32,6 @@ export function LayerControls({
             <MapOverlayButtons
                 baseStyle={baseStyle}
                 onBaseStyleChange={onBaseStyleChange}
-                onLocateUser={onLocateUser}
-                isLocatingUser={isLocatingUser}
                 onOpenProjectInfo={onOpenProjectInfo}
             />
 
