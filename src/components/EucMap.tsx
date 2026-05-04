@@ -54,10 +54,6 @@ export function EucMap() {
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(min-width: 768px)').matches;
-  });
   const draftMarkerRef = useRef<Marker | null>(null);
   const navigate = useNavigate();
   const clearSelection = useCallback(() => {
@@ -110,21 +106,6 @@ export function EucMap() {
     clearSelection();
     clearMapSelectionUrl();
   }, [clearSelection, clearMapSelectionUrl]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const mediaQuery = window.matchMedia('(min-width: 768px)');
-    const handleMediaChange = () => {
-      setIsDesktop(mediaQuery.matches);
-    };
-
-    handleMediaChange();
-    mediaQuery.addEventListener('change', handleMediaChange);
-    return () => {
-      mediaQuery.removeEventListener('change', handleMediaChange);
-    };
-  }, []);
 
   useEffect(() => {
     if (!selectedFeature) return;
@@ -341,19 +322,17 @@ export function EucMap() {
         }}
         onCloseLocationError={clearLocationError}
       />
-      {(!selectedFeature || isDesktop) && (
-        <LayerControls
-          map={map}
-          isMapReady={isMapReady}
-          visibility={visibility}
-          onToggle={toggleLayer}
-          isAddingPoint={isAddingPoint}
-          onToggleAddPoint={handleToggleAddPoint}
-          onOpenProjectInfo={() => {
-            setIsProjectInfoOpen(true);
-          }}
-        />
-      )}
+      <LayerControls
+        map={map}
+        isMapReady={isMapReady}
+        visibility={visibility}
+        onToggle={toggleLayer}
+        isAddingPoint={isAddingPoint}
+        onToggleAddPoint={handleToggleAddPoint}
+        onOpenProjectInfo={() => {
+          setIsProjectInfoOpen(true);
+        }}
+      />
       {isAddingPoint && (
         <AddPointPanel
           coordinates={draftCoordinates}

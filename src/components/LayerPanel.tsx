@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers';
 import { COLORS } from '@/constants';
 
@@ -88,14 +87,6 @@ export function LayerPanel({
           );
         })}
       </ul>
-      <div className="mt-4 border-t border-neutral-200 pt-3">
-        <Link
-          to="/admin"
-          className="text-[12px] text-neutral-500 underline-offset-2 hover:text-neutral-700 hover:underline"
-        >
-          Админка
-        </Link>
-      </div>
     </div>
   );
 }
