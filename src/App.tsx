@@ -1,23 +1,20 @@
-import { Suspense, lazy } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { YandexMetrika } from '@/components/YandexMetrika'
 import { PwaPrompts } from '@/components/PwaPrompts'
-import { AppErrorBoundary } from '@/components/AppErrorBoundary'
-
-const EucMap = lazy(async () => {
-    const module = await import('@/components/EucMap')
-    return { default: module.EucMap }
-})
+import { AdminRoutes } from '@/app/AdminRoutes'
+import { MapRoutes } from '@/app/MapRoutes'
+import { NotFound } from '@/app/NotFound'
 
 export default function App() {
     return (
-        <>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
             <YandexMetrika />
-            <Suspense fallback={<div className="h-dvh w-full bg-neutral-100" />}>
-                <AppErrorBoundary>
-                    <EucMap />
-                </AppErrorBoundary>
-            </Suspense>
+            <Routes>
+                <MapRoutes />
+                <AdminRoutes />
+                <Route path="*" element={<NotFound />} />
+            </Routes>
             <PwaPrompts />
-        </>
+        </BrowserRouter>
     )
 }

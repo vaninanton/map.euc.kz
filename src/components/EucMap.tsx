@@ -1,15 +1,17 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
 import { useMapClick } from '@/hooks/useMapClick';
 import { useMapHover } from '@/hooks/useMapHover';
-import { useHashSelectionSync } from '@/hooks/useHashSelectionSync';
+import { useMapSelectionSync } from '@/hooks/useMapSelectionSync';
 import { useSelectedFeatureState } from '@/hooks/useSelectedFeatureState';
 import { useDraftPointFlow } from '@/hooks/useDraftPointFlow';
 import { useGeolocateControl } from '@/hooks/useGeolocateControl';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
-import { setHash, clearHash } from '@/utils/hashNav';
+import { buildMapDeepLinkPath } from '@/utils/hashNav';
+import type { HashFeatureType } from '@/utils/hashNav';
 import { Marker } from 'mapbox-gl';
 import type { Feature } from '@/types/geojson';
 import type { LayerKey } from '@/constants';
@@ -57,10 +59,22 @@ export function EucMap() {
     return window.matchMedia('(min-width: 768px)').matches;
   });
   const draftMarkerRef = useRef<Marker | null>(null);
+  const navigate = useNavigate();
   const clearSelection = useCallback(() => {
     setSelectedFeature(null);
     setSelectedFeatureState(null);
   }, []);
+
+  const clearMapSelectionUrl = useCallback(() => {
+    void navigate('/', { replace: true });
+  }, [navigate]);
+
+  const syncSelectionUrl = useCallback(
+    (type: HashFeatureType, id: string) => {
+      void navigate(`/${buildMapDeepLinkPath(type, id)}`, { replace: true });
+    },
+    [navigate],
+  );
 
   const { map, isMapReady, flyTo, flyToBounds } = useMapbox(containerRef);
   const { locationErrorMessage, clearLocationError } = useGeolocateControl(map, isMapReady);
@@ -90,12 +104,12 @@ export function EucMap() {
     handleCancelAddPoint,
     handleToggleAddPoint,
     handleSubmitDraft,
-  } = useDraftPointFlow(clearSelection);
+  } = useDraftPointFlow(clearSelection, clearMapSelectionUrl);
 
   const handleSidebarClose = useCallback(() => {
     clearSelection();
-    clearHash();
-  }, [clearSelection]);
+    clearMapSelectionUrl();
+  }, [clearSelection, clearMapSelectionUrl]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -186,7 +200,12 @@ export function EucMap() {
     [openFeature]
   );
 
-  useMapClick(map, { enabled: !isAddingPoint, getFeatureById, onFeatureSelect: handleFeatureSelect, setHash });
+  useMapClick(map, {
+    enabled: !isAddingPoint,
+    getFeatureById,
+    onFeatureSelect: handleFeatureSelect,
+    syncSelectionUrl,
+  });
   useMapHover(map);
 
   const displaySelectedFeature = useMemo(() => {
@@ -293,7 +312,7 @@ export function EucMap() {
     applyVisibility(map);
   }, [visibility, map, applyVisibility]);
 
-  useHashSelectionSync({
+  useMapSelectionSync({
     enabled: Boolean(map && isMapReady),
     getFeatureById,
     openFeature,

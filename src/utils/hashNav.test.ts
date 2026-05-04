@@ -3,8 +3,10 @@ import {
   HASH_TYPE_TO_LAYER_KEY,
   LAYER_KEY_TO_HASH_TYPE,
   buildHash,
+  buildMapDeepLinkPath,
   clearHash,
   parseHash,
+  parseMapDeepLinkPathname,
   setHash,
 } from '@/utils/hashNav';
 import type { LayerKey } from '@/constants';
@@ -39,6 +41,14 @@ describe('hashNav', () => {
       const hashType = LAYER_KEY_TO_HASH_TYPE[key];
       expect(HASH_TYPE_TO_LAYER_KEY[hashType]).toBe(key);
     }
+  });
+
+  it('buildMapDeepLinkPath и parseMapDeepLinkPathname — обратимы', () => {
+    expect(buildMapDeepLinkPath('route', 'abc 1')).toBe('m/route/abc%201');
+    expect(parseMapDeepLinkPathname('/m/route/abc%201')).toEqual({ type: 'route', id: 'abc 1' });
+    expect(parseMapDeepLinkPathname('/m/bikelane/alm84')).toEqual({ type: 'bikeLane', id: 'alm84' });
+    expect(parseMapDeepLinkPathname('/admin/points')).toBeNull();
+    expect(parseMapDeepLinkPathname('/')).toBeNull();
   });
 });
 

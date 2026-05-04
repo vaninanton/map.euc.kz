@@ -9,7 +9,7 @@ alwaysApply: true
 
 - Карта и взаимодействие: `src/components/EucMap.tsx`, `src/hooks/useMapbox.ts`, `src/hooks/useLayers.ts`.
 - Источники данных: Supabase (`map_points`, `map_routes`) + статичный `src/data/almaty.json` + Telegram-гео.
-- Выбор фичи и deep-link: hash-навигация (`#point-...`, `#route-...`) и синхронизация состояния через хуки.
+- Выбор фичи и deep-link: путь `…/m/{тип}/{id}` (react-router), устаревший hash `#point=…` редиректится на путь; синхронизация через `useMapSelectionSync` и hash-утилиты.
 
 ## Правила изменений
 

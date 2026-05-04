@@ -1,5 +1,5 @@
 import type { Feature, FeatureType } from '@/types/geojson';
-import { buildHash } from '@/utils/hashNav';
+import { buildMapDeepLinkPath } from '@/utils/hashNav';
 
 export function buildYandexLink(lat: number, lon: number): string {
   return `https://yandex.ru/maps/?rtext=~${String(lat)},${String(lon)}&rtt=sc`;
@@ -80,8 +80,9 @@ export function buildOpenRouteLink(coordinates: [number, number][]): string {
 
 export function buildAppShareLink(type: FeatureType, id: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-  return `${origin}${pathname}#${buildHash(type, id)}`;
+  const base = import.meta.env.BASE_URL;
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  return `${origin}${normalizedBase}${buildMapDeepLinkPath(type, id)}`;
 }
 
 export function buildTelegramPointMessage(pointName: string): string {

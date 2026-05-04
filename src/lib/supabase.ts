@@ -24,6 +24,14 @@ if (!url || !key) {
 export const supabase =
   typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null;
 
+/** Клиент с сессией Auth (нужен для админки). */
+export function requireSupabase() {
+  if (!supabase) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
+  }
+  return supabase;
+}
+
 async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {

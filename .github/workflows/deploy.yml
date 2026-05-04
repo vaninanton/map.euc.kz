@@ -41,6 +41,7 @@ jobs:
           VITE_TELEGRAM_GEO_TTL_MINUTES: ${{ vars.VITE_TELEGRAM_GEO_TTL_MINUTES }}
           VITE_TELEGRAM_TRACK_TAIL_MINUTES: ${{ vars.VITE_TELEGRAM_TRACK_TAIL_MINUTES }}
           VITE_TELEGRAM_MAX_ACCURACY_METERS: ${{ vars.VITE_TELEGRAM_MAX_ACCURACY_METERS }}
+          # В dist/404.html дублируется index.html (vite-плагин spa-fallback-404) для SPA на GitHub Pages.
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: Upload artifact
