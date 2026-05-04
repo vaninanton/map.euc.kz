@@ -30,7 +30,7 @@ PWA-карта для райдеров на моноколёсах в Алмат
 ## Окружение
 
 - Основные env: `VITE_MAPBOX_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
-- Дополнительные env: `VITE_YANDEX_METRIKA_ID`, `VITE_TELEGRAM_GEO_TTL_MINUTES`, `VITE_TELEGRAM_TRACK_TAIL_MINUTES`, `VITE_TELEGRAM_MAX_ACCURACY_METERS`
+- Дополнительные env: `VITE_YANDEX_METRIKA_ID`, `VITE_TELEGRAM_GEO_TTL_MINUTES`, `VITE_RADAR_TTL_MINUTES`, `VITE_TELEGRAM_TRACK_TAIL_MINUTES`, `VITE_TELEGRAM_MAX_ACCURACY_METERS`
 - Деплой: GitHub Pages (`.github/workflows/deploy.yml`) + Telegram-уведомления об успехе/ошибке
 - Локальный тест: Valet proxy на `map.euc.test` → `127.0.0.1:5173`
 

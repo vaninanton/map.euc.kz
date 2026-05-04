@@ -19,6 +19,8 @@ import { AddPointPanel } from '@/components/AddPointPanel';
 import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
+import { RadarModal } from '@/components/RadarModal';
+import { requestDeviceOrientationPermissionIfNeeded } from '@/utils/requestDeviceOrientationPermission';
 const SIDEBAR_DESKTOP_WIDTH = 320;
 const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
 const FOCUS_PADDING_BASE = 40;
@@ -52,6 +54,7 @@ export function EucMap() {
   const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
+  const [isRadarOpen, setIsRadarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(min-width: 768px)').matches;
@@ -96,6 +99,13 @@ export function EucMap() {
     clearSelection();
     clearHash();
   }, [clearSelection]);
+
+  const handleToggleRadar = useCallback(() => {
+    if (!isRadarOpen) {
+      void requestDeviceOrientationPermissionIfNeeded();
+    }
+    setIsRadarOpen((v) => !v);
+  }, [isRadarOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -330,6 +340,8 @@ export function EucMap() {
           onToggle={toggleLayer}
           isAddingPoint={isAddingPoint}
           onToggleAddPoint={handleToggleAddPoint}
+          isRadarOpen={isRadarOpen}
+          onToggleRadar={handleToggleRadar}
           onOpenProjectInfo={() => {
             setIsProjectInfoOpen(true);
           }}
@@ -352,6 +364,18 @@ export function EucMap() {
         }}
         onClearCache={() => {
           void handleResetCacheAndReload();
+        }}
+      />
+      <RadarModal
+        isOpen={isRadarOpen}
+        onClose={() => {
+          setIsRadarOpen(false);
+        }}
+        telegramUsersGeo={telegramUsersGeo}
+        onSelectRider={(telegramUserId) => {
+          const feature = getFeatureById('telegramUsers', `telegram-user-${String(telegramUserId)}`);
+          if (!feature) return;
+          openFeature(feature, 'telegramUsers');
         }}
       />
     </div>

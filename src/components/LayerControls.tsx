@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { IControl, Map as MapboxMap } from 'mapbox-gl'
 import { createRoot, type Root } from 'react-dom/client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faSliders, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faLocationCrosshairs, faPlus, faSliders, faXmark } from '@fortawesome/free-solid-svg-icons'
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
 import { LayerPanel } from '@/components/LayerPanel'
 import { ProjectInfoButton } from '@/components/ProjectInfoButton'
@@ -14,6 +14,8 @@ interface LayerControlsProps {
     onToggle: (layer: LayerKey) => void
     isAddingPoint: boolean
     onToggleAddPoint: () => void
+    isRadarOpen: boolean
+    onToggleRadar: () => void
     onOpenProjectInfo: () => void
 }
 
@@ -24,12 +26,15 @@ export function LayerControls({
     onToggle,
     isAddingPoint,
     onToggleAddPoint,
+    isRadarOpen,
+    onToggleRadar,
     onOpenProjectInfo,
 }: LayerControlsProps) {
     const [isCollapsed, setIsCollapsed] = useState(true)
     const layersRootRef = useRef<Root | null>(null)
     const addPointRootRef = useRef<Root | null>(null)
     const infoRootRef = useRef<Root | null>(null)
+    const radarRootRef = useRef<Root | null>(null)
 
     useEffect(() => {
         if (!map || !isMapReady) return
@@ -51,6 +56,12 @@ export function LayerControls({
         const addPointRootNode = document.createElement('div')
         addPointContainer.appendChild(addPointRootNode)
         addPointRootRef.current = createRoot(addPointRootNode)
+
+        const radarContainer = document.createElement('div')
+        radarContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
+        const radarRootNode = document.createElement('div')
+        radarContainer.appendChild(radarRootNode)
+        radarRootRef.current = createRoot(radarRootNode)
 
         const layersControl: IControl = {
             onAdd() {
@@ -88,20 +99,36 @@ export function LayerControls({
             },
         }
 
+        const radarControl: IControl = {
+            onAdd() {
+                return radarContainer
+            },
+            onRemove() {
+                radarContainer.remove()
+            },
+            getDefaultPosition() {
+                return 'right'
+            },
+        }
+
         map.addControl(layersControl, 'bottom-left')
         map.addControl(addPointControl, 'top-left')
         map.addControl(infoControl, 'bottom-left')
+        map.addControl(radarControl, 'right')
 
         return () => {
             layersRootRef.current?.unmount()
             addPointRootRef.current?.unmount()
             infoRootRef.current?.unmount()
+            radarRootRef.current?.unmount()
             layersRootRef.current = null
             addPointRootRef.current = null
             infoRootRef.current = null
+            radarRootRef.current = null
             map.removeControl(layersControl)
             map.removeControl(addPointControl)
             map.removeControl(infoControl)
+            map.removeControl(radarControl)
         }
     }, [map, isMapReady])
 
@@ -146,6 +173,14 @@ export function LayerControls({
     useEffect(() => {
         infoRootRef.current?.render(<ProjectInfoButton onClick={onOpenProjectInfo} />)
     }, [map, isMapReady, onOpenProjectInfo])
+
+    useEffect(() => {
+        radarRootRef.current?.render(
+            <button type="button" onClick={onToggleRadar} aria-label="Открыть радар райдеров" title="Радар">
+                <FontAwesomeIcon icon={faLocationCrosshairs} aria-hidden />
+            </button>
+        )
+    }, [map, isMapReady, isRadarOpen, onToggleRadar])
 
     return null
 }
