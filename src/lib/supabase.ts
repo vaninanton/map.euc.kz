@@ -337,6 +337,7 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
         .gte('created_at', ttlThresholdIso)
         .or(`location_accuracy_meters.is.null,location_accuracy_meters.lte.${String(maxAccuracyMeters)}`)
         .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
         .range(from, to)
     );
 
