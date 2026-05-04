@@ -50,7 +50,7 @@
 src/
 ├── components/      # React-компоненты (EucMap, FeatureSidebar, LayerControls, AddPointPanel, …)
 ├── hooks/           # Хуки: useMapbox, useLayers, useMapClick, useMapHover,
-│                    #        useHashSelectionSync, useSelectedFeatureState, useYandexMetrika
+│                    #        useHashSelectionSync, useSelectedFeatureState
 ├── lib/             # Низкоуровневые обёртки: supabase.ts, mapLayers.ts
 ├── utils/           # Геометрия, hash-навигация, popup, гварды, share-ссылки
 ├── constants/       # ID слоёв, источники, цвета, центр карты

@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { useYandexMetrika } from '@/hooks/useYandexMetrika'
+import { YandexMetrika } from '@/components/YandexMetrika'
 import { PwaPrompts } from '@/components/PwaPrompts'
 import { AppErrorBoundary } from '@/components/AppErrorBoundary'
 
@@ -9,9 +9,9 @@ const EucMap = lazy(async () => {
 })
 
 export default function App() {
-    useYandexMetrika()
     return (
         <>
+            <YandexMetrika />
             <Suspense fallback={<div className="h-dvh w-full bg-neutral-100" />}>
                 <AppErrorBoundary>
                     <EucMap />
