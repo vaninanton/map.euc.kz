@@ -103,14 +103,16 @@ describe('shareLinks координаты и ссылки приложения',
     expect(url).toContain('yandex.ru/maps');
   });
 
-  it('buildAppShareLink собирает origin, pathname и hash', () => {
+  it('buildAppShareLink собирает origin, base и путь deep-link /m/…', () => {
     vi.stubGlobal('window', {
       location: {
         origin: 'https://map.euc.kz',
-        pathname: '/map.euc/',
       },
     });
-    expect(buildAppShareLink('route', 'abc 1')).toBe('https://map.euc.kz/map.euc/#route=abc%201');
+    const base = import.meta.env.BASE_URL;
+    expect(buildAppShareLink('route', 'abc 1')).toBe(
+      `https://map.euc.kz${base.endsWith('/') ? base : `${base}/`}m/route/abc%201`,
+    );
     vi.unstubAllGlobals();
   });
 

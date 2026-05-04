@@ -31,6 +31,50 @@ export const HASH_TYPE_TO_LAYER_KEY: Record<HashFeatureType, LayerKey> = {
   telegramUser: 'telegramUsers',
 };
 
+/** Сегмент пути после basename: `/m/point/…`, чтобы не пересекаться с `/admin` и др. */
+export const MAP_DEEP_LINK_PREFIX = 'm' as const
+
+/** Сегмент URL (как в hash, lower-case) → тип фичи. */
+const PATH_SEG_TO_TYPE: Record<string, HashFeatureType> = {
+  point: 'point',
+  socket: 'socket',
+  route: 'route',
+  bikelane: 'bikeLane',
+  telegramuser: 'telegramUser',
+}
+
+/** Тип фичи → сегмент в пути deep-link. */
+const TYPE_TO_PATH_SEG: Record<HashFeatureType, string> = {
+  point: 'point',
+  socket: 'socket',
+  route: 'route',
+  bikeLane: 'bikelane',
+  telegramUser: 'telegramuser',
+}
+
+/**
+ * Относительный путь deep-link без ведущего слэша: `m/point/11`.
+ * id кодируется через encodeURIComponent.
+ */
+export function buildMapDeepLinkPath(type: HashFeatureType, id: string): string {
+  const seg = TYPE_TO_PATH_SEG[type]
+  return `${MAP_DEEP_LINK_PREFIX}/${seg}/${encodeURIComponent(id)}`
+}
+
+/**
+ * Разбор pathname из react-router (уже без basename): `/m/point/11`.
+ */
+export function parseMapDeepLinkPathname(pathname: string): { type: HashFeatureType; id: string } | null {
+  const trimmed = pathname.replace(/\/+$/, '')
+  const parts = trimmed.split('/').filter(Boolean)
+  if (parts.length !== 3 || parts[0] !== MAP_DEEP_LINK_PREFIX) return null
+  const rawSeg = parts[1].toLowerCase()
+  if (!(rawSeg in PATH_SEG_TO_TYPE)) return null
+  const id = decodeURIComponent(parts[2])
+  if (!id) return null
+  return { type: PATH_SEG_TO_TYPE[rawSeg], id }
+}
+
 /**
  * Парсит текущий hash или переданную строку.
  * Формат: #point=11, #route=123, #socket=5, #bikeLane=alm84, #telegramUser=777

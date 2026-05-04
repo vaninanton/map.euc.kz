@@ -104,6 +104,29 @@ npm run lint
 | `VITE_TELEGRAM_TRACK_TAIL_MINUTES`  | Длина «хвоста» трека по времени.                            |
 | `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Максимально допустимая погрешность координат, м.            |
 
+## Админка карты
+
+Маршрут `/admin` (на проде с учётом `base`, например `https://map.euc.kz/admin`): модерация заявок, CRUD точек и маршрутов, фото точек. Доступ только через **Supabase Auth** и запись в таблице **`map_admin_users`** — секретный `service_role` ключ в браузере **не используется** (Supabase его блокирует).
+
+### Настройка один раз
+
+1. В Supabase включите провайдер **Email** (Authentication → Providers → Email).
+2. Создайте пользователя (Authentication → Users → Add user) или зарегистрируйтесь через включённый signup — как удобнее для вашего проекта.
+3. Узнайте `uuid` пользователя в списке Users.
+4. Примените миграции (`supabase db push` или через Dashboard → SQL), затем выдайте права администратора:
+
+    ```sql
+    INSERT INTO public.map_admin_users (user_id)
+    VALUES ('<uuid-пользователя-из-auth-users>')
+    ON CONFLICT (user_id) DO NOTHING;
+    ```
+
+5. Откройте `/admin`, войдите email/паролём.
+
+Загрузка фото в Storage разрешена только администраторам (RLS на `storage.objects` и таблицы данных). Публичная анонимная загрузка в бакет точек отключена миграцией.
+
+SPA на GitHub Pages: в `dist/` появляется `404.html` (копия `index.html`), чтобы прямые переходы по путям отдавали приложение и React Router обрабатывал маршруты.
+
 ## Telegram-бот для сбора геопозиций
 
 Реализован через Edge Function `telegram-location-bot`. Он принимает `update` от Telegram и сохраняет сообщения с `location` в таблицу `telegram_locations`. Аватары пользователей сохраняются в Storage-бакет `telegram-avatars`, а в `telegram_profiles.avatar_url` хранится безопасный public URL без bot token.
@@ -146,6 +169,7 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 - `map_routes` — маршруты как `LineString` в массиве координат.
 - `map_points_submissions` — заявки на добавление точек от пользователей (модерация).
 - `map_point_photos` — фотографии точек, файлы лежат в Storage-бакете.
+- `map_admin_users` — пользователи Supabase Auth с правами администратора карты (заполняется вручную).
 - `telegram_locations` — сырые геопозиции, полученные от бота.
 - `telegram_profiles` — кэш профилей Telegram (имя, ник, аватар).
 
