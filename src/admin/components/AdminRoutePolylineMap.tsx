@@ -16,6 +16,7 @@ export type { RouteEditorCoordinates }
 
 interface AdminRoutePolylineMapProps {
     coordinates: RouteEditorCoordinates
+    viaCoordinates?: Array<[number, number]>
     onChange: (next: RouteEditorCoordinates) => void
     /** Наведение на маркер вершины (для подсветки строки в списке). */
     onVertexHover?: (vertexIndex: number | null) => void
@@ -28,15 +29,17 @@ const HIT_LAYER_ID = 'admin-route-editor-line-hit'
 
 /** Маркер финиша в редакторе (старт остаётся {@link COLORS.route}). */
 const ROUTE_EDITOR_FINISH_MARKER_HEX = '#15803d'
+/** Маркер промежуточной точки маршрута (via). */
+const ROUTE_EDITOR_VIA_MARKER_HEX = '#f59e0b'
 
 const INTERMEDIATE_VERTEX_SIZE_PX = 14
 
-function createIntermediateVertexElement(): HTMLDivElement {
+function createIntermediateVertexElement(colorHex: string): HTMLDivElement {
     const el = document.createElement('div')
     el.style.width = `${String(INTERMEDIATE_VERTEX_SIZE_PX)}px`
     el.style.height = `${String(INTERMEDIATE_VERTEX_SIZE_PX)}px`
     el.style.borderRadius = '50%'
-    el.style.backgroundColor = COLORS.route
+    el.style.backgroundColor = colorHex
     el.style.border = '2px solid #fff'
     el.style.boxSizing = 'border-box'
     el.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.35)'
@@ -46,6 +49,7 @@ function createIntermediateVertexElement(): HTMLDivElement {
 
 export function AdminRoutePolylineMap({
     coordinates,
+    viaCoordinates = [],
     onChange,
     onVertexHover,
 }: AdminRoutePolylineMapProps) {
@@ -69,6 +73,8 @@ export function AdminRoutePolylineMap({
         coordinatesRef.current = coordinates
     }, [coordinates])
 
+    const isSameLngLat = useCallback((a: [number, number], b: [number, number]) => a[0] === b[0] && a[1] === b[1], [])
+
     const rebuildMarkers = useCallback((mapInstance: mapboxgl.Map, coords: RouteEditorCoordinates) => {
         for (const m of markersRef.current) {
             m.remove()
@@ -77,8 +83,14 @@ export function AdminRoutePolylineMap({
         const lastIndex = coords.length - 1
         coords.forEach((coord, index) => {
             const isIntermediate = coords.length >= 2 && index > 0 && index < lastIndex
+            const point2d: [number, number] = [coord[0], coord[1]]
+            const isVia = isIntermediate && viaCoordinates.some((viaPoint) => isSameLngLat(viaPoint, point2d))
             const marker = isIntermediate
-                ? new Marker({ element: createIntermediateVertexElement(), draggable: true, anchor: 'center' })
+                ? new Marker({
+                      element: createIntermediateVertexElement(isVia ? ROUTE_EDITOR_VIA_MARKER_HEX : COLORS.route),
+                      draggable: true,
+                      anchor: 'center',
+                  })
                 : new Marker({
                       color:
                           coords.length >= 2 && index === lastIndex
@@ -134,7 +146,7 @@ export function AdminRoutePolylineMap({
 
             markersRef.current.push(marker)
         })
-    }, [])
+    }, [isSameLngLat, viaCoordinates])
 
     const applySourceData = useCallback((mapInstance: mapboxgl.Map, coords: RouteEditorCoordinates) => {
         const fc = featureCollectionFromCoords(coords)
@@ -244,7 +256,7 @@ export function AdminRoutePolylineMap({
         if (!map || !isMapReady) return
         applySourceData(map, coordinates)
         rebuildMarkers(map, coordinates)
-    }, [map, isMapReady, coordinates, applySourceData, rebuildMarkers])
+    }, [map, isMapReady, coordinates, viaCoordinates, applySourceData, rebuildMarkers])
 
     /** Вписать линию в вид при открытии редактора (один раз при готовности карты). */
     useEffect(() => {
@@ -274,9 +286,10 @@ export function AdminRoutePolylineMap({
     return (
         <div className="flex min-h-[280px] w-full min-w-0 flex-1 flex-col gap-2 lg:min-h-0">
             <p className="shrink-0 text-xs text-neutral-500">
-                Перетаскивайте вершины: старт красный и финиш зелёный. Клик по линии вставляет вершину на
-                выбранный сегмент, клик по пустому месту добавляет точку в конец. Правый клик по маркеру
-                вершины удаляет её (не ниже двух вершин). Для сохранения нужно минимум две вершины.
+                Перетаскивайте вершины: старт красный, финиш зелёный, промежуточные via-точки оранжевые.
+                Клик по линии вставляет вершину на выбранный сегмент, клик по пустому месту добавляет точку
+                в конец. Правый клик по маркеру вершины удаляет её (не ниже двух вершин). Для сохранения
+                нужно минимум две вершины.
             </p>
             <div ref={containerRef} className="admin-editor-map rounded-xl border border-neutral-200" />
         </div>

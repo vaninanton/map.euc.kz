@@ -65,6 +65,7 @@ export function mapRoutesToFeatureCollection(rows: MapRouteRow[]): FeatureCollec
       name: row.title,
       description: row.description ?? undefined,
       type: 'route',
+      ...(row.via_coordinates.length > 0 && { viaCoordinates: row.via_coordinates }),
     },
   }));
   return { type: 'FeatureCollection', features };

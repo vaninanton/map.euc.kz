@@ -22,6 +22,14 @@ function asCoordinatePair(value: unknown): [number, number] {
     return [lng, lat]
 }
 
+function asCoordinatePairList(value: unknown): [number, number][] {
+    if (value === undefined || value === null) return []
+    if (!Array.isArray(value)) {
+        throw new Error('via_coordinates не массив')
+    }
+    return value.map((point) => asCoordinatePair(point))
+}
+
 function asRouteCoordinates(value: unknown): AdminMapRoute['coordinates'] {
     if (!Array.isArray(value) || value.length < 2) {
         throw new Error('coordinates маршрута должны быть массивом минимум из 2 точек')
@@ -99,6 +107,7 @@ export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
     const title = raw.title
     const description = raw.description
     const coordinates = raw.coordinates
+    const via_coordinates = raw.via_coordinates
     const flag_disabled = raw.flag_disabled
 
     if (typeof id !== 'number' || !Number.isFinite(id)) throw new Error('id')
@@ -118,6 +127,7 @@ export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
         title,
         description: descriptionNorm,
         coordinates: asRouteCoordinates(coordinates),
+        via_coordinates: asCoordinatePairList(via_coordinates),
         flag_disabled,
     }
 }

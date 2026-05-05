@@ -3,8 +3,10 @@ import { removeVertexAtIndex, type RouteEditorCoordinates } from '@/admin/route-
 
 interface RouteVertexEditorListProps {
     coordinates: RouteEditorCoordinates
+    viaCoordinates: Array<[number, number]>
     /** Запись в историю undo и обновление состояния — как `commitRouteCoordinates` со страницы. */
     onCoordinatesChange: (next: RouteEditorCoordinates) => void
+    onViaCoordinatesChange: (next: Array<[number, number]>) => void
     onSimplifyRoute: () => void
     onFillMissingElevations: () => void
     fillingElevations?: boolean
@@ -25,6 +27,8 @@ interface VertexRowProps {
     highlighted: boolean
     assignRowRef: (index: number, node: HTMLDivElement | null) => void
     onCommit: (index: number, lngStr: string, latStr: string, eleRaw: string) => void
+    isVia: boolean
+    onToggleVia: (index: number, checked: boolean) => void
     onRemove: (index: number) => void
 }
 
@@ -35,6 +39,8 @@ function VertexRow({
     highlighted,
     assignRowRef,
     onCommit,
+    isVia,
+    onToggleVia,
     onRemove,
 }: VertexRowProps) {
     const [lngStr, setLngStr] = useState(() => String(coord[0]))
@@ -97,6 +103,18 @@ function VertexRow({
                 aria-label={`${String(rowNum)} h`}
                 className={`${cellBase} w-[7ch]`}
             />
+            <label className="flex shrink-0 items-center gap-1 text-[11px] text-neutral-700">
+                <input
+                    type="checkbox"
+                    checked={isVia}
+                    onChange={(event) => {
+                        onToggleVia(index, event.target.checked)
+                    }}
+                    aria-label={`${String(rowNum)} промежуточная`}
+                    className="h-3.5 w-3.5 rounded border-neutral-300 text-blue-600"
+                />
+                via
+            </label>
             <button
                 type="button"
                 disabled={vertexCount <= 2}
@@ -114,13 +132,41 @@ function VertexRow({
 
 export function RouteVertexEditorList({
     coordinates,
+    viaCoordinates,
     onCoordinatesChange,
+    onViaCoordinatesChange,
     onSimplifyRoute,
     onFillMissingElevations,
     fillingElevations = false,
     highlightedIndex,
     onValidationError,
 }: RouteVertexEditorListProps) {
+    const isSameLngLat = (a: [number, number], b: [number, number]) => a[0] === b[0] && a[1] === b[1]
+
+    const sortViaByRouteOrder = (nextVia: Array<[number, number]>): Array<[number, number]> => {
+        const middleVertices = coordinates.slice(1, coordinates.length - 1).map((coord) => [coord[0], coord[1]] as [number, number])
+        return middleVertices.filter((vertex) => nextVia.some((via) => isSameLngLat(via, vertex)))
+    }
+
+    const toggleVia = (index: number, checked: boolean) => {
+        if (index <= 0 || index >= coordinates.length - 1) {
+            onValidationError('Промежуточной может быть только внутренняя точка маршрута.')
+            return
+        }
+        const coord = coordinates[index]
+        const point: [number, number] = [coord[0], coord[1]]
+        if (checked) {
+            if (viaCoordinates.some((via) => isSameLngLat(via, point))) {
+                onValidationError(null)
+                return
+            }
+            onViaCoordinatesChange(sortViaByRouteOrder([...viaCoordinates, point]))
+        } else {
+            onViaCoordinatesChange(sortViaByRouteOrder(viaCoordinates.filter((via) => !isSameLngLat(via, point))))
+        }
+        onValidationError(null)
+    }
+
     const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
     const assignRowRef = (index: number, node: HTMLDivElement | null) => {
@@ -210,9 +256,10 @@ export function RouteVertexEditorList({
                     </button>
                 </div>
             </div>
-            <div className="max-h-96 min-h-[12rem] overflow-y-auto rounded-lg border border-neutral-200 bg-neutral-50 p-1.5">
+            <div className="max-h-96 min-h-48 overflow-y-auto rounded-lg border border-neutral-200 bg-neutral-50 p-1.5">
                 <div className="flex flex-col gap-1">
                     {coordinates.map((coord, index) => (
+                        /* via привязан к координате вершины (lng/lat) */
                         <VertexRow
                             key={`${String(index)}-${coordSignature(coord)}`}
                             index={index}
@@ -223,6 +270,8 @@ export function RouteVertexEditorList({
                             onCommit={(i, lngN, latN, eleS) => {
                                 commitVertex(i, lngN, latN, eleS)
                             }}
+                            isVia={viaCoordinates.some((via) => isSameLngLat(via, [coord[0], coord[1]]))}
+                            onToggleVia={toggleVia}
                             onRemove={removeAt}
                         />
                     ))}

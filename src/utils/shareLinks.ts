@@ -5,9 +5,43 @@ export function buildYandexLink(lat: number, lon: number): string {
   return `https://yandex.ru/maps/?rtext=~${String(lat)},${String(lon)}&rtt=sc`;
 }
 
+/**
+ * Строит ссылку маршрута Яндекс.Карт в формате: start~via...~finish.
+ * Порядок координат для rtext: lat,lon.
+ */
+export function buildYandexRouteLink(
+  coordinates: [number, number][],
+  viaCoordinates?: [number, number][],
+): string {
+  if (coordinates.length < 2) return '';
+  const start = coordinates[0];
+  const finish = coordinates[coordinates.length - 1];
+  const viaPoints = resolveRouteViaPoints(coordinates, viaCoordinates, 48);
+  const routePoints = [start, ...viaPoints, finish].map((point) => `${String(point[1])},${String(point[0])}`);
+  return `https://yandex.ru/maps/?rtext=${routePoints.join('~')}&rtt=bc`;
+}
+
 export function build2GISLink(lat: number, lon: number, isMobile = false): string {
   const routeType = isMobile ? 'scooter' : 'pedestrian';
   return `https://2gis.kz/directions/tab/${routeType}/points/|${String(lon)},${String(lat)}`;
+}
+
+/**
+ * Маршрут 2GIS (актуальный формат): start|via...|finish (lon,lat).
+ */
+export function build2GISRouteLink(
+  coordinates: [number, number][],
+  isMobile = false,
+  viaCoordinates?: [number, number][],
+): string {
+  if (coordinates.length < 2) return '';
+  const routeType = isMobile ? 'scooter' : 'pedestrian';
+  const start = coordinates[0];
+  const finish = coordinates[coordinates.length - 1];
+  // В deeplink 2GIS для Android поддерживается до 10 промежуточных точек.
+  const viaPoints = resolveRouteViaPoints(coordinates, viaCoordinates, 10);
+  const points = [start, ...viaPoints, finish].map((point) => `${String(point[0])},${String(point[1])}`);
+  return `https://2gis.kz/directions/tab/${routeType}/points/${points.join('|')}`;
 }
 
 export function buildGuruPointLink(lat: number, lon: number): string {
@@ -33,8 +67,23 @@ export function getViaPoints(coordinates: [number, number][], minSteps: number):
   return via;
 }
 
+/**
+ * Возвращает явно заданные via-точки либо fallback, рассчитанный из геометрии.
+ */
+export function resolveRouteViaPoints(
+  coordinates: [number, number][],
+  explicitViaCoordinates?: [number, number][],
+  maxSteps = 38,
+): [number, number][] {
+  if (coordinates.length <= 2) return [];
+  if (explicitViaCoordinates !== undefined && explicitViaCoordinates.length > 0) {
+    return explicitViaCoordinates.slice(0, maxSteps);
+  }
+  return getViaPoints(coordinates, maxSteps);
+}
+
 /** Маршрут Guru: start + 4 равномерно распределённые via + finish (логика из CreateShareLinks). */
-export function buildGuruRouteLink(coordinates: [number, number][]): string {
+export function buildGuruRouteLink(coordinates: [number, number][], viaCoordinates?: [number, number][]): string {
   if (coordinates.length === 0) return '';
   if (coordinates.length === 1) {
     const [lon, lat] = coordinates[0];
@@ -43,7 +92,7 @@ export function buildGuruRouteLink(coordinates: [number, number][]): string {
 
   const start = coordinates[0];
   const finish = coordinates[coordinates.length - 1];
-  const viaPoints = getViaPoints(coordinates, 4);
+  const viaPoints = resolveRouteViaPoints(coordinates, viaCoordinates, 4);
 
   const url = new URL('guru://nav');
   url.searchParams.set('mode', 'bicycle');
@@ -59,12 +108,12 @@ export function buildGuruRouteLink(coordinates: [number, number][]): string {
 /** Classic OpenRouteService: до 40 точек (start + 38 via + finish), формат a=lat,lon,lat,lon,... */
 const OPENROUTE_CLASSIC_BASE = 'https://classic-maps.openrouteservice.org/directions';
 
-export function buildOpenRouteLink(coordinates: [number, number][]): string {
+export function buildOpenRouteLink(coordinates: [number, number][], viaCoordinates?: [number, number][]): string {
   if (coordinates.length < 2) return '';
 
   const start = coordinates[0];
   const finish = coordinates[coordinates.length - 1];
-  const viaPoints = getViaPoints(coordinates, 38);
+  const viaPoints = resolveRouteViaPoints(coordinates, viaCoordinates, 38);
   const a: string[] = [
     `${String(start[1])},${String(start[0])}`,
     ...viaPoints.map((v) => `${String(v[1])},${String(v[0])}`),

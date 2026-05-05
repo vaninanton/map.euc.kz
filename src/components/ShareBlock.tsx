@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   buildYandexLink,
+  buildYandexRouteLink,
   build2GISLink,
+  build2GISRouteLink,
   buildGuruPointLink,
   buildGuruRouteLink,
   buildOpenRouteLink,
@@ -112,6 +114,10 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
   const id = feature.properties.id;
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 800;
   const coordsArray = getCoordinatesArray(feature);
+  const routeViaCoordinates =
+    type === 'route' && Array.isArray(feature.properties.viaCoordinates)
+      ? feature.properties.viaCoordinates
+      : undefined;
   const routeEndCoords =
     (type === 'route' || type === 'bikeLane') && coordsArray.length > 0
       ? coordsArray[coordsArray.length - 1]
@@ -154,7 +160,11 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
         {showMapLinks && (
           <>
             <a
-              href={buildYandexLink(mapLinkCoords.lat, mapLinkCoords.lon)}
+              href={
+                type === 'route'
+                  ? buildYandexRouteLink(coordsArray, routeViaCoordinates)
+                  : buildYandexLink(mapLinkCoords.lat, mapLinkCoords.lon)
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -163,7 +173,11 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
               <IconYandex />
             </a>
             <a
-              href={build2GISLink(mapLinkCoords.lat, mapLinkCoords.lon, isMobile)}
+              href={
+                type === 'route'
+                  ? build2GISRouteLink(coordsArray, isMobile, routeViaCoordinates)
+                  : build2GISLink(mapLinkCoords.lat, mapLinkCoords.lon, isMobile)
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
@@ -185,14 +199,14 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
         {type === 'route' && coordsArray.length >= 2 && (
           <>
             <a
-              href={buildGuruRouteLink(coordsArray)}
+              href={buildGuruRouteLink(coordsArray, routeViaCoordinates)}
               className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
               title="Guru (маршрут)"
             >
               <IconGuru />
             </a>
             <a
-              href={buildOpenRouteLink(coordsArray)}
+              href={buildOpenRouteLink(coordsArray, routeViaCoordinates)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-green-50 hover:text-green-600 transition-colors"

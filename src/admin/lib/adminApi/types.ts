@@ -18,6 +18,7 @@ export interface AdminMapRoute {
     title: string
     description: string | null
     coordinates: Array<[number, number] | [number, number, number]>
+    via_coordinates: Array<[number, number]>
     flag_disabled: boolean
 }
 
@@ -60,5 +61,6 @@ export interface MapRouteInput {
     title: string
     description: string | null
     coordinates: Array<[number, number] | [number, number, number]>
+    via_coordinates: Array<[number, number]>
     flag_disabled: boolean
 }

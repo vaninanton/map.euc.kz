@@ -28,12 +28,29 @@ describe('adminApi parsers', () => {
                 [1, 2, 3],
                 [4, 5, 6],
             ],
+            via_coordinates: [[2, 3]],
             flag_disabled: false,
         })
         expect(row.coordinates).toEqual([
             [1, 2, 3],
             [4, 5, 6],
         ])
+        expect(row.via_coordinates).toEqual([[2, 3]])
+    })
+
+    it('parseAdminMapRoute нормализует via_coordinates в пустой массив', () => {
+        const row = parseAdminMapRoute({
+            id: 3,
+            created_at: '2025-01-01T00:00:00Z',
+            title: 'Route no via',
+            description: null,
+            coordinates: [
+                [1, 2],
+                [4, 5],
+            ],
+            flag_disabled: false,
+        })
+        expect(row.via_coordinates).toEqual([])
     })
 
     it('parseAdminMapPoint отклоняет неверный type', () => {

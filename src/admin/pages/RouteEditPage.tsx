@@ -27,6 +27,7 @@ interface FormValue {
     title: string
     description: string
     coordinates: RouteEditorCoordinates
+    viaCoordinates: Array<[number, number]>
     flagDisabled: boolean
 }
 
@@ -39,7 +40,33 @@ const DEFAULT_VALUE: FormValue = {
     title: '',
     description: '',
     coordinates: DEFAULT_COORDINATES,
+    viaCoordinates: [],
     flagDisabled: false,
+}
+
+function isSameLngLat(a: [number, number], b: [number, number]): boolean {
+    return a[0] === b[0] && a[1] === b[1]
+}
+
+/**
+ * Оставляет только валидные via-точки: уникальные, присутствующие в вершинах и не являющиеся стартом/финишем.
+ */
+function normalizeViaCoordinates(
+    routeCoordinates: RouteEditorCoordinates,
+    viaCoordinates: Array<[number, number]>,
+): Array<[number, number]> {
+    if (routeCoordinates.length < 3 || viaCoordinates.length === 0) return []
+    const middleVertices = routeCoordinates
+        .slice(1, routeCoordinates.length - 1)
+        .map((coord) => [coord[0], coord[1]] as [number, number])
+
+    const out: Array<[number, number]> = []
+    for (const via of viaCoordinates) {
+        if (!middleVertices.some((vertex) => isSameLngLat(vertex, via))) continue
+        if (out.some((point) => isSameLngLat(point, via))) continue
+        out.push(via)
+    }
+    return out
 }
 
 function routeToFormValue(route: AdminMapRoute): FormValue {
@@ -47,6 +74,7 @@ function routeToFormValue(route: AdminMapRoute): FormValue {
         title: route.title,
         description: route.description ?? '',
         coordinates: route.coordinates,
+        viaCoordinates: normalizeViaCoordinates(route.coordinates, route.via_coordinates),
         flagDisabled: route.flag_disabled,
     }
 }
@@ -93,7 +121,11 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                 if (!prev) return prev
                 if (JSON.stringify(prev.coordinates) === JSON.stringify(next)) return prev
                 prepareCommit(prev.coordinates)
-                return { ...prev, coordinates: next }
+                return {
+                    ...prev,
+                    coordinates: next,
+                    viaCoordinates: normalizeViaCoordinates(next, prev.viaCoordinates),
+                }
             })
         },
         [prepareCommit],
@@ -143,6 +175,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                 title: titleTrimmed,
                 description: value.description.trim() || null,
                 coordinates: value.coordinates,
+                via_coordinates: normalizeViaCoordinates(value.coordinates, value.viaCoordinates),
                 flag_disabled: value.flagDisabled,
             }
             if (mode === 'create') {
@@ -293,6 +326,13 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
 
                         <RouteVertexEditorList
                             coordinates={value.coordinates}
+                            viaCoordinates={value.viaCoordinates}
+                            onViaCoordinatesChange={(nextViaCoordinates) => {
+                                setValue({
+                                    ...value,
+                                    viaCoordinates: normalizeViaCoordinates(value.coordinates, nextViaCoordinates),
+                                })
+                            }}
                             onSimplifyRoute={simplifyRoute}
                             onFillMissingElevations={() => {
                                 void fillRouteElevations()
@@ -331,6 +371,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                             <AdminRoutePolylineMap
                                 coordinates={value.coordinates}
+                                viaCoordinates={value.viaCoordinates}
                                 onChange={(next) => {
                                     commitRouteCoordinates(next)
                                 }}

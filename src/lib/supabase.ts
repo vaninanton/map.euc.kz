@@ -106,6 +106,18 @@ function asLineCoordinates(value: unknown): Array<[number, number] | [number, nu
   return points;
 }
 
+function asPointCoordinatesList(value: unknown): Array<[number, number]> | null {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return null;
+  const points: Array<[number, number]> = [];
+  for (const item of value) {
+    const point = asPointCoordinates(item);
+    if (!point) return null;
+    points.push(point);
+  }
+  return points;
+}
+
 function normalizeMapPointRow(row: unknown): MapPointRow | null {
   if (!isRecord(row)) return null;
   const id = row.id;
@@ -182,7 +194,13 @@ function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
   const title = row.title;
   const description = row.description;
   const coordinates = asLineCoordinates(row.coordinates);
-  if ((typeof id !== 'string' && typeof id !== 'number') || typeof title !== 'string' || !coordinates) {
+  const viaCoordinates = asPointCoordinatesList(row.via_coordinates);
+  if (
+    (typeof id !== 'string' && typeof id !== 'number') ||
+    typeof title !== 'string' ||
+    !coordinates ||
+    !viaCoordinates
+  ) {
     return null;
   }
   return {
@@ -190,6 +208,7 @@ function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
     title,
     description: typeof description === 'string' ? description : null,
     coordinates,
+    via_coordinates: viaCoordinates,
   };
 }
 
@@ -299,7 +318,10 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
   }
 
   const { data, error } = await withTimeoutAndRetry('fetchMapRoutes', () =>
-    supabase.from('map_routes').select('id, title, description, coordinates').eq('flag_disabled', false)
+    supabase
+      .from('map_routes')
+      .select('id, title, description, coordinates, via_coordinates')
+      .eq('flag_disabled', false)
   );
 
   if (error) {
