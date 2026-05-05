@@ -7,13 +7,12 @@ import type {
   TelegramLocationRow,
   TelegramProfileRow,
 } from '@/types';
+import { getTelegramGeoTtlMinutes, getTelegramMaxAccuracyMeters, getViteSupabaseConfig } from '@/lib/env';
 import { isRecord } from '@/utils/mapFeatureGuards';
-import { parsePositiveInt } from '@/utils/numberParsers';
 
-const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
-const key: string | undefined = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
-const DEFAULT_TELEGRAM_MAX_ACCURACY_METERS = 100;
+const supabaseConfig = getViteSupabaseConfig();
+const url = supabaseConfig?.url;
+const key = supabaseConfig?.key;
 const REQUEST_TIMEOUT_MS = 10_000;
 const REQUEST_RETRY_ATTEMPTS = 2;
 
@@ -80,14 +79,6 @@ async function withTimeoutAndRetry<T>(label: string, fn: () => PromiseLike<T>): 
     }
   }
   throw lastError instanceof Error ? lastError : new Error(`${label}: неизвестная ошибка запроса`);
-}
-
-function getTelegramGeoTtlMinutes(): number {
-  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
-}
-
-function getTelegramMaxAccuracyMeters(): number {
-  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_MAX_ACCURACY_METERS, DEFAULT_TELEGRAM_MAX_ACCURACY_METERS);
 }
 
 function asPointCoordinates(value: unknown): [number, number] | null {

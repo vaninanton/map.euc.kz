@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
@@ -6,61 +6,24 @@ import { useMapClick } from '@/hooks/useMapClick';
 import { useMapHover } from '@/hooks/useMapHover';
 import { useMapSelectionSync } from '@/hooks/useMapSelectionSync';
 import { useSelectedFeatureState } from '@/hooks/useSelectedFeatureState';
+import { useMapFeatureSelection } from '@/hooks/useMapFeatureSelection';
 import { useDraftPointFlow } from '@/hooks/useDraftPointFlow';
 import { useGeolocateControl } from '@/hooks/useGeolocateControl';
-import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
-import { MAP_ZOOM_FOCUS, LAYER_IDS, LAYER_ID_TO_SOURCE } from '@/constants';
 import { buildMapDeepLinkPath } from '@/utils/hashNav';
 import type { HashFeatureType } from '@/utils/hashNav';
 import { Marker } from 'mapbox-gl';
-import type { Feature } from '@/types/geojson';
-import type { LayerKey } from '@/constants';
 import { applySelectionOpacityById, type SelectedFeatureState } from '@/utils/selectionOpacity';
 import { LayerControls } from '@/components/LayerControls';
 import { AddPointPanel } from '@/components/AddPointPanel';
 import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
-const SIDEBAR_DESKTOP_WIDTH = 320;
-const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
-const FOCUS_PADDING_BASE = 40;
-
-function getRouteFocusPadding(): number | { top: number; right: number; bottom: number; left: number } {
-  if (typeof window === 'undefined') return FOCUS_PADDING_BASE;
-
-  const isDesktop = window.matchMedia('(min-width: 768px)').matches;
-  if (isDesktop) {
-    return {
-      top: FOCUS_PADDING_BASE,
-      right: SIDEBAR_DESKTOP_WIDTH + FOCUS_PADDING_BASE,
-      bottom: FOCUS_PADDING_BASE,
-      left: FOCUS_PADDING_BASE,
-    };
-  }
-
-  const viewportHeight = window.innerHeight || 0;
-  const mobileSidebarHeight = Math.round(viewportHeight * SIDEBAR_MOBILE_HEIGHT_RATIO);
-  return {
-    top: FOCUS_PADDING_BASE,
-    right: FOCUS_PADDING_BASE,
-    bottom: mobileSidebarHeight + FOCUS_PADDING_BASE,
-    left: FOCUS_PADDING_BASE,
-  };
-}
-
 export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
-  const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
   const draftMarkerRef = useRef<Marker | null>(null);
   const navigate = useNavigate();
-  const clearSelection = useCallback(() => {
-    setSelectedFeature(null);
-    setSelectedFeatureState(null);
-  }, []);
-
   const clearMapSelectionUrl = useCallback(() => {
     void navigate('/', { replace: true });
   }, [navigate]);
@@ -89,6 +52,20 @@ export function EucMap() {
     emptyMessage,
     loading,
   } = useLayers();
+
+  const {
+    selectedFeature,
+    selectedFeatureState,
+    clearSelection,
+    openFeature,
+    handleFeatureSelect,
+    displaySelectedFeature,
+  } = useMapFeatureSelection({
+    getFeatureById,
+    flyTo,
+    flyToBounds,
+  });
+
   const {
     isAddingPoint,
     draftCoordinates,
@@ -158,29 +135,6 @@ export function EucMap() {
     selectedFeatureStateRef.current = selectedFeatureState;
   }, [selectedFeatureState]);
 
-  const openFeature = useCallback(
-    (feature: Feature, layerKey: LayerKey, lngLat?: [number, number]) => {
-      const sourceId = LAYER_ID_TO_SOURCE[LAYER_IDS[layerKey]];
-      const id = feature.properties.id;
-      setSelectedFeatureState(sourceId ? { sourceId, id } : null);
-      setSelectedFeature(feature);
-      if (feature.geometry.type === 'LineString') {
-        flyToBounds(getFeatureBounds(feature), { padding: getRouteFocusPadding() });
-      } else {
-        const center = lngLat ?? getFeatureCenter(feature);
-        flyTo(center, MAP_ZOOM_FOCUS);
-      }
-    },
-    [flyTo, flyToBounds]
-  );
-
-  const handleFeatureSelect = useCallback(
-    (feature: Feature, layerKey: LayerKey, lngLat: [number, number]) => {
-      openFeature(feature, layerKey, lngLat);
-    },
-    [openFeature]
-  );
-
   useMapClick(map, {
     enabled: !isAddingPoint,
     getFeatureById,
@@ -188,15 +142,6 @@ export function EucMap() {
     syncSelectionUrl,
   });
   useMapHover(map);
-
-  const displaySelectedFeature = useMemo(() => {
-    if (!selectedFeature || selectedFeature.properties.type !== 'telegramUser') {
-      return selectedFeature;
-    }
-    const id = selectedFeature.properties.id;
-    const idStr = typeof id === 'string' ? id : String(id);
-    return getFeatureById('telegramUsers', idStr) ?? selectedFeature;
-  }, [selectedFeature, getFeatureById]);
 
   useEffect(() => {
     if (!map || !isAddingPoint) return;
@@ -244,9 +189,9 @@ export function EucMap() {
     };
   }, []);
 
-  // ПКМ по карте — вывести координаты в консоль
+  // ПКМ по карте — координаты в консоль (только в dev)
   useEffect(() => {
-    if (!map) return;
+    if (!import.meta.env.DEV || !map) return;
     const onContextMenu = (e: { lngLat: { lng: number; lat: number } }) => {
       const { lng, lat } = e.lngLat;
       console.log('Координаты (lng, lat):', lng, lat, [lng, lat]);

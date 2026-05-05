@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { isRecord } from '@/utils/mapFeatureGuards';
-import type { LayerVisibility } from '@/hooks/useLayers';
+import type { LayerVisibility } from '@/constants/layerVisibility';
 
 const STORAGE_KEY = 'map-euc-layer-visibility';
 

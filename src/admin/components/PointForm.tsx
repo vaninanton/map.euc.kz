@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent 
 import type { MapPointType } from '@/types'
 import type { MapPointInput } from '@/admin/lib/adminApi'
 import { AdminPointLocationMap } from '@/admin/components/AdminPointLocationMap'
-import { useCoordinateHistory, isUndoRedoBlockedTarget } from '@/admin/hooks/useCoordinateHistory'
+import { useCoordinateHistory } from '@/admin/hooks/useCoordinateHistory'
+import { useUndoRedoHotkeys } from '@/admin/hooks/useUndoRedoHotkeys'
 import { getUndoRedoShortcuts } from '@/utils/platformShortcuts'
 
 export type PointFormValue = MapPointInput
@@ -83,23 +84,7 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
         setLat(String(restored[1]))
     }, [redoCoordStep])
 
-    useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (!(event.ctrlKey || event.metaKey)) return
-            if (event.key.toLowerCase() !== 'z') return
-            if (isUndoRedoBlockedTarget(event.target)) return
-            event.preventDefault()
-            if (event.shiftKey) {
-                redoCoords()
-            } else {
-                undoCoords()
-            }
-        }
-        window.addEventListener('keydown', onKeyDown)
-        return () => {
-            window.removeEventListener('keydown', onKeyDown)
-        }
-    }, [undoCoords, redoCoords])
+    useUndoRedoHotkeys({ onUndo: undoCoords, onRedo: redoCoords })
 
     const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
         event.preventDefault()

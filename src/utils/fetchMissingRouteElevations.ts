@@ -1,4 +1,4 @@
-import type { RouteEditorCoordinates } from '@/admin/components/AdminRoutePolylineMap'
+import type { RouteEditorCoordinates } from '@/admin/route-editor/routeGeometry'
 
 const OPEN_METEO_ELEVATION_URL = 'https://api.open-meteo.com/v1/elevation'
 const BATCH_SIZE = 100

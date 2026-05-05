@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { RouteEditorCoordinates } from '@/admin/components/AdminRoutePolylineMap'
+import { removeVertexAtIndex, type RouteEditorCoordinates } from '@/admin/route-editor/routeGeometry'
 
 interface RouteVertexEditorListProps {
     coordinates: RouteEditorCoordinates
@@ -10,11 +10,6 @@ interface RouteVertexEditorListProps {
     fillingElevations?: boolean
     highlightedIndex: number | null
     onValidationError: (message: string | null) => void
-}
-
-function removeVertexAtIndex(coords: RouteEditorCoordinates, index: number): RouteEditorCoordinates {
-    if (coords.length <= 2 || index < 0 || index >= coords.length) return coords
-    return [...coords.slice(0, index), ...coords.slice(index + 1)]
 }
 
 function coordSignature(coord: RouteEditorCoordinates[number]): string {
