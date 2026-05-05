@@ -1,18 +1,16 @@
 import { useCallback, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-    deleteRoute,
     listRoutes,
     toggleRouteDisabled,
     type AdminMapRoute,
 } from '@/admin/lib/adminApi'
-import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
 import { formatAdminDate } from '@/admin/utils/formatAdminDate'
 
 export function RoutesPage() {
+    const navigate = useNavigate()
     const [busyId, setBusyId] = useState<number | null>(null)
-    const [confirmDelete, setConfirmDelete] = useState<AdminMapRoute | null>(null)
 
     const load = useCallback(() => listRoutes(), [])
     const { items, loading, error, reload } = useAdminListLoader(load)
@@ -21,21 +19,6 @@ export function RoutesPage() {
         setBusyId(route.id)
         try {
             await toggleRouteDisabled(route.id, !route.flag_disabled)
-            await reload()
-        } catch (err) {
-            window.alert(err instanceof Error ? err.message : String(err))
-        } finally {
-            setBusyId(null)
-        }
-    }
-
-    const handleDelete = async () => {
-        if (!confirmDelete) return
-        const id = confirmDelete.id
-        setBusyId(id)
-        setConfirmDelete(null)
-        try {
-            await deleteRoute(id)
             await reload()
         } catch (err) {
             window.alert(err instanceof Error ? err.message : String(err))
@@ -83,35 +66,53 @@ export function RoutesPage() {
                             <th className="px-3 py-2 font-medium">Точек</th>
                             <th className="px-3 py-2 font-medium">Создан</th>
                             <th className="px-3 py-2 font-medium">Виден</th>
-                            <th className="px-3 py-2 font-medium" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-200">
                         {loading && (
                             <tr>
-                                <td colSpan={6} className="px-3 py-6 text-center text-neutral-500">
+                                <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
                                     Загрузка…
                                 </td>
                             </tr>
                         )}
                         {!loading && items.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-3 py-6 text-center text-neutral-500">
+                                <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
                                     Маршрутов пока нет.
                                 </td>
                             </tr>
                         )}
                         {items.map((route) => (
-                            <tr key={route.id}>
+                            (() => {
+                                const missingElevationCount = route.coordinates.filter((coord) => coord.length < 3).length
+                                return (
+                            <tr
+                                key={route.id}
+                                onClick={() => {
+                                    void navigate(`/admin/routes/${String(route.id)}`)
+                                }}
+                                className="cursor-pointer hover:bg-neutral-50"
+                            >
                                 <td className="px-3 py-2 font-mono text-xs text-neutral-500">{route.id}</td>
                                 <td className="px-3 py-2 font-medium">{route.title}</td>
-                                <td className="px-3 py-2 text-neutral-600">{route.coordinates.length}</td>
+                                <td className="px-3 py-2 text-neutral-600">
+                                    <div className="flex flex-col">
+                                        <span>{route.coordinates.length}</span>
+                                        {missingElevationCount > 0 && (
+                                            <span className="text-xs text-amber-700">
+                                                Без высоты: {missingElevationCount}
+                                            </span>
+                                        )}
+                                    </div>
+                                </td>
                                 <td className="px-3 py-2 text-neutral-600">{formatAdminDate(route.created_at)}</td>
                                 <td className="px-3 py-2">
                                     <button
                                         type="button"
                                         disabled={busyId === route.id}
-                                        onClick={() => {
+                                        onClick={(event) => {
+                                            event.stopPropagation()
                                             void handleToggle(route)
                                         }}
                                         className={[
@@ -124,47 +125,13 @@ export function RoutesPage() {
                                         {route.flag_disabled ? 'скрыт' : 'виден'}
                                     </button>
                                 </td>
-                                <td className="px-3 py-2 text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Link
-                                            to={String(route.id)}
-                                            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100"
-                                        >
-                                            Редактировать
-                                        </Link>
-                                        <button
-                                            type="button"
-                                            disabled={busyId === route.id}
-                                            onClick={() => {
-                                                setConfirmDelete(route)
-                                            }}
-                                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                        >
-                                            Удалить
-                                        </button>
-                                    </div>
-                                </td>
                             </tr>
+                                )
+                            })()
                         ))}
                     </tbody>
                 </table>
             </div>
-
-            <ConfirmDialog
-                open={confirmDelete !== null}
-                title="Удалить маршрут?"
-                description={
-                    confirmDelete && <>Будет удалена запись «{confirmDelete.title}». Действие необратимо.</>
-                }
-                confirmLabel="Удалить"
-                danger
-                onCancel={() => {
-                    setConfirmDelete(null)
-                }}
-                onConfirm={() => {
-                    void handleDelete()
-                }}
-            />
         </section>
     )
 }
