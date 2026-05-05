@@ -21,14 +21,17 @@ export function getViteSupabaseConfig(): { url: string; key: string } | null {
     return { url, key };
 }
 
+/** TTL Telegram-гео (минуты), с безопасным fallback на дефолт. */
 export function getTelegramGeoTtlMinutes(): number {
     return parsePositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
 }
 
+/** Максимальная допустимая погрешность Telegram-гео (метры). */
 export function getTelegramMaxAccuracyMeters(): number {
     return parsePositiveInt(import.meta.env.VITE_TELEGRAM_MAX_ACCURACY_METERS, DEFAULT_TELEGRAM_MAX_ACCURACY_METERS);
 }
 
+/** Длина хвоста Telegram-трека (минуты). */
 export function getTelegramTrackTailMinutes(): number {
     return parsePositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
 }

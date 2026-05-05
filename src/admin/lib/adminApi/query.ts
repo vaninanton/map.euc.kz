@@ -6,6 +6,10 @@ export function db() {
     return requireSupabase()
 }
 
+/**
+ * Унифицирует ответ PostgREST к простому объекту `{ data, error }`.
+ * Нужен как базовый адаптер перед парсингом доменных моделей.
+ */
 async function unwrapPostgrest(
     promise: PromiseLike<{ data: unknown; error: PostgrestError | null }>,
 ): Promise<{ data: unknown; error: PostgrestError | null }> {
@@ -31,6 +35,10 @@ export async function runOneRaw(
     return data
 }
 
+/**
+ * Выполняет запрос, который должен вернуть массив строк.
+ * Бросает ошибку, если API вернул не-массив.
+ */
 export async function runManyRaw(
     label: string,
     promise: PromiseLike<{ data: unknown; error: PostgrestError | null }>,
@@ -49,6 +57,11 @@ export async function runManyRaw(
     return data as unknown[]
 }
 
+/**
+ * Выполняет запрос одной записи и валидирует её через `parse`.
+ *
+ * @throws Error Если запрос завершился ошибкой или форма данных не совпадает с ожиданием.
+ */
 export async function runOneParsed<T>(
     label: string,
     promise: PromiseLike<{ data: unknown; error: PostgrestError | null }>,
@@ -63,6 +76,10 @@ export async function runOneParsed<T>(
     }
 }
 
+/**
+ * Выполняет запрос списка и валидирует каждую запись через `parseItem`.
+ * В текст ошибки добавляется индекс проблемной строки.
+ */
 export async function runManyParsed<T>(
     label: string,
     promise: PromiseLike<{ data: unknown; error: PostgrestError | null }>,

@@ -4,6 +4,7 @@ import { db, runManyParsed, runOneParsed } from '@/admin/lib/adminApi/query'
 import { parseAdminMapPoint } from '@/admin/lib/adminApi/parsers'
 import { listPhotos } from '@/admin/lib/adminApi/photos'
 
+/** Возвращает список точек/розеток для админки в алфавитном порядке. */
 export async function listPoints(): Promise<AdminMapPoint[]> {
     return runManyParsed(
         'listPoints',
@@ -12,6 +13,7 @@ export async function listPoints(): Promise<AdminMapPoint[]> {
     )
 }
 
+/** Загружает одну точку по id с runtime-валидацией ответа. */
 export async function getPoint(id: number): Promise<AdminMapPoint> {
     return runOneParsed(
         'getPoint',
@@ -20,6 +22,7 @@ export async function getPoint(id: number): Promise<AdminMapPoint> {
     )
 }
 
+/** Создаёт новую точку/розетку и возвращает сохранённую запись. */
 export async function createPoint(input: MapPointInput): Promise<AdminMapPoint> {
     return runOneParsed(
         'createPoint',
@@ -28,6 +31,7 @@ export async function createPoint(input: MapPointInput): Promise<AdminMapPoint> 
     )
 }
 
+/** Обновляет существующую точку по id и возвращает актуальную запись. */
 export async function updatePoint(id: number, input: Partial<MapPointInput>): Promise<AdminMapPoint> {
     return runOneParsed(
         'updatePoint',
@@ -36,6 +40,7 @@ export async function updatePoint(id: number, input: Partial<MapPointInput>): Pr
     )
 }
 
+/** Быстрый переключатель флага скрытия точки на карте. */
 export async function togglePointDisabled(id: number, disabled: boolean): Promise<void> {
     const { error } = await db().from('map_points').update({ flag_disabled: disabled }).eq('id', id)
     if (error) {
@@ -44,6 +49,10 @@ export async function togglePointDisabled(id: number, disabled: boolean): Promis
     }
 }
 
+/**
+ * Удаляет точку и связанные фото:
+ * сначала очищает файлы из Storage, затем строку точки в БД.
+ */
 export async function deletePoint(id: number): Promise<void> {
     const photos = await listPhotos(id)
     if (photos.length > 0) {

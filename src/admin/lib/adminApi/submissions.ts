@@ -3,6 +3,7 @@ import { db, runManyParsed, runOneParsed } from '@/admin/lib/adminApi/query'
 import { parseAdminSubmission } from '@/admin/lib/adminApi/parsers'
 import { createPoint } from '@/admin/lib/adminApi/points'
 
+/** Нормализует координаты заявки в tuple `[lng, lat]`. */
 function asPointCoordinatesFromSubmission(value: unknown): [number, number] {
     if (!Array.isArray(value) || value.length < 2) {
         throw new Error('Некорректные координаты в заявке')
@@ -15,6 +16,7 @@ function asPointCoordinatesFromSubmission(value: unknown): [number, number] {
     return [lng, lat]
 }
 
+/** Возвращает список заявок на модерацию (опционально с фильтром по статусу). */
 export async function listSubmissions(status?: SubmissionStatus): Promise<AdminSubmission[]> {
     let query = db()
         .from('map_points_submissions')
@@ -24,6 +26,10 @@ export async function listSubmissions(status?: SubmissionStatus): Promise<AdminS
     return runManyParsed('listSubmissions', query, (raw) => parseAdminSubmission(raw))
 }
 
+/**
+ * Подтверждает заявку:
+ * создаёт точку в `map_points` и помечает заявку как `approved`.
+ */
 export async function approveSubmission(id: string): Promise<AdminMapPoint> {
     const sub = await runOneParsed(
         'approveSubmission:fetch',
@@ -58,6 +64,7 @@ export async function approveSubmission(id: string): Promise<AdminMapPoint> {
     return inserted
 }
 
+/** Отклоняет заявку, если она ещё `pending`. */
 export async function rejectSubmission(id: string): Promise<void> {
     const { error } = await db()
         .from('map_points_submissions')

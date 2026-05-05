@@ -209,6 +209,10 @@ async function refreshTelegramAvatarUrl(userId: number, botToken: string): Promi
     }
 }
 
+/**
+ * Читает положительное целое из env-строки.
+ * Если значение отсутствует/некорректно — возвращает `fallback`.
+ */
 function parsePositiveIntEnv(raw: string | undefined, fallback: number): number {
     if (!raw || !raw.trim()) return fallback
     const n = Number.parseInt(raw.trim(), 10)
@@ -216,6 +220,14 @@ function parsePositiveIntEnv(raw: string | undefined, fallback: number): number 
     return n
 }
 
+/**
+ * Backfill для безопасного обновления `avatar_url` в `telegram_profiles`.
+ *
+ * Поддерживает:
+ * - обязательную авторизацию заголовком `x-telegram-backfill-secret`
+ * - ограничение объёма обработки за вызов (`TELEGRAM_BACKFILL_MAX_PROFILES`)
+ * - продолжение с оффсета через query-параметр `from`
+ */
 async function handleAvatarBackfill(req: Request): Promise<Response> {
     const backfillSecret = Deno.env.get('TELEGRAM_BACKFILL_SECRET')
     if (!backfillSecret || !backfillSecret.trim()) {

@@ -3,14 +3,17 @@ import { PHOTOS_BUCKET } from '@/admin/lib/adminApi/constants'
 import { db, runManyParsed, runOneParsed } from '@/admin/lib/adminApi/query'
 import { parsePhotoRowDB, type PhotoRowDB } from '@/admin/lib/adminApi/parsers'
 
+/** Строит публичный URL файла из storage path. */
 function publicUrl(storagePath: string): string {
     return db().storage.from(PHOTOS_BUCKET).getPublicUrl(storagePath).data.publicUrl
 }
 
+/** Дополняет DB-строку фото вычисленным `public_url`. */
 function withPublicUrl(row: PhotoRowDB): AdminPhoto {
     return { ...row, public_url: publicUrl(row.storage_path) }
 }
 
+/** Возвращает список фото точки в порядке `sort_order`. */
 export async function listPhotos(pointId: number): Promise<AdminPhoto[]> {
     const rows = await runManyParsed(
         'listPhotos',
@@ -24,6 +27,10 @@ export async function listPhotos(pointId: number): Promise<AdminPhoto[]> {
     return rows.map(withPublicUrl)
 }
 
+/**
+ * Загружает файл в Storage и создаёт строку фото в `map_point_photos`.
+ * При ошибке вставки в БД выполняет откат (удаление файла).
+ */
 export async function uploadPhoto(
     pointId: number,
     file: File,
@@ -65,6 +72,7 @@ export async function uploadPhoto(
     }
 }
 
+/** Обновляет подпись/порядок фото и возвращает актуальную запись с `public_url`. */
 export async function updatePhoto(
     id: string,
     patch: { alt_text?: string | null; sort_order?: number },
@@ -77,6 +85,7 @@ export async function updatePhoto(
     return withPublicUrl(row)
 }
 
+/** Удаляет фото из Storage и из таблицы `map_point_photos`. */
 export async function deletePhoto(photo: AdminPhoto): Promise<void> {
     const { error: storageError } = await db().storage.from(PHOTOS_BUCKET).remove([photo.storage_path])
     if (storageError) {

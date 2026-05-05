@@ -14,6 +14,10 @@ export const LAYER_KEY_TO_MAP_LAYER_IDS: Record<LayerKey, readonly string[]> = {
     telegramUsers: [LAYER_IDS.telegramUsers, LAYER_IDS.telegramTracks],
 };
 
+/**
+ * Проставляет `layout.visibility` для всех слоёв, связанных с ключами UI.
+ * Безопасно пропускает отсутствующие в текущем style слои.
+ */
 export function applyVisibilityToMapLayers(map: MapboxMap, visibility: LayerVisibility): void {
     (Object.keys(LAYER_KEY_TO_MAP_LAYER_IDS) as LayerKey[]).forEach((key) => {
         const visible = visibility[key];

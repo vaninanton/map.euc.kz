@@ -50,11 +50,16 @@ export function useMapFeatureSelection(params: {
     const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
     const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
 
+    /** Полностью очищает выбранную фичу и её feature-state. */
     const clearSelection = useCallback(() => {
         setSelectedFeature(null);
         setSelectedFeatureState(null);
     }, []);
 
+    /**
+     * Открывает фичу: ставит selected-state и фокусирует карту
+     * (по bounds для линий, по центру для точек).
+     */
     const openFeature = useCallback(
         (feature: Feature, layerKey: LayerKey, lngLat?: [number, number]) => {
             const sourceId = LAYER_ID_TO_SOURCE[LAYER_IDS[layerKey]];
@@ -71,6 +76,7 @@ export function useMapFeatureSelection(params: {
         [flyTo, flyToBounds]
     );
 
+    /** Адаптер для click-хука с фиксированной сигнатурой колбэка. */
     const handleFeatureSelect = useCallback(
         (feature: Feature, layerKey: LayerKey, lngLat: [number, number]) => {
             openFeature(feature, layerKey, lngLat);
@@ -78,6 +84,7 @@ export function useMapFeatureSelection(params: {
         [openFeature]
     );
 
+    /** Для Telegram-фич берёт актуальные данные из индекса (аватар, имя и т.д.). */
     const displaySelectedFeature = useMemo(() => {
         if (!selectedFeature || selectedFeature.properties.type !== 'telegramUser') {
             return selectedFeature;

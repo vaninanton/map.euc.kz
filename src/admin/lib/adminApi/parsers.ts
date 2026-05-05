@@ -47,6 +47,9 @@ function asRouteCoordinates(value: unknown): AdminMapRoute['coordinates'] {
     return out
 }
 
+/**
+ * Валидирует и нормализует строку `map_points` в доменную модель админки.
+ */
 export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     if (!isRecord(raw)) throw new Error('не объект')
     const id = raw.id
@@ -86,6 +89,9 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     }
 }
 
+/**
+ * Валидирует и нормализует строку `map_routes` в доменную модель маршрута.
+ */
 export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
     if (!isRecord(raw)) throw new Error('не объект')
     const id = raw.id
@@ -116,6 +122,9 @@ export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
     }
 }
 
+/**
+ * Валидирует и нормализует строку из `map_points_submissions`.
+ */
 export function parseAdminSubmission(raw: unknown): AdminSubmission {
     if (!isRecord(raw)) throw new Error('не объект')
     const id = raw.id
@@ -165,6 +174,9 @@ export interface PhotoRowDB {
     sort_order: number
 }
 
+/**
+ * Валидирует строку `map_point_photos` из Supabase перед добавлением `public_url`.
+ */
 export function parsePhotoRowDB(raw: unknown): PhotoRowDB {
     if (!isRecord(raw)) throw new Error('не объект')
     const id = raw.id

@@ -48,6 +48,9 @@ export function useMapData() {
     const telegramRefreshSeqRef = useRef(0);
     const refreshTimerIdRef = useRef<number | null>(null);
 
+    /**
+     * Перезагружает Telegram-слой и защищается от гонки запросов через seq-id.
+     */
     const refreshTelegramUsers = useCallback(async () => {
         const requestSeq = ++telegramRefreshSeqRef.current;
         try {
@@ -149,6 +152,9 @@ export function useMapData() {
         };
     }, []);
 
+    /**
+     * Debounce для realtime-обновлений, чтобы не делать каскадные запросы.
+     */
     const scheduleRealtimeRefresh = useCallback(() => {
         if (refreshTimerIdRef.current !== null) {
             window.clearTimeout(refreshTimerIdRef.current);
@@ -175,6 +181,9 @@ export function useMapData() {
         telegramUsersGeo
     );
 
+    /**
+     * Возвращает фичу из индекса по типу слоя и id.
+     */
     const getFeatureById = useCallback(
         (layer: LayerKey, id: string): Feature | null => {
             if (layer === 'points') return pointsById.get(`point:${id}`) ?? null;
