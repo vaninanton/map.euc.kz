@@ -135,8 +135,11 @@ SPA на GitHub Pages: в `dist/` появляется `404.html` (копия `i
 
 1. Задайте секреты для функции:
     ```bash
-    supabase secrets set TELEGRAM_BOT_TOKEN=<bot_token> TELEGRAM_WEBHOOK_SECRET=<random_secret>
+    supabase secrets set TELEGRAM_BOT_TOKEN=<bot_token> \
+      TELEGRAM_WEBHOOK_SECRET=<random_secret> \
+      TELEGRAM_BACKFILL_SECRET=<другой_секрет_только_для_backfill>
     ```
+   Опционально: `TELEGRAM_BACKFILL_MAX_PROFILES` — лимит профилей за один вызов backfill (по умолчанию 500).
 2. Задеплойте функцию:
     ```bash
     supabase functions deploy telegram-location-bot --no-verify-jwt
@@ -156,8 +159,10 @@ SPA на GitHub Pages: в `dist/` появляется `404.html` (копия `i
 
 ```bash
 curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-bot/backfill" \
-  -H "x-telegram-bot-api-secret-token: <random_secret>"
+  -H "x-telegram-backfill-secret: <TELEGRAM_BACKFILL_SECRET>"
 ```
+
+Если ответ содержит `capped_at_max_profiles: true`, повторите запрос с параметром `?from=<next_from>` из JSON (продолжение по порядку строк).
 
 Функция пройдёт по `telegram_profiles` и обновит только небезопасные/пустые `avatar_url`.
 
@@ -170,7 +175,7 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 - `map_points_submissions` — заявки на добавление точек от пользователей (модерация).
 - `map_point_photos` — фотографии точек, файлы лежат в Storage-бакете.
 - `map_admin_users` — пользователи Supabase Auth с правами администратора карты (заполняется вручную).
-- `telegram_locations` — сырые геопозиции, полученные от бота.
+- `telegram_locations` — геопозиции из Telegram (полный payload хранится в `raw_update`, но анонимному ключу выдан SELECT только по безопасным колонкам без `raw_update`).
 - `telegram_profiles` — кэш профилей Telegram (имя, ник, аватар).
 
 Все публичные таблицы защищены RLS и доступны на чтение анонимно только для записей с `flag_disabled = false`.

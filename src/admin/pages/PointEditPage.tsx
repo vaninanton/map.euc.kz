@@ -41,7 +41,8 @@ function pointToFormValue(point: AdminMapPoint): PointFormValue {
 export function PointEditPage({ mode }: PointEditPageProps) {
     const navigate = useNavigate()
     const params = useParams<{ id?: string }>()
-    const pointId = mode === 'edit' && params.id ? Number(params.id) : null
+    const pointIdRaw = params.id !== undefined && params.id !== '' ? Number(params.id) : NaN
+    const pointId = mode === 'edit' && Number.isFinite(pointIdRaw) ? pointIdRaw : null
 
     const [initial, setInitial] = useState<PointFormValue | null>(mode === 'create' ? DEFAULT_VALUE : null)
     const [error, setError] = useState<string | null>(null)

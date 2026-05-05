@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useCoordinateHistory, isUndoRedoBlockedTarget } from '@/admin/hooks/useCoordinateHistory'
+import { useCoordinateHistory } from '@/admin/hooks/useCoordinateHistory'
+import { useUndoRedoHotkeys } from '@/admin/hooks/useUndoRedoHotkeys'
 import {
     createRoute,
     deleteRoute,
@@ -9,10 +10,9 @@ import {
     type AdminMapRoute,
 } from '@/admin/lib/adminApi'
 import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
-import {
-    AdminRoutePolylineMap,
-    type RouteEditorCoordinates,
-} from '@/admin/components/AdminRoutePolylineMap'
+import { AdminRoutePolylineMap } from '@/admin/components/AdminRoutePolylineMap'
+import type { RouteEditorCoordinates } from '@/admin/route-editor/routeGeometry'
+import { validateMinimumVertices, validateRouteTitleTrimmed } from '@/admin/route-editor/routeValidation'
 import { RouteVertexEditorList } from '@/admin/components/RouteVertexEditorList'
 import { fillMissingRouteElevations } from '@/utils/fetchMissingRouteElevations'
 import { getUndoRedoShortcuts } from '@/utils/platformShortcuts'
@@ -54,7 +54,8 @@ function routeToFormValue(route: AdminMapRoute): FormValue {
 export function RouteEditPage({ mode }: RouteEditPageProps) {
     const navigate = useNavigate()
     const params = useParams<{ id?: string }>()
-    const routeId = mode === 'edit' && params.id ? Number(params.id) : null
+    const routeIdRaw = params.id !== undefined && params.id !== '' ? Number(params.id) : NaN
+    const routeId = mode === 'edit' && Number.isFinite(routeIdRaw) ? routeIdRaw : null
 
     const [value, setValue] = useState<FormValue | null>(mode === 'create' ? DEFAULT_VALUE : null)
     const [error, setError] = useState<string | null>(null)
@@ -116,36 +117,22 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
         })
     }, [redoCoordStep])
 
-    useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (!(event.ctrlKey || event.metaKey)) return
-            if (event.key.toLowerCase() !== 'z') return
-            if (isUndoRedoBlockedTarget(event.target)) return
-            event.preventDefault()
-            if (event.shiftKey) {
-                redoRouteCoordinates()
-            } else {
-                undoRouteCoordinates()
-            }
-        }
-        window.addEventListener('keydown', onKeyDown)
-        return () => {
-            window.removeEventListener('keydown', onKeyDown)
-        }
-    }, [undoRouteCoordinates, redoRouteCoordinates])
+    useUndoRedoHotkeys({ onUndo: undoRouteCoordinates, onRedo: redoRouteCoordinates })
 
     const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
         event.preventDefault()
         if (!value) return
 
         const titleTrimmed = value.title.trim()
-        if (titleTrimmed.length < 4 || titleTrimmed.length > 99) {
-            setError('Название должно содержать от 4 до 99 символов.')
+        const titleErr = validateRouteTitleTrimmed(titleTrimmed)
+        if (titleErr) {
+            setError(titleErr)
             return
         }
 
-        if (value.coordinates.length < 2) {
-            setError('Нужно минимум две вершины маршрута.')
+        const vertexErr = validateMinimumVertices(value.coordinates.length)
+        if (vertexErr) {
+            setError(vertexErr)
             return
         }
 
