@@ -1,18 +1,16 @@
 import { useCallback, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-    deletePoint,
     listPoints,
     togglePointDisabled,
     type AdminMapPoint,
 } from '@/admin/lib/adminApi'
-import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
 import { formatAdminDate } from '@/admin/utils/formatAdminDate'
 
 export function PointsPage() {
+    const navigate = useNavigate()
     const [busyId, setBusyId] = useState<number | null>(null)
-    const [confirmDelete, setConfirmDelete] = useState<AdminMapPoint | null>(null)
 
     const load = useCallback(() => listPoints(), [])
     const { items, loading, error, reload } = useAdminListLoader(load)
@@ -21,21 +19,6 @@ export function PointsPage() {
         setBusyId(point.id)
         try {
             await togglePointDisabled(point.id, !point.flag_disabled)
-            await reload()
-        } catch (err) {
-            window.alert(err instanceof Error ? err.message : String(err))
-        } finally {
-            setBusyId(null)
-        }
-    }
-
-    const handleDelete = async () => {
-        if (!confirmDelete) return
-        const id = confirmDelete.id
-        setBusyId(id)
-        setConfirmDelete(null)
-        try {
-            await deletePoint(id)
             await reload()
         } catch (err) {
             window.alert(err instanceof Error ? err.message : String(err))
@@ -85,26 +68,31 @@ export function PointsPage() {
                             <th className="px-3 py-2 font-medium">Координаты</th>
                             <th className="px-3 py-2 font-medium">Создано</th>
                             <th className="px-3 py-2 font-medium">Видна</th>
-                            <th className="px-3 py-2 font-medium" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-200">
                         {loading && (
                             <tr>
-                                <td colSpan={7} className="px-3 py-6 text-center text-neutral-500">
+                                <td colSpan={6} className="px-3 py-6 text-center text-neutral-500">
                                     Загрузка…
                                 </td>
                             </tr>
                         )}
                         {!loading && items.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="px-3 py-6 text-center text-neutral-500">
+                                <td colSpan={6} className="px-3 py-6 text-center text-neutral-500">
                                     Точек пока нет.
                                 </td>
                             </tr>
                         )}
                         {items.map((point) => (
-                            <tr key={point.id}>
+                            <tr
+                                key={point.id}
+                                onClick={() => {
+                                    void navigate(`/admin/points/${String(point.id)}`)
+                                }}
+                                className="cursor-pointer hover:bg-neutral-50"
+                            >
                                 <td className="px-3 py-2 font-mono text-xs text-neutral-500">{point.id}</td>
                                 <td className="px-3 py-2">
                                     {point.type === 'socket' ? 'Розетка' : 'Точка'}
@@ -119,7 +107,8 @@ export function PointsPage() {
                                     <button
                                         type="button"
                                         disabled={busyId === point.id}
-                                        onClick={() => {
+                                        onClick={(event) => {
+                                            event.stopPropagation()
                                             void handleToggle(point)
                                         }}
                                         className={[
@@ -132,52 +121,11 @@ export function PointsPage() {
                                         {point.flag_disabled ? 'скрыта' : 'видна'}
                                     </button>
                                 </td>
-                                <td className="px-3 py-2 text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Link
-                                            to={String(point.id)}
-                                            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100"
-                                        >
-                                            Редактировать
-                                        </Link>
-                                        <button
-                                            type="button"
-                                            disabled={busyId === point.id}
-                                            onClick={() => {
-                                                setConfirmDelete(point)
-                                            }}
-                                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                        >
-                                            Удалить
-                                        </button>
-                                    </div>
-                                </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
-
-            <ConfirmDialog
-                open={confirmDelete !== null}
-                title="Удалить точку?"
-                description={
-                    confirmDelete && (
-                        <>
-                            Будет удалена запись «{confirmDelete.title}» и все связанные с ней фото в Storage.
-                            Действие необратимо.
-                        </>
-                    )
-                }
-                confirmLabel="Удалить"
-                danger
-                onCancel={() => {
-                    setConfirmDelete(null)
-                }}
-                onConfirm={() => {
-                    void handleDelete()
-                }}
-            />
         </section>
     )
 }
