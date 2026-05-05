@@ -1,6 +1,9 @@
-import { useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import type { MapPointType } from '@/types'
 import type { MapPointInput } from '@/admin/lib/adminApi'
+import { AdminPointLocationMap } from '@/admin/components/AdminPointLocationMap'
+import { useCoordinateHistory, isUndoRedoBlockedTarget } from '@/admin/hooks/useCoordinateHistory'
+import { getUndoRedoShortcuts } from '@/utils/platformShortcuts'
 
 export type PointFormValue = MapPointInput
 
@@ -16,6 +19,13 @@ const TYPE_OPTIONS: Array<{ value: MapPointType; label: string }> = [
     { value: 'socket', label: 'Розетка' },
 ]
 
+function parseCoordInput(raw: string, fallback: number): number {
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : fallback
+}
+
+type CoordTuple = [number, number]
+
 export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFormProps) {
     const [type, setType] = useState<MapPointType>(initial.type)
     const [title, setTitle] = useState(initial.title)
@@ -27,6 +37,69 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
     const [flagDisabled, setFlagDisabled] = useState(initial.flag_disabled)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    const { reset: resetCoordHistory, prepareCommit, undo: undoCoordStep, redo: redoCoordStep } =
+        useCoordinateHistory<CoordTuple>()
+    const shortcuts = useMemo(() => getUndoRedoShortcuts(), [])
+    const lastCommittedCoords = useRef<CoordTuple>([initial.coordinates[0], initial.coordinates[1]])
+
+    useEffect(() => {
+        resetCoordHistory()
+    }, [resetCoordHistory])
+
+    const commitCoords = useCallback(
+        (next: CoordTuple) => {
+            const prev = lastCommittedCoords.current
+            if (prev[0] === next[0] && prev[1] === next[1]) return
+            prepareCommit(prev)
+            lastCommittedCoords.current = next
+            setLng(String(next[0]))
+            setLat(String(next[1]))
+        },
+        [prepareCommit],
+    )
+
+    const tryCommitCoordsFromInputs = useCallback(() => {
+        const lngNum = Number(lng)
+        const latNum = Number(lat)
+        if (!Number.isFinite(lngNum) || lngNum < -180 || lngNum > 180) return
+        if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) return
+        commitCoords([lngNum, latNum])
+    }, [lng, lat, commitCoords])
+
+    const undoCoords = useCallback(() => {
+        const restored = undoCoordStep(lastCommittedCoords.current)
+        if (!restored) return
+        lastCommittedCoords.current = restored
+        setLng(String(restored[0]))
+        setLat(String(restored[1]))
+    }, [undoCoordStep])
+
+    const redoCoords = useCallback(() => {
+        const restored = redoCoordStep(lastCommittedCoords.current)
+        if (!restored) return
+        lastCommittedCoords.current = restored
+        setLng(String(restored[0]))
+        setLat(String(restored[1]))
+    }, [redoCoordStep])
+
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!(event.ctrlKey || event.metaKey)) return
+            if (event.key.toLowerCase() !== 'z') return
+            if (isUndoRedoBlockedTarget(event.target)) return
+            event.preventDefault()
+            if (event.shiftKey) {
+                redoCoords()
+            } else {
+                undoCoords()
+            }
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+        }
+    }, [undoCoords, redoCoords])
 
     const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -67,13 +140,14 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
     }
 
     return (
-        <form
-            className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4"
-            onSubmit={(event) => {
-                void handleSubmit(event)
-            }}
-        >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid w-full gap-6 lg:grid-cols-2 lg:items-stretch lg:gap-8 lg:min-h-[calc(100dvh-10rem)]">
+            <form
+                className="flex min-h-0 flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4"
+                onSubmit={(event) => {
+                    void handleSubmit(event)
+                }}
+            >
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label className="mb-1 block text-xs font-medium text-neutral-700">Тип</label>
                     <select
@@ -129,6 +203,9 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
                         onChange={(event) => {
                             setLng(event.target.value)
                         }}
+                        onBlur={() => {
+                            tryCommitCoordsFromInputs()
+                        }}
                         inputMode="decimal"
                         className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
                     />
@@ -139,6 +216,9 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
                         value={lat}
                         onChange={(event) => {
                             setLat(event.target.value)
+                        }}
+                        onBlur={() => {
+                            tryCommitCoordsFromInputs()
                         }}
                         inputMode="decimal"
                         className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
@@ -208,5 +288,26 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
                 )}
             </div>
         </form>
+
+            <div className="flex min-h-[280px] min-w-0 flex-col gap-2 lg:min-h-0">
+                <div className="shrink-0">
+                    <h2 className="text-sm font-medium text-neutral-800">Карта</h2>
+                    <p className="mt-0.5 text-xs text-neutral-500">
+                        Отмена шага по координатам: {shortcuts.undo}; повтор: {shortcuts.redo} (не в полях ввода).
+                    </p>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    <AdminPointLocationMap
+                        coordinates={[
+                            parseCoordInput(lng, initial.coordinates[0]),
+                            parseCoordInput(lat, initial.coordinates[1]),
+                        ]}
+                        onChange={(next) => {
+                            commitCoords(next)
+                        }}
+                    />
+                </div>
+            </div>
+        </div>
     )
 }

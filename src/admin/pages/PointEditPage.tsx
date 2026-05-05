@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
     createPoint,
+    deletePoint,
     getPoint,
     updatePoint,
     type AdminMapPoint,
 } from '@/admin/lib/adminApi'
+import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { PointForm, type PointFormValue } from '@/admin/components/PointForm'
 import { PhotoManager } from '@/admin/components/PhotoManager'
+import { getUndoRedoShortcuts } from '@/utils/platformShortcuts'
 
 interface PointEditPageProps {
     mode: 'create' | 'edit'
@@ -42,6 +45,9 @@ export function PointEditPage({ mode }: PointEditPageProps) {
 
     const [initial, setInitial] = useState<PointFormValue | null>(mode === 'create' ? DEFAULT_VALUE : null)
     const [error, setError] = useState<string | null>(null)
+    const [confirmDelete, setConfirmDelete] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+    const shortcuts = getUndoRedoShortcuts()
 
     useEffect(() => {
         if (mode !== 'edit' || pointId === null) return
@@ -69,21 +75,50 @@ export function PointEditPage({ mode }: PointEditPageProps) {
         }
     }
 
+    const handleDelete = async () => {
+        if (pointId === null) return
+        setDeleting(true)
+        try {
+            await deletePoint(pointId)
+            await navigate('/admin/points')
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+        } finally {
+            setDeleting(false)
+            setConfirmDelete(false)
+        }
+    }
+
     return (
-        <section className="max-w-3xl">
+        <section className="w-full max-w-none">
             <header className="mb-4">
                 <h1 className="text-xl font-semibold">
                     {mode === 'create' ? 'Новая точка' : `Точка #${params.id ?? ''}`}
                 </h1>
                 <p className="mt-1 text-sm text-neutral-600">
-                    Заполните поля и сохраните. Координаты — в формате lng, lat.
+                    Шаги отменяются {shortcuts.undo} и повторяются {shortcuts.redo} (вне полей ввода).
                 </p>
+                {mode === 'edit' && pointId !== null && (
+                    <div className="mt-3">
+                        <button
+                            type="button"
+                            disabled={deleting}
+                            onClick={() => {
+                                setConfirmDelete(true)
+                            }}
+                            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                            Удалить точку
+                        </button>
+                    </div>
+                )}
             </header>
 
             {error && <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
             {initial ? (
                 <PointForm
+                    key={mode === 'edit' && pointId !== null ? String(pointId) : 'create'}
                     initial={initial}
                     submitLabel={mode === 'create' ? 'Создать' : 'Сохранить'}
                     onSubmit={handleSubmit}
@@ -100,6 +135,20 @@ export function PointEditPage({ mode }: PointEditPageProps) {
                     <PhotoManager pointId={pointId} />
                 </div>
             )}
+
+            <ConfirmDialog
+                open={confirmDelete}
+                title="Удалить точку?"
+                description="Будет удалена точка и все связанные с ней фото. Действие необратимо."
+                confirmLabel="Удалить"
+                danger
+                onCancel={() => {
+                    if (!deleting) setConfirmDelete(false)
+                }}
+                onConfirm={() => {
+                    void handleDelete()
+                }}
+            />
         </section>
     )
 }
