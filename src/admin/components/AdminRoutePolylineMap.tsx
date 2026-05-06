@@ -20,6 +20,8 @@ interface AdminRoutePolylineMapProps {
     onChange: (next: RouteEditorCoordinates) => void
     /** Наведение на маркер вершины (для подсветки строки в списке). */
     onVertexHover?: (vertexIndex: number | null) => void
+    /** Индекс вершины, подсвечиваемой из списка координат. */
+    highlightedVertexIndex?: number | null
 }
 
 const SOURCE_ID = 'admin-route-editor-src'
@@ -52,6 +54,7 @@ export function AdminRoutePolylineMap({
     viaCoordinates = [],
     onChange,
     onVertexHover,
+    highlightedVertexIndex = null,
 }: AdminRoutePolylineMapProps) {
     const containerRef = useRef<HTMLDivElement | null>(null)
     const { map, isMapReady } = useMapbox(containerRef)
@@ -60,10 +63,16 @@ export function AdminRoutePolylineMap({
     const coordinatesRef = useRef(coordinates)
     const hasToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN)
     const onVertexHoverRef = useRef(onVertexHover)
+    const highlightedVertexIndexRef = useRef<number | null>(highlightedVertexIndex)
+    const lastZoomedVertexIndexRef = useRef<number | null>(null)
 
     useEffect(() => {
         onVertexHoverRef.current = onVertexHover
     }, [onVertexHover])
+
+    useEffect(() => {
+        highlightedVertexIndexRef.current = highlightedVertexIndex
+    }, [highlightedVertexIndex])
 
     useEffect(() => {
         onChangeRef.current = onChange
@@ -74,6 +83,32 @@ export function AdminRoutePolylineMap({
     }, [coordinates])
 
     const isSameLngLat = useCallback((a: [number, number], b: [number, number]) => a[0] === b[0] && a[1] === b[1], [])
+
+    const setMarkerHighlighted = useCallback((marker: Marker, highlighted: boolean) => {
+        const el = marker.getElement()
+        if (highlighted) {
+            // Важно: не трогаем transform — Mapbox использует его для позиционирования маркера.
+            el.style.outline = '3px solid rgba(245, 158, 11, 0.95)'
+            el.style.outlineOffset = '2px'
+            el.style.zIndex = '10'
+            el.style.filter = 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35))'
+        } else {
+            el.style.outline = ''
+            el.style.outlineOffset = ''
+            el.style.zIndex = ''
+            el.style.filter = ''
+        }
+    }, [])
+
+    const applyHighlightedIndex = useCallback(
+        (index: number | null) => {
+            const list = markersRef.current
+            for (let i = 0; i < list.length; i += 1) {
+                setMarkerHighlighted(list[i], index !== null && i === index)
+            }
+        },
+        [setMarkerHighlighted],
+    )
 
     const rebuildMarkers = useCallback((mapInstance: mapboxgl.Map, coords: RouteEditorCoordinates) => {
         for (const m of markersRef.current) {
@@ -146,7 +181,8 @@ export function AdminRoutePolylineMap({
 
             markersRef.current.push(marker)
         })
-    }, [isSameLngLat, viaCoordinates])
+        applyHighlightedIndex(highlightedVertexIndexRef.current)
+    }, [applyHighlightedIndex, isSameLngLat, viaCoordinates])
 
     const applySourceData = useCallback((mapInstance: mapboxgl.Map, coords: RouteEditorCoordinates) => {
         const fc = featureCollectionFromCoords(coords)
@@ -257,6 +293,30 @@ export function AdminRoutePolylineMap({
         applySourceData(map, coordinates)
         rebuildMarkers(map, coordinates)
     }, [map, isMapReady, coordinates, viaCoordinates, applySourceData, rebuildMarkers])
+
+    useEffect(() => {
+        applyHighlightedIndex(highlightedVertexIndex)
+    }, [highlightedVertexIndex, applyHighlightedIndex])
+
+    useEffect(() => {
+        if (!map || !isMapReady) return
+        if (highlightedVertexIndex === null) {
+            lastZoomedVertexIndexRef.current = null
+            return
+        }
+        if (highlightedVertexIndex < 0 || highlightedVertexIndex >= coordinates.length) return
+        if (lastZoomedVertexIndexRef.current === highlightedVertexIndex) return
+
+        const coord = coordinates[highlightedVertexIndex]
+        const currentZoom = map.getZoom()
+        const targetZoom = Math.max(currentZoom, 15)
+        map.easeTo({
+            center: [coord[0], coord[1]],
+            zoom: targetZoom,
+            duration: 250,
+        })
+        lastZoomedVertexIndexRef.current = highlightedVertexIndex
+    }, [map, isMapReady, highlightedVertexIndex, coordinates])
 
     /** Вписать линию в вид при открытии редактора (один раз при готовности карты). */
     useEffect(() => {

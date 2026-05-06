@@ -92,6 +92,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
     const [confirmDelete, setConfirmDelete] = useState(false)
     const [fillingElevations, setFillingElevations] = useState(false)
     const [hoveredVertexIndex, setHoveredVertexIndex] = useState<number | null>(null)
+    const [hoverSource, setHoverSource] = useState<'map' | 'list' | null>(null)
     const { reset: resetCoordHistory, prepareCommit, undo: undoCoordStep, redo: redoCoordStep } =
         useCoordinateHistory<RouteEditorCoordinates>()
 
@@ -339,6 +340,11 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                             }}
                             fillingElevations={fillingElevations}
                             highlightedIndex={effectiveHoveredVertexIndex}
+                            autoScrollToHighlighted={hoverSource === 'map'}
+                            onRowHover={(index) => {
+                                setHoverSource(index === null ? null : 'list')
+                                setHoveredVertexIndex(index)
+                            }}
                             onCoordinatesChange={commitRouteCoordinates}
                             onValidationError={(message) => {
                                 setError(message)
@@ -375,7 +381,11 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                                 onChange={(next) => {
                                     commitRouteCoordinates(next)
                                 }}
-                                onVertexHover={setHoveredVertexIndex}
+                                onVertexHover={(index) => {
+                                    setHoverSource(index === null ? null : 'map')
+                                    setHoveredVertexIndex(index)
+                                }}
+                                highlightedVertexIndex={effectiveHoveredVertexIndex}
                             />
                         </div>
                     </div>

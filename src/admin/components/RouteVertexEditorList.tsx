@@ -11,6 +11,10 @@ interface RouteVertexEditorListProps {
     onFillMissingElevations: () => void
     fillingElevations?: boolean
     highlightedIndex: number | null
+    /** Автопрокрутка к highlightedIndex (обычно нужна только при hover с карты). */
+    autoScrollToHighlighted?: boolean
+    /** Наведение на строку вершины (для подсветки соответствующего маркера на карте). */
+    onRowHover?: (index: number | null) => void
     onValidationError: (message: string | null) => void
 }
 
@@ -30,6 +34,7 @@ interface VertexRowProps {
     isVia: boolean
     onToggleVia: (index: number, checked: boolean) => void
     onRemove: (index: number) => void
+    onHover?: (index: number | null) => void
 }
 
 function VertexRow({
@@ -42,6 +47,7 @@ function VertexRow({
     isVia,
     onToggleVia,
     onRemove,
+    onHover,
 }: VertexRowProps) {
     const [lngStr, setLngStr] = useState(() => String(coord[0]))
     const [latStr, setLatStr] = useState(() => String(coord[1]))
@@ -56,6 +62,12 @@ function VertexRow({
         <div
             ref={(node) => {
                 assignRowRef(index, node)
+            }}
+            onMouseEnter={() => {
+                onHover?.(index)
+            }}
+            onMouseLeave={() => {
+                onHover?.(null)
             }}
             className={`flex min-w-0 items-center gap-1 rounded border px-1 py-0.5 transition-colors ${
                 highlighted ? 'border-amber-300 bg-amber-50' : 'border-neutral-200 bg-white'
@@ -139,6 +151,8 @@ export function RouteVertexEditorList({
     onFillMissingElevations,
     fillingElevations = false,
     highlightedIndex,
+    autoScrollToHighlighted = true,
+    onRowHover,
     onValidationError,
 }: RouteVertexEditorListProps) {
     const isSameLngLat = (a: [number, number], b: [number, number]) => a[0] === b[0] && a[1] === b[1]
@@ -175,10 +189,11 @@ export function RouteVertexEditorList({
     }
 
     useEffect(() => {
+        if (!autoScrollToHighlighted) return
         if (highlightedIndex === null) return
         const el = rowRefs.current.get(highlightedIndex)
         el?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
-    }, [highlightedIndex])
+    }, [autoScrollToHighlighted, highlightedIndex])
 
     const commitVertex = (index: number, lngInput: string, latInput: string, eleRaw: string) => {
         const lng = Number(lngInput.trim())
@@ -273,6 +288,7 @@ export function RouteVertexEditorList({
                             isVia={viaCoordinates.some((via) => isSameLngLat(via, [coord[0], coord[1]]))}
                             onToggleVia={toggleVia}
                             onRemove={removeAt}
+                            onHover={onRowHover}
                         />
                     ))}
                 </div>
