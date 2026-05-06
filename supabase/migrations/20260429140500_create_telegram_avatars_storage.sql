@@ -11,7 +11,6 @@ SET
     public = EXCLUDED.public,
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
-
 CREATE POLICY "Public read access for telegram avatars"
     ON storage.objects
     FOR SELECT

@@ -8,7 +8,6 @@ CREATE TABLE map_routes (
     CONSTRAINT map_routes_title_check CHECK ((char_length(trim(BOTH FROM title)) > 3) AND (char_length(trim(BOTH FROM title)) < 100)),
     CONSTRAINT map_routes_coordinates_check CHECK ((jsonb_typeof(coordinates) = 'array'::text) AND (jsonb_array_length(coordinates) >= 2))
 );
-
 COMMENT ON TABLE map_routes IS 'Маршруты на карте';
 COMMENT ON COLUMN map_routes.id IS 'Идентификатор';
 COMMENT ON COLUMN map_routes.created_at IS 'Дата создания';
@@ -16,9 +15,6 @@ COMMENT ON COLUMN map_routes.flag_disabled IS 'Не показывать на с
 COMMENT ON COLUMN map_routes.title IS 'Название маршрута';
 COMMENT ON COLUMN map_routes.description IS 'Краткое описание маршрута';
 COMMENT ON COLUMN map_routes.coordinates IS 'Массив с координатами маршрута';
-
 CREATE POLICY "Enable read access for all users" ON map_routes FOR SELECT TO anon USING ((flag_disabled = false));
-
 ALTER TABLE map_routes ENABLE ROW LEVEL SECURITY;
-
 CREATE INDEX map_routes_flag_disabled_idx ON map_routes (flag_disabled);

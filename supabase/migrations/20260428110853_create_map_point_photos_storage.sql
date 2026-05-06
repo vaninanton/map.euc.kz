@@ -11,13 +11,11 @@ SET
     public = EXCLUDED.public,
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
-
 CREATE POLICY "Public read access for map point photos"
     ON storage.objects
     FOR SELECT
     TO public
     USING (bucket_id = 'map-point-photos');
-
 CREATE POLICY "Public upload access for map point photos"
     ON storage.objects
     FOR INSERT

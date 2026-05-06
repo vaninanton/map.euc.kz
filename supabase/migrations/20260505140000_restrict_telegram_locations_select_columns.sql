@@ -2,7 +2,6 @@
 -- Service role и Edge Function по-прежнему имеют полный доступ к таблице.
 REVOKE SELECT ON telegram_locations FROM anon;
 REVOKE SELECT ON telegram_locations FROM authenticated;
-
 GRANT SELECT (
     id,
     created_at,

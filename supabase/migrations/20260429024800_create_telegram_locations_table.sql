@@ -20,14 +20,11 @@ CREATE TABLE telegram_locations (
     CONSTRAINT telegram_locations_longitude_check CHECK (longitude BETWEEN -180::double precision AND 180::double precision),
     CONSTRAINT telegram_locations_latitude_check CHECK (latitude BETWEEN -90::double precision AND 90::double precision)
 );
-
 COMMENT ON TABLE telegram_locations IS 'Локации, отправленные пользователями в Telegram-чат.';
 COMMENT ON COLUMN telegram_locations.telegram_update_id IS 'Уникальный идентификатор update из Telegram.';
 COMMENT ON COLUMN telegram_locations.chat_id IS 'Идентификатор чата, где прислали геолокацию.';
 COMMENT ON COLUMN telegram_locations.telegram_user_id IS 'Идентификатор пользователя Telegram.';
 COMMENT ON COLUMN telegram_locations.raw_update IS 'Оригинальный payload update от Telegram.';
-
 ALTER TABLE telegram_locations ENABLE ROW LEVEL SECURITY;
-
 CREATE INDEX telegram_locations_chat_id_created_at_idx ON telegram_locations (chat_id, created_at DESC);
 CREATE INDEX telegram_locations_user_id_created_at_idx ON telegram_locations (telegram_user_id, created_at DESC);
