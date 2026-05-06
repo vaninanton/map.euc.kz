@@ -140,9 +140,9 @@ SPA на GitHub Pages: в `dist/` появляется `404.html` (копия `i
       TELEGRAM_BACKFILL_SECRET=<другой_секрет_только_для_backfill>
     ```
    Опционально: `TELEGRAM_BACKFILL_MAX_PROFILES` — лимит профилей за один вызов backfill (по умолчанию 500).
-2. Задеплойте функцию:
+2. Задеплойте функцию (на проде при каждом push в `main` это делает GitHub Actions; вручную — например для первого запуска или отладки):
     ```bash
-    supabase functions deploy telegram-location-bot --no-verify-jwt
+    supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
     ```
 3. Подключите webhook у бота (без передачи bot token в URL):
     ```bash
@@ -198,3 +198,68 @@ GITHUB_PAGES=true npm run build
 ```
 
 При сборке в режиме GitHub Pages `vite.config.ts` подменяет `base` на `/map.euc/`, а плагин `baseUrlMetaPlugin` подставляет корректные абсолютные URL в OG-метатеги `index.html`. Кастомный домен закреплён файлом `CNAME`.
+
+### CI: Supabase (миграции и Edge Functions)
+
+Workflow `.github/workflows/deploy.yml` перед сборкой фронтенда:
+
+1. Выполняет **`supabase db push`** к проекту (версия CLI берётся из `package-lock.json`, см. зависимость `supabase`).
+2. Деплоит Edge Function **`telegram-location-bot`** командой `supabase functions deploy telegram-location-bot --no-verify-jwt --use-api` (`--no-verify-jwt` нужен для webhook Telegram без JWT; `--use-api` — сборка функции на стороне Supabase без Docker на раннере).
+
+Секреты самой функции (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, …) в CI **не задаются**: их один раз прописывают в проекте через `supabase secrets set` или Dashboard (см. раздел «Telegram-бот» выше). Деплой только обновляет код функции.
+
+В настройках репозитория GitHub нужны:
+
+| GitHub Variables | Значение |
+| ---------------- | -------- |
+| `SUPABASE_PROJECT_REF` | Идентификатор проекта из URL дашборда: `https://app.supabase.com/project/<SUPABASE_PROJECT_REF>` (совпадает с поддоменом `https://<SUPABASE_PROJECT_REF>.supabase.co`). |
+| `VITE_MAPBOX_TOKEN` | Публичный токен Mapbox (см. раздел «Переменные окружения»). |
+| `VITE_SUPABASE_URL` | URL проекта Supabase. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon / publishable-ключ. |
+| `VITE_YANDEX_METRIKA_ID` | ID Яндекс.Метрики; допускается пустая строка. |
+| `VITE_TELEGRAM_GEO_TTL_MINUTES` | TTL геометок Telegram на карте. |
+| `VITE_TELEGRAM_TRACK_TAIL_MINUTES` | Длина «хвоста» трека. |
+| `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Макс. погрешность координат, м. |
+
+| GitHub Secrets | Значение |
+| -------------- | -------- |
+| `SUPABASE_ACCESS_TOKEN` | [Personal access token](https://supabase.com/dashboard/account/tokens) Supabase. |
+| `SUPABASE_DB_PASSWORD` | Пароль базы данных проекта (Settings → Database). |
+| `TELEGRAM_BOT_TOKEN` | Токен бота для уведомлений о результате деплоя в Actions (не путать с секретом Edge Function — там свой экземпляр в Supabase). |
+| `TELEGRAM_CHAT_ID` | Чат или канал для этих уведомлений. |
+
+Локальные шаблоны со списком имён (в `.gitignore`, не коммитятся): `.env.github_vars`, `.env.github_secrets`.
+
+#### Синхронизация переменных и секретов через [`gh`](https://cli.github.com/)
+
+Из корня репозитория, после заполнения файлов:
+
+**Variables** (репозиторий по умолчанию; для другого репозитория добавьте `-R owner/repo`):
+
+```bash
+set -a
+source .env.github_vars
+set +a
+
+gh variable set SUPABASE_PROJECT_REF --body "$SUPABASE_PROJECT_REF"
+gh variable set VITE_MAPBOX_TOKEN --body "$VITE_MAPBOX_TOKEN"
+gh variable set VITE_SUPABASE_URL --body "$VITE_SUPABASE_URL"
+gh variable set VITE_SUPABASE_PUBLISHABLE_KEY --body "$VITE_SUPABASE_PUBLISHABLE_KEY"
+gh variable set VITE_YANDEX_METRIKA_ID --body "$VITE_YANDEX_METRIKA_ID"
+gh variable set VITE_TELEGRAM_GEO_TTL_MINUTES --body "$VITE_TELEGRAM_GEO_TTL_MINUTES"
+gh variable set VITE_TELEGRAM_TRACK_TAIL_MINUTES --body "$VITE_TELEGRAM_TRACK_TAIL_MINUTES"
+gh variable set VITE_TELEGRAM_MAX_ACCURACY_METERS --body "$VITE_TELEGRAM_MAX_ACCURACY_METERS"
+```
+
+**Secrets:**
+
+```bash
+set -a
+source .env.github_secrets
+set +a
+
+gh secret set SUPABASE_ACCESS_TOKEN --body "$SUPABASE_ACCESS_TOKEN"
+gh secret set SUPABASE_DB_PASSWORD --body "$SUPABASE_DB_PASSWORD"
+gh secret set TELEGRAM_BOT_TOKEN --body "$TELEGRAM_BOT_TOKEN"
+gh secret set TELEGRAM_CHAT_ID --body "$TELEGRAM_CHAT_ID"
+```

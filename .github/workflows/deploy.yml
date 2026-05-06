@@ -16,7 +16,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  supabase:
+    name: Supabase — БД и Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Установить Supabase CLI
+        uses: supabase/setup-cli@v2
+
+      - name: Миграции и деплой Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push
+          # --no-verify-jwt: webhook Telegram без заголовка Authorization; --use-api: сборка на стороне API без Docker на раннере
+          supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
+
   deploy:
+    needs: supabase
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
