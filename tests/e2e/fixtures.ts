@@ -115,8 +115,14 @@ export async function mockExternalServices(page: Page, requests: SupabaseRequest
     await context.route('https://events.mapbox.com/**', async (route) => {
         await fulfillJson(route, 200, {})
     })
-    await context.route('https://e2e.supabase.co/rest/v1/**', async (route) => {
+    await context.route('https://*.supabase.co/rest/v1/**', async (route) => {
         const request = route.request()
+        const hostname = new URL(request.url()).hostname
+        if (hostname !== 'e2e.supabase.co') {
+            await fulfillJson(route, 599, { message: `Unexpected Supabase host in e2e test: ${hostname}` })
+            return
+        }
+
         const table = tableFromUrl(request.url())
         const method = request.method()
         requests.push({
