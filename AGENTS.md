@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This is a Vite + React + TypeScript PWA for `map.euc.kz`. Application code lives in `src/`: `components/` for UI, `hooks/` for state and side effects, `lib/` for Supabase and Mapbox setup, `utils/` for pure helpers, `constants/` for layer IDs/config, `types/` for shared types, `data/` for static GeoJSON, and `admin/` for moderation/admin screens. Static PWA assets are in `public/`. Supabase schema changes live in `supabase/migrations/`, with the Telegram Edge Function in `supabase/functions/telegram-location-bot/`. Unit tests are colocated as `*.test.ts`.
+This is a Vite + React + TypeScript PWA for `map.euc.kz`. Application code lives in `src/`: `components/` for UI, `hooks/` for state and effects, `lib/` for Supabase and Mapbox setup, `utils/` for pure helpers, `constants/` for layer config, `types/` for shared types, `data/` for static GeoJSON, and `admin/` for moderation screens. Static PWA assets are in `public/`. Supabase schema changes live in `supabase/migrations/`, with the Telegram Edge Function in `supabase/functions/telegram-location-bot/`. Unit tests are colocated as `*.test.ts`.
 
 ## Build, Test, and Development Commands
 
@@ -12,6 +12,7 @@ This is a Vite + React + TypeScript PWA for `map.euc.kz`. Application code lives
 - `npm run build` runs `tsc -b` and creates the production bundle.
 - `npm test` runs Vitest once.
 - `npx vitest run src/utils/hashNav.test.ts` runs one test file.
+- `npm run test:e2e` runs Playwright smoke tests with mocked Mapbox and Supabase APIs.
 - `npm run lint` runs ESLint over the repository.
 - `npm run preview` serves the built app locally.
 
@@ -21,7 +22,7 @@ Use TypeScript strict mode and keep unused locals/parameters out of commits. For
 
 ## Testing Guidelines
 
-Vitest is the test runner. Add focused `*.test.ts` files beside the code under test, especially for transformations, geometry, parsing, selection, and route logic. For UI or hook changes, cover extracted pure logic when practical and run `npm test` plus `npm run lint` before handing off.
+Vitest is the unit test runner. Add focused `*.test.ts` files beside the code under test, especially for transformations, geometry, parsing, and route logic. Playwright tests live in `tests/e2e/*.e2e.ts`; keep external services mocked through fixtures. For UI or hook changes, run `npm test`, `npm run test:e2e`, and `npm run lint`.
 
 ## Commit & Pull Request Guidelines
 
