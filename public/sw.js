@@ -11,7 +11,9 @@ const APP_SHELL = [
 const HOME_FALLBACK = `${BASE_PATH}`;
 const STATIC_ASSET_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+const TILE_CACHE = `${CACHE_VERSION}-tiles`;
 const MAX_RUNTIME_ENTRIES = 120;
+const MAX_TILE_ENTRIES = 500;
 
 function isHttpRequest(url) {
   return url.protocol === 'http:' || url.protocol === 'https:';
@@ -49,6 +51,19 @@ function isSupabaseRealtimeOrApiRequest(requestUrl) {
     pathname.includes('/auth/v1') ||
     pathname.includes('/storage/v1')
   );
+}
+
+// Кэшируем тайлы, шрифты, спрайты и стили с api.mapbox.com.
+// Исключаем события/телеметрию (events.mapbox.com и /events/).
+function isMapboxTileRequest(requestUrl) {
+  const { hostname, pathname } = requestUrl;
+  if (hostname === 'api.mapbox.com') {
+    return !pathname.startsWith('/events/');
+  }
+  if (hostname.endsWith('.tiles.mapbox.com')) {
+    return true;
+  }
+  return false;
 }
 
 async function trimRuntimeCache(cacheName, maxEntries) {
@@ -94,13 +109,31 @@ async function handleAppAssetRequest(request) {
   return response;
 }
 
+// Cache-first: тайлы иммутабельны для данного URL, потому сначала отдаём из кэша.
+async function handleTileRequest(request) {
+  const cache = await caches.open(TILE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+      await trimRuntimeCache(TILE_CACHE, MAX_TILE_ENTRIES);
+    }
+    return response;
+  } catch {
+    return Response.error();
+  }
+}
+
 async function handleInstall() {
   const cache = await caches.open(STATIC_ASSET_CACHE);
   await cache.addAll(APP_SHELL);
 }
 
 async function handleActivate() {
-  await cleanupOutdatedCaches(new Set([STATIC_ASSET_CACHE, RUNTIME_CACHE]));
+  await cleanupOutdatedCaches(new Set([STATIC_ASSET_CACHE, RUNTIME_CACHE, TILE_CACHE]));
   await self.clients.claim();
 }
 
@@ -125,6 +158,11 @@ self.addEventListener('fetch', (event) => {
 
   // Никогда не кэшируем Supabase API/realtime запросы.
   if (isSupabaseRealtimeOrApiRequest(requestUrl)) {
+    return;
+  }
+
+  if (isMapboxTileRequest(requestUrl)) {
+    event.respondWith(handleTileRequest(request));
     return;
   }
 
