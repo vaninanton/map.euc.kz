@@ -1,8 +1,15 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { FeatureCollection, TelegramUserProperties } from '@/types/geojson'
 import { useUserGeolocation } from '@/hooks/useUserGeolocation'
 import { useDeviceCompassHeading } from '@/hooks/useDeviceCompassHeading'
-import { bearingDegrees, haversineKm, RADAR_MAX_DISTANCE_KM, RADAR_RING_KM, radarNormalizedRadius } from '@/utils/geoMath'
+import {
+    bearingDegrees,
+    haversineKm,
+    RADAR_MAX_DISTANCE_KM,
+    RADAR_RING_KM_LOG,
+    radarNormalizedRadiusLog,
+    radarLinearScaleMax,
+} from '@/utils/geoMath'
 import { getRadarTtlMinutes } from '@/utils/numberParsers'
 
 interface RadarModalProps {
@@ -101,12 +108,32 @@ function getRadarRiders(
 
 export function RadarModal({ isOpen, onClose, telegramUsersGeo, onSelectRider }: RadarModalProps) {
     const { position, error, isSupported } = useUserGeolocation(isOpen)
-    const headingDeg = useDeviceCompassHeading(isOpen) ?? 0
+    const { heading, compassEnabled, toggleCompass } = useDeviceCompassHeading(isOpen)
+    const headingDeg = heading ?? 0
+    const [scaleLog, setScaleLog] = useState(true)
 
     const riders = useMemo(() => {
         if (!position) return []
         return getRadarRiders(telegramUsersGeo, position.coords.latitude, position.coords.longitude, headingDeg)
     }, [telegramUsersGeo, position, headingDeg])
+
+    const linearScaleMax = useMemo(() => {
+        if (scaleLog || riders.length === 0) return 1
+        return radarLinearScaleMax(Math.max(...riders.map((r) => r.distanceKm)))
+    }, [scaleLog, riders])
+
+    const normalizeRadius = useMemo(
+        () =>
+            scaleLog
+                ? radarNormalizedRadiusLog
+                : (km: number) => Math.min(Math.max(km, 0), linearScaleMax) / linearScaleMax,
+        [scaleLog, linearScaleMax],
+    )
+
+    const ringKm = useMemo(
+        () => (scaleLog ? (RADAR_RING_KM_LOG as readonly number[]) : [linearScaleMax / 2, linearScaleMax]),
+        [scaleLog, linearScaleMax],
+    )
 
     if (!isOpen) return null
 
@@ -116,23 +143,62 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, onSelectRider }:
                 <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl sm:p-6">
                     <div className="mb-4 flex items-start justify-between gap-4">
                         <h2 className="text-2xl font-bold text-neutral-900">Радар райдеров</h2>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 text-neutral-700 transition hover:bg-neutral-100 cursor-pointer"
-                            aria-label="Закрыть радар"
-                            title="Закрыть"
-                        >
-                            <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
-                                <path
-                                    d="M6 6L14 14M14 6L6 14"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </svg>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => { setScaleLog((v) => !v) }}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 cursor-pointer"
+                                aria-label={scaleLog ? 'Переключить на линейную шкалу' : 'Переключить на логарифмическую шкалу'}
+                                title={scaleLog ? 'Шкала: лог → линейная' : 'Шкала: линейная → лог'}
+                            >
+                                <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
+                                    {scaleLog ? (
+                                        <path d="M3 16 Q6 14 9 10 Q12 6 17 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+                                    ) : (
+                                        <path d="M3 16L17 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                    )}
+                                    <circle cx="3" cy="16" r="1.5" fill="currentColor" />
+                                    <circle cx="17" cy="4" r="1.5" fill="currentColor" />
+                                </svg>
+                                {scaleLog ? 'Лог' : 'Линейная'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { void toggleCompass() }}
+                                className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition cursor-pointer ${
+                                    compassEnabled
+                                        ? 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'
+                                        : 'border-neutral-200 bg-white text-neutral-500 hover:bg-neutral-50'
+                                }`}
+                                aria-label={compassEnabled ? 'Выключить вращение по компасу' : 'Включить вращение по компасу'}
+                                title={compassEnabled ? 'Вращение включено' : 'Вращение выключено'}
+                            >
+                                <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
+                                    <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
+                                    <path d="M10 3v2M10 15v2M3 10h2M15 10h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                    <path d="M10 10L13 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                    <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+                                </svg>
+                                Компас
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 text-neutral-700 transition hover:bg-neutral-100 cursor-pointer"
+                                aria-label="Закрыть радар"
+                                title="Закрыть"
+                            >
+                                <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
+                                    <path
+                                        d="M6 6L14 14M14 6L6 14"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     {!position && (
@@ -151,23 +217,23 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, onSelectRider }:
                                     aria-label="Круговой радар райдеров"
                                 >
                                     <circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={RADAR_RADIUS} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-                                    {RADAR_RING_KM.map((km) => (
+                                    {ringKm.map((km) => (
                                         <g key={km}>
                                             <circle
                                                 cx={RADAR_CENTER}
                                                 cy={RADAR_CENTER}
-                                                r={RADAR_RADIUS * radarNormalizedRadius(km)}
+                                                r={RADAR_RADIUS * normalizeRadius(km)}
                                                 fill="none"
                                                 stroke="#d1d5db"
                                                 strokeDasharray="4 4"
                                             />
                                             <text
                                                 x={RADAR_CENTER + 6}
-                                                y={RADAR_CENTER - RADAR_RADIUS * radarNormalizedRadius(km) - 6}
+                                                y={RADAR_CENTER - RADAR_RADIUS * normalizeRadius(km) - 6}
                                                 fontSize="10"
                                                 fill="#6b7280"
                                             >
-                                                {String(km)} км
+                                                {formatDistance(km)}
                                             </text>
                                         </g>
                                     ))}
@@ -178,8 +244,7 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, onSelectRider }:
                                     </text>
                                     <circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={5} fill="#111827" />
                                     {riders.map((rider) => {
-                                        const normalizedR = radarNormalizedRadius(rider.distanceKm)
-                                        const pixelR = RADAR_RADIUS * normalizedR
+                                        const pixelR = RADAR_RADIUS * normalizeRadius(rider.distanceKm)
                                         const radians = (rider.bearingDeg * Math.PI) / 180
                                         const x = RADAR_CENTER + pixelR * Math.sin(radians)
                                         const y = RADAR_CENTER - pixelR * Math.cos(radians)
@@ -216,7 +281,7 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, onSelectRider }:
                             </div>
 
                             <div className="mt-4 text-xs text-neutral-500">
-                                Шкала радара: логарифмическая, максимум {String(RADAR_MAX_DISTANCE_KM)} км
+                                Шкала: {scaleLog ? `логарифмическая, макс. ${String(RADAR_MAX_DISTANCE_KM)} км` : `линейная, макс. ${formatDistance(linearScaleMax)}`}
                             </div>
 
                             <div className="mt-4 flex flex-col gap-2">

@@ -20,7 +20,6 @@ import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
 import { RadarModal } from '@/components/RadarModal';
-import { requestDeviceOrientationPermissionIfNeeded } from '@/utils/requestDeviceOrientationPermission';
 const SIDEBAR_DESKTOP_WIDTH = 320;
 const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
 const FOCUS_PADDING_BASE = 40;
@@ -101,11 +100,8 @@ export function EucMap() {
   }, [clearSelection]);
 
   const handleToggleRadar = useCallback(() => {
-    if (!isRadarOpen) {
-      void requestDeviceOrientationPermissionIfNeeded();
-    }
     setIsRadarOpen((v) => !v);
-  }, [isRadarOpen]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

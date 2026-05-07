@@ -37,13 +37,30 @@ function toDegrees(radians: number): number {
 
 const MAX_RADAR_KM = 10
 
-/**
- * Радиус на диске радара (0…1) по лог-шкале до {@link MAX_RADAR_KM} км.
- */
-export function radarNormalizedRadius(distanceKm: number): number {
+export const RADAR_MAX_DISTANCE_KM = MAX_RADAR_KM
+export const RADAR_RING_KM_LOG = [1, 3, 10] as const
+
+/** Лог-шкала: ближние объекты растянуты, дальние сжаты */
+export function radarNormalizedRadiusLog(distanceKm: number): number {
   const clamped = Math.min(Math.max(distanceKm, 0), MAX_RADAR_KM)
   return Math.log10(1 + clamped) / Math.log10(1 + MAX_RADAR_KM)
 }
 
-export const RADAR_MAX_DISTANCE_KM = MAX_RADAR_KM
-export const RADAR_RING_KM = [1, 3, 10] as const
+/**
+ * Округляет вверх до ближайшего «красивого» числа (1/2/5 × 10^n).
+ * Используется для динамической линейной шкалы радара.
+ */
+export function radarLinearScaleMax(maxRiderKm: number): number {
+  if (maxRiderKm <= 0) return 0.5
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxRiderKm)))
+  const normalized = maxRiderKm / magnitude
+  if (normalized <= 1) return magnitude
+  if (normalized <= 2) return 2 * magnitude
+  if (normalized <= 5) return 5 * magnitude
+  return 10 * magnitude
+}
+
+/** @deprecated используй radarNormalizedRadiusLog */
+export const radarNormalizedRadius = radarNormalizedRadiusLog
+/** @deprecated используй RADAR_RING_KM_LOG */
+export const RADAR_RING_KM = RADAR_RING_KM_LOG
