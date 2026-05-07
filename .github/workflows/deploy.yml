@@ -16,7 +16,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  supabase:
+    name: Supabase — БД и Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Установить Supabase CLI
+        uses: supabase/setup-cli@v2
+
+      - name: Миграции и деплой Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push
+          # --no-verify-jwt: webhook Telegram без заголовка Authorization; --use-api: сборка на стороне API без Docker на раннере
+          supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
+
   deploy:
+    needs: supabase
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -42,6 +64,7 @@ jobs:
           VITE_RADAR_TTL_MINUTES: ${{ vars.VITE_RADAR_TTL_MINUTES }}
           VITE_TELEGRAM_TRACK_TAIL_MINUTES: ${{ vars.VITE_TELEGRAM_TRACK_TAIL_MINUTES }}
           VITE_TELEGRAM_MAX_ACCURACY_METERS: ${{ vars.VITE_TELEGRAM_MAX_ACCURACY_METERS }}
+          # В dist/404.html дублируется index.html (vite-плагин spa-fallback-404) для SPA на GitHub Pages.
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: Upload artifact
@@ -60,7 +83,8 @@ jobs:
           curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d parse_mode="HTML" \
-            -d text="✅ <b>map.euc</b>%0AДеплой в GitHub Pages завершен успешно.%0A🔗 ${{ steps.deployment.outputs.page_url }}"
+            -d disable_web_page_preview="true" \
+            -d text="✅ <b>map.euc.kz</b>%0AДеплой в GitHub Pages завершен успешно.%0A🔗 ${{ steps.deployment.outputs.page_url }}"
       - name: Notify Telegram on failure
         if: failure()
         env:
@@ -70,4 +94,5 @@ jobs:
           curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d parse_mode="HTML" \
-            -d text="❌ <b>map.euc</b>%0AДеплой в GitHub Pages завершился ошибкой.%0A🧾 Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -d disable_web_page_preview="true" \
+            -d text="❌ <b>map.euc.kz</b>%0AДеплой в GitHub Pages завершился ошибкой.%0A🧾 Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

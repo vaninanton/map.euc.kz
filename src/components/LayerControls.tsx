@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { IControl, Map as MapboxMap } from 'mapbox-gl'
-import { createRoot, type Root } from 'react-dom/client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLocationCrosshairs, faPlus, faSliders, faXmark } from '@fortawesome/free-solid-svg-icons'
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
@@ -19,6 +19,15 @@ interface LayerControlsProps {
     onOpenProjectInfo: () => void
 }
 
+interface MapControlPortals {
+    layers: HTMLDivElement | null
+    addPoint: HTMLDivElement | null
+    info: HTMLDivElement | null
+    radar: HTMLDivElement | null
+}
+
+const EMPTY_PORTALS: MapControlPortals = { layers: null, addPoint: null, info: null, radar: null }
+
 export function LayerControls({
     map,
     isMapReady,
@@ -31,10 +40,7 @@ export function LayerControls({
     onOpenProjectInfo,
 }: LayerControlsProps) {
     const [isCollapsed, setIsCollapsed] = useState(true)
-    const layersRootRef = useRef<Root | null>(null)
-    const addPointRootRef = useRef<Root | null>(null)
-    const infoRootRef = useRef<Root | null>(null)
-    const radarRootRef = useRef<Root | null>(null)
+    const [portals, setPortals] = useState<MapControlPortals>(EMPTY_PORTALS)
 
     useEffect(() => {
         if (!map || !isMapReady) return
@@ -43,88 +49,63 @@ export function LayerControls({
         layersContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
         const layersRootNode = document.createElement('div')
         layersContainer.appendChild(layersRootNode)
-        layersRootRef.current = createRoot(layersRootNode)
 
         const infoContainer = document.createElement('div')
         infoContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
         const infoRootNode = document.createElement('div')
         infoContainer.appendChild(infoRootNode)
-        infoRootRef.current = createRoot(infoRootNode)
 
         const addPointContainer = document.createElement('div')
         addPointContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
         const addPointRootNode = document.createElement('div')
         addPointContainer.appendChild(addPointRootNode)
-        addPointRootRef.current = createRoot(addPointRootNode)
 
         const radarContainer = document.createElement('div')
         radarContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
         const radarRootNode = document.createElement('div')
         radarContainer.appendChild(radarRootNode)
-        radarRootRef.current = createRoot(radarRootNode)
 
         const layersControl: IControl = {
-            onAdd() {
-                return layersContainer
-            },
-            onRemove() {
-                layersContainer.remove()
-            },
-            getDefaultPosition() {
-                return 'top-left'
-            },
+            onAdd() { return layersContainer },
+            onRemove() { layersContainer.remove() },
+            getDefaultPosition() { return 'top-left' },
         }
 
         const infoControl: IControl = {
-            onAdd() {
-                return infoContainer
-            },
-            onRemove() {
-                infoContainer.remove()
-            },
-            getDefaultPosition() {
-                return 'bottom-right'
-            },
+            onAdd() { return infoContainer },
+            onRemove() { infoContainer.remove() },
+            getDefaultPosition() { return 'bottom-right' },
         }
 
         const addPointControl: IControl = {
-            onAdd() {
-                return addPointContainer
-            },
-            onRemove() {
-                addPointContainer.remove()
-            },
-            getDefaultPosition() {
-                return 'top-left'
-            },
+            onAdd() { return addPointContainer },
+            onRemove() { addPointContainer.remove() },
+            getDefaultPosition() { return 'top-left' },
         }
 
         const radarControl: IControl = {
-            onAdd() {
-                return radarContainer
-            },
-            onRemove() {
-                radarContainer.remove()
-            },
-            getDefaultPosition() {
-                return 'right'
-            },
+            onAdd() { return radarContainer },
+            onRemove() { radarContainer.remove() },
+            getDefaultPosition() { return 'top-right' },
         }
 
         map.addControl(layersControl, 'bottom-left')
         map.addControl(addPointControl, 'top-left')
-        map.addControl(infoControl, 'bottom-left')
-        map.addControl(radarControl, 'right')
+        map.addControl(infoControl, 'bottom-right')
+        map.addControl(radarControl, 'top-right')
+
+        const rafId = requestAnimationFrame(() => {
+            setPortals({
+                layers: layersRootNode,
+                addPoint: addPointRootNode,
+                info: infoRootNode,
+                radar: radarRootNode,
+            })
+        })
 
         return () => {
-            layersRootRef.current?.unmount()
-            addPointRootRef.current?.unmount()
-            infoRootRef.current?.unmount()
-            radarRootRef.current?.unmount()
-            layersRootRef.current = null
-            addPointRootRef.current = null
-            infoRootRef.current = null
-            radarRootRef.current = null
+            cancelAnimationFrame(rafId)
+            setPortals(EMPTY_PORTALS)
             map.removeControl(layersControl)
             map.removeControl(addPointControl)
             map.removeControl(infoControl)
@@ -132,55 +113,54 @@ export function LayerControls({
         }
     }, [map, isMapReady])
 
-    useEffect(() => {
-        layersRootRef.current?.render(
-            isCollapsed ? (
-                <button
-                    type="button"
-                    onClick={() => {
-                        setIsCollapsed(false)
-                    }}
-                    aria-label="Развернуть панель слоев"
-                    title="Развернуть панель слоев"
-                >
-                    <FontAwesomeIcon icon={faSliders} aria-hidden />
-                </button>
-            ) : (
-                <LayerPanel
-                    visibility={visibility}
-                    onToggle={onToggle}
-                    onCollapse={() => {
-                        setIsCollapsed(true)
-                    }}
-                />
-            )
-        )
-    }, [map, isMapReady, isCollapsed, visibility, onToggle, isAddingPoint, onToggleAddPoint])
-
-    useEffect(() => {
-        addPointRootRef.current?.render(
-            <button
-                type="button"
-                onClick={onToggleAddPoint}
-                aria-label={isAddingPoint ? 'Отменить добавление точки' : 'Добавить точку'}
-                title={isAddingPoint ? 'Отменить добавление точки' : 'Добавить точку'}
-            >
-                <FontAwesomeIcon icon={isAddingPoint ? faXmark : faPlus} aria-hidden />
-            </button>
-        )
-    }, [map, isMapReady, isAddingPoint, onToggleAddPoint])
-
-    useEffect(() => {
-        infoRootRef.current?.render(<ProjectInfoButton onClick={onOpenProjectInfo} />)
-    }, [map, isMapReady, onOpenProjectInfo])
-
-    useEffect(() => {
-        radarRootRef.current?.render(
-            <button type="button" onClick={onToggleRadar} aria-label="Открыть радар райдеров" title="Радар">
-                <FontAwesomeIcon icon={faLocationCrosshairs} aria-hidden />
-            </button>
-        )
-    }, [map, isMapReady, isRadarOpen, onToggleRadar])
-
-    return null
+    return (
+        <>
+            {portals.layers !== null &&
+                createPortal(
+                    isCollapsed ? (
+                        <button
+                            type="button"
+                            onClick={() => { setIsCollapsed(false) }}
+                            aria-label="Развернуть панель слоев"
+                            title="Развернуть панель слоев"
+                        >
+                            <FontAwesomeIcon icon={faSliders} aria-hidden />
+                        </button>
+                    ) : (
+                        <LayerPanel
+                            visibility={visibility}
+                            onToggle={onToggle}
+                            onCollapse={() => { setIsCollapsed(true) }}
+                        />
+                    ),
+                    portals.layers,
+                )}
+            {portals.addPoint !== null &&
+                createPortal(
+                    <button
+                        type="button"
+                        onClick={onToggleAddPoint}
+                        aria-label={isAddingPoint ? 'Отменить добавление точки' : 'Добавить точку'}
+                        title={isAddingPoint ? 'Отменить добавление точки' : 'Добавить точку'}
+                    >
+                        <FontAwesomeIcon icon={isAddingPoint ? faXmark : faPlus} aria-hidden />
+                    </button>,
+                    portals.addPoint,
+                )}
+            {portals.info !== null &&
+                createPortal(<ProjectInfoButton onClick={onOpenProjectInfo} />, portals.info)}
+            {portals.radar !== null &&
+                createPortal(
+                    <button
+                        type="button"
+                        onClick={onToggleRadar}
+                        aria-label={isRadarOpen ? 'Закрыть радар райдеров' : 'Открыть радар райдеров'}
+                        title="Радар"
+                    >
+                        <FontAwesomeIcon icon={faLocationCrosshairs} aria-hidden />
+                    </button>,
+                    portals.radar,
+                )}
+        </>
+    )
 }

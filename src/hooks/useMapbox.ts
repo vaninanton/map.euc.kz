@@ -97,6 +97,23 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: init once
   }, []);
 
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const ro = new ResizeObserver(() => {
+      map.resize();
+    });
+    ro.observe(container);
+    return () => {
+      ro.disconnect();
+    };
+  }, [map, containerRef]);
+
   const setBaseMapStyle = useCallback((style: BaseMapStyle) => {
     setBaseStyle(style);
     try {

@@ -37,6 +37,7 @@ export interface MapRouteRow {
   title: string;
   description: string | null;
   coordinates: Array<[number, number] | [number, number, number]>; // [lon, lat] or [lon, lat, elevation]
+  via_coordinates: Array<[number, number]>; // [lon, lat]
 }
 
 export interface TelegramLocationRow {

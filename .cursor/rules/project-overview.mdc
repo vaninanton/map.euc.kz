@@ -18,8 +18,8 @@ PWA-карта для райдеров на моноколёсах в Алмат
 
 ## Структура
 
-- `src/components/` — UI и карта (`EucMap`, `FeatureSidebar`, `LayerControls`, `AddPointPanel`, `PwaPrompts`)
-- `src/hooks/` — хуки карты и UI-состояния (`useMapbox`, `useLayers`, `useMapClick`, `useMapHover`, `useHashSelectionSync`)
+- `src/components/` — UI и карта (`EucMap`, `FeatureSidebar`, `LayerControls`, `AddPointPanel`, `PwaPrompts`); админка `/admin` в проде (Supabase Auth + `map_admin_users`), см. `src/admin/`
+- `src/hooks/` — хуки карты и UI-состояния (`useMapbox`, `useLayers`, `useMapClick`, `useMapHover`, `useMapSelectionSync`)
 - `src/lib/` — загрузка данных и описание слоёв (`supabase.ts`, `mapLayers.ts`)
 - `src/constants/` — ID слоёв/источников, цвета, стиль, центр и ограничения карты
 - `src/types/` — типы GeoJSON, Supabase и велодорожек

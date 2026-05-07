@@ -1,18 +1,8 @@
 import type { Feature, FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
 import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supabase';
-import { parsePositiveInt } from '@/utils/numberParsers';
+import { getTelegramGeoTtlMinutes, getTelegramTrackTailMinutes } from '@/lib/env';
 
-const DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES = 30;
-const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
 const TELEGRAM_SPEED_SAMPLE_POINTS = 5;
-
-function getTelegramTrackTailMinutes(): number {
-  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_TRACK_TAIL_MINUTES, DEFAULT_TELEGRAM_TRACK_TAIL_MINUTES);
-}
-
-function getTelegramGeoTtlMinutes(): number {
-  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
-}
 
 function isPointCoordinates(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number';
@@ -75,6 +65,7 @@ export function mapRoutesToFeatureCollection(rows: MapRouteRow[]): FeatureCollec
       name: row.title,
       description: row.description ?? undefined,
       type: 'route',
+      ...(row.via_coordinates.length > 0 && { viaCoordinates: row.via_coordinates }),
     },
   }));
   return { type: 'FeatureCollection', features };

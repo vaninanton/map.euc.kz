@@ -10,14 +10,12 @@ CREATE TABLE map_point_photos (
     CONSTRAINT map_point_photos_sort_order_check CHECK (sort_order >= 0),
     CONSTRAINT map_point_photos_point_id_storage_path_key UNIQUE (point_id, storage_path)
 );
-
 COMMENT ON TABLE map_point_photos IS 'Фотографии точек из Supabase Storage';
 COMMENT ON COLUMN map_point_photos.point_id IS 'Идентификатор точки на карте';
 COMMENT ON COLUMN map_point_photos.bucket_name IS 'Название bucket в Supabase Storage';
 COMMENT ON COLUMN map_point_photos.storage_path IS 'Путь к файлу внутри bucket';
 COMMENT ON COLUMN map_point_photos.alt_text IS 'Описание фотографии';
 COMMENT ON COLUMN map_point_photos.sort_order IS 'Порядок отображения фотографии в карточке точки';
-
 CREATE POLICY "Enable read access for all users" ON map_point_photos
     FOR SELECT
     TO anon
@@ -29,7 +27,5 @@ CREATE POLICY "Enable read access for all users" ON map_point_photos
                 AND map_points.flag_disabled = false
         )
     );
-
 ALTER TABLE map_point_photos ENABLE ROW LEVEL SECURITY;
-
 CREATE INDEX map_point_photos_point_id_sort_order_idx ON map_point_photos (point_id, sort_order, created_at);

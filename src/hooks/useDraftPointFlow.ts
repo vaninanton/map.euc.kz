@@ -3,7 +3,11 @@ import type { MapPointDraftInput } from '@/types';
 import { clearHash } from '@/utils/hashNav';
 import { createMapPointDraft } from '@/lib/supabase';
 
-export function useDraftPointFlow(onStartAdding?: () => void) {
+export function useDraftPointFlow(
+  onStartAdding?: () => void,
+  /** Сброс deep-link в URL (карта); иначе — только снятие hash. */
+  clearMapSelectionUrl?: () => void,
+) {
   const [isAddingPoint, setIsAddingPoint] = useState(false);
   const [draftCoordinates, setDraftCoordinates] = useState<[number, number] | null>(null);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
@@ -23,11 +27,15 @@ export function useDraftPointFlow(onStartAdding?: () => void) {
   const handleToggleAddPoint = useCallback(() => {
     setDraftSubmitSuccess(null);
     setDraftSubmitError(null);
-    clearHash();
+    if (clearMapSelectionUrl) {
+      clearMapSelectionUrl();
+    } else {
+      clearHash();
+    }
     onStartAdding?.();
     setIsAddingPoint((prev) => !prev);
     setDraftCoordinates(null);
-  }, [onStartAdding]);
+  }, [onStartAdding, clearMapSelectionUrl]);
 
   const handleSubmitDraft = useCallback(
     async (payload: MapPointDraftInput) => {

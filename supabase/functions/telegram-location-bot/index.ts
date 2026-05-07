@@ -61,6 +61,8 @@ type TelegramApiGetFileResponse = {
 
 const TELEGRAM_AVATARS_BUCKET = 'telegram-avatars'
 const BACKFILL_ERROR_SAMPLE_LIMIT = 20
+/** Максимум профилей за один вызов backfill (защита от DoS и таймаутов Edge). */
+const DEFAULT_BACKFILL_MAX_PROFILES_PER_RUN = 500
 
 type AvatarRefreshResult =
     | { ok: true; avatarUrl: string }
@@ -207,13 +209,35 @@ async function refreshTelegramAvatarUrl(userId: number, botToken: string): Promi
     }
 }
 
+/**
+ * Читает положительное целое из env-строки.
+ * Если значение отсутствует/некорректно — возвращает `fallback`.
+ */
+function parsePositiveIntEnv(raw: string | undefined, fallback: number): number {
+    if (!raw || !raw.trim()) return fallback
+    const n = Number.parseInt(raw.trim(), 10)
+    if (!Number.isFinite(n) || n < 1) return fallback
+    return n
+}
+
+/**
+ * Backfill для безопасного обновления `avatar_url` в `telegram_profiles`.
+ *
+ * Поддерживает:
+ * - обязательную авторизацию заголовком `x-telegram-backfill-secret`
+ * - ограничение объёма обработки за вызов (`TELEGRAM_BACKFILL_MAX_PROFILES`)
+ * - продолжение с оффсета через query-параметр `from`
+ */
 async function handleAvatarBackfill(req: Request): Promise<Response> {
-    const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')
-    if (webhookSecret) {
-        const incomingSecret = req.headers.get('x-telegram-bot-api-secret-token')
-        if (incomingSecret !== webhookSecret) {
-            return new Response('Unauthorized', { status: 401 })
-        }
+    const backfillSecret = Deno.env.get('TELEGRAM_BACKFILL_SECRET')
+    if (!backfillSecret || !backfillSecret.trim()) {
+        console.error('[telegram-location-bot] Backfill отключён: не задан TELEGRAM_BACKFILL_SECRET')
+        return new Response('TELEGRAM_BACKFILL_SECRET не настроен', { status: 503 })
+    }
+    const incomingBackfill = req.headers.get('x-telegram-backfill-secret')
+    if (incomingBackfill !== backfillSecret) {
+        console.warn('[telegram-location-bot] Backfill отклонён: неверный x-telegram-backfill-secret')
+        return new Response('Unauthorized', { status: 401 })
     }
 
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
@@ -221,7 +245,19 @@ async function handleAvatarBackfill(req: Request): Promise<Response> {
         return new Response('TELEGRAM_BOT_TOKEN не задан', { status: 500 })
     }
 
-    let from = 0
+    const maxProfilesPerRun = parsePositiveIntEnv(
+        Deno.env.get('TELEGRAM_BACKFILL_MAX_PROFILES'),
+        DEFAULT_BACKFILL_MAX_PROFILES_PER_RUN,
+    )
+
+    const requestUrl = new URL(req.url)
+    const startOffsetRaw = requestUrl.searchParams.get('from')
+    const startOffset =
+        startOffsetRaw !== null && startOffsetRaw.trim() !== ''
+            ? Math.max(0, Number.parseInt(startOffsetRaw.trim(), 10) || 0)
+            : 0
+
+    let from = startOffset
     const pageSize = 200
     let processed = 0
     let updated = 0
@@ -230,6 +266,7 @@ async function handleAvatarBackfill(req: Request): Promise<Response> {
     let skippedNoPhoto = 0
     const failuresByReason: Record<string, number> = {}
     const errorSamples: Array<{ telegram_user_id: number; reason: string }> = []
+    let nextResumeFrom: number | null = null
 
     while (true) {
         const to = from + pageSize - 1
@@ -244,8 +281,13 @@ async function handleAvatarBackfill(req: Request): Promise<Response> {
         }
         if (!profiles || profiles.length === 0) break
 
-        for (const profile of profiles) {
+        for (let idx = 0; idx < profiles.length; idx++) {
+            if (processed >= maxProfilesPerRun) {
+                nextResumeFrom = from + idx
+                break
+            }
             processed += 1
+            const profile = profiles[idx]!
             const avatarUrl = typeof profile.avatar_url === 'string' ? profile.avatar_url : null
             if (isAvatarUrlSafe(avatarUrl)) {
                 skippedSafe += 1
@@ -295,9 +337,20 @@ async function handleAvatarBackfill(req: Request): Promise<Response> {
             updated += 1
         }
 
+        if (processed >= maxProfilesPerRun && nextResumeFrom === null && profiles.length === pageSize) {
+            nextResumeFrom = from + pageSize
+        }
+
+        if (nextResumeFrom !== null) break
         if (profiles.length < pageSize) break
+        if (processed >= maxProfilesPerRun) break
         from += pageSize
     }
+
+    // Backfill считаем "capped" только когда есть куда продолжать (next_from задан).
+    // Иначе при достижении лимита ровно на последней записи могло получаться:
+    // capped_at_max_profiles=true и next_from=null.
+    const capped = nextResumeFrom !== null
 
     return Response.json({
         ok: true,
@@ -308,6 +361,10 @@ async function handleAvatarBackfill(req: Request): Promise<Response> {
         skipped_no_photo: skippedNoPhoto,
         failures_by_reason: failuresByReason,
         error_samples: errorSamples,
+        capped_at_max_profiles: capped,
+        max_profiles_per_run: maxProfilesPerRun,
+        start_offset: startOffset,
+        next_from: nextResumeFrom,
     })
 }
 

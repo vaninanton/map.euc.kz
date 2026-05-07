@@ -7,13 +7,12 @@ import type {
   TelegramLocationRow,
   TelegramProfileRow,
 } from '@/types';
+import { getTelegramGeoTtlMinutes, getTelegramMaxAccuracyMeters, getViteSupabaseConfig } from '@/lib/env';
 import { isRecord } from '@/utils/mapFeatureGuards';
-import { parsePositiveInt } from '@/utils/numberParsers';
 
-const url: string | undefined = import.meta.env.VITE_SUPABASE_URL;
-const key: string | undefined = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const DEFAULT_TELEGRAM_GEO_TTL_MINUTES = 60;
-const DEFAULT_TELEGRAM_MAX_ACCURACY_METERS = 100;
+const supabaseConfig = getViteSupabaseConfig();
+const url = supabaseConfig?.url;
+const key = supabaseConfig?.key;
 const REQUEST_TIMEOUT_MS = 10_000;
 const REQUEST_RETRY_ATTEMPTS = 2;
 
@@ -23,6 +22,14 @@ if (!url || !key) {
 
 export const supabase =
   typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null;
+
+/** Клиент с сессией Auth (нужен для админки). */
+export function requireSupabase() {
+  if (!supabase) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
+  }
+  return supabase;
+}
 
 async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -74,14 +81,6 @@ async function withTimeoutAndRetry<T>(label: string, fn: () => PromiseLike<T>): 
   throw lastError instanceof Error ? lastError : new Error(`${label}: неизвестная ошибка запроса`);
 }
 
-function getTelegramGeoTtlMinutes(): number {
-  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_GEO_TTL_MINUTES, DEFAULT_TELEGRAM_GEO_TTL_MINUTES);
-}
-
-function getTelegramMaxAccuracyMeters(): number {
-  return parsePositiveInt(import.meta.env.VITE_TELEGRAM_MAX_ACCURACY_METERS, DEFAULT_TELEGRAM_MAX_ACCURACY_METERS);
-}
-
 function asPointCoordinates(value: unknown): [number, number] | null {
   if (!Array.isArray(value) || value.length < 2) return null;
   const lon: unknown = value[0];
@@ -103,6 +102,18 @@ function asLineCoordinates(value: unknown): Array<[number, number] | [number, nu
     points.push(
       elevation === undefined ? [lon, lat] : [lon, lat, elevation]
     );
+  }
+  return points;
+}
+
+function asPointCoordinatesList(value: unknown): Array<[number, number]> | null {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return null;
+  const points: Array<[number, number]> = [];
+  for (const item of value) {
+    const point = asPointCoordinates(item);
+    if (!point) return null;
+    points.push(point);
   }
   return points;
 }
@@ -183,7 +194,13 @@ function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
   const title = row.title;
   const description = row.description;
   const coordinates = asLineCoordinates(row.coordinates);
-  if ((typeof id !== 'string' && typeof id !== 'number') || typeof title !== 'string' || !coordinates) {
+  const viaCoordinates = asPointCoordinatesList(row.via_coordinates);
+  if (
+    (typeof id !== 'string' && typeof id !== 'number') ||
+    typeof title !== 'string' ||
+    !coordinates ||
+    !viaCoordinates
+  ) {
     return null;
   }
   return {
@@ -191,6 +208,7 @@ function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
     title,
     description: typeof description === 'string' ? description : null,
     coordinates,
+    via_coordinates: viaCoordinates,
   };
 }
 
@@ -300,7 +318,10 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
   }
 
   const { data, error } = await withTimeoutAndRetry('fetchMapRoutes', () =>
-    supabase.from('map_routes').select('id, title, description, coordinates').eq('flag_disabled', false)
+    supabase
+      .from('map_routes')
+      .select('id, title, description, coordinates, via_coordinates')
+      .eq('flag_disabled', false)
   );
 
   if (error) {
@@ -337,6 +358,7 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
         .gte('created_at', ttlThresholdIso)
         .or(`location_accuracy_meters.is.null,location_accuracy_meters.lte.${String(maxAccuracyMeters)}`)
         .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
         .range(from, to)
     );
 

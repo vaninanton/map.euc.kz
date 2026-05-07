@@ -15,14 +15,15 @@ export interface UseMapClickOptions {
     layerKey: LayerKey,
     lngLat: [number, number]
   ) => void;
-  setHash: (type: HashFeatureType, id: string) => void;
+  /** Обновить URL выбранного объекта (react-router). */
+  syncSelectionUrl: (type: HashFeatureType, id: string) => void;
 }
 
 export function useMapClick(
   map: MapboxMap | null,
   options: UseMapClickOptions
 ) {
-  const { enabled = true, getFeatureById, onFeatureSelect, setHash } = options;
+  const { enabled = true, getFeatureById, onFeatureSelect, syncSelectionUrl } = options;
 
   useEffect(() => {
     if (!map || !enabled) return;
@@ -69,7 +70,7 @@ export function useMapClick(
         f.geometry.type === 'Point'
           ? (f.geometry.coordinates as [number, number])
           : e.lngLat.toArray();
-      setHash(LAYER_KEY_TO_HASH_TYPE[layerKey], feature.properties.id);
+      syncSelectionUrl(LAYER_KEY_TO_HASH_TYPE[layerKey], feature.properties.id);
       onFeatureSelect(feature, layerKey, lngLat);
     };
 
@@ -81,5 +82,5 @@ export function useMapClick(
       map.off('style.load', refreshActiveLayers);
       map.off('idle', refreshActiveLayers);
     };
-  }, [map, enabled, getFeatureById, onFeatureSelect, setHash]);
+  }, [map, enabled, getFeatureById, onFeatureSelect, syncSelectionUrl]);
 }

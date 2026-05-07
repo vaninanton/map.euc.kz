@@ -46,6 +46,7 @@ export interface SocketProperties extends BaseFeatureProperties {
 export interface RouteProperties extends BaseFeatureProperties {
   type: 'route';
   distance?: number;
+  viaCoordinates?: Array<[number, number]>;
 }
 
 export interface BikeLaneProperties extends BaseFeatureProperties {

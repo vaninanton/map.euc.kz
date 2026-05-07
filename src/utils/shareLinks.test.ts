@@ -5,12 +5,15 @@ import {
   buildTelegramPointMessage,
   buildTelegramShareLink,
   buildYandexLink,
+  buildYandexRouteLink,
+  build2GISRouteLink,
   buildGuruRouteLink,
   buildOpenRouteLink,
   copyOrShare,
   getCoordsFromFeature,
   getCoordinatesArray,
   getViaPoints,
+  resolveRouteViaPoints,
 } from '@/utils/shareLinks';
 import type { Feature } from '@/types/geojson';
 
@@ -45,6 +48,51 @@ describe('shareLinks smoke', () => {
     expect(url).toContain('start=');
     expect(url).toContain('finish=');
     expect(url).toContain('via=');
+  });
+
+  it('resolveRouteViaPoints использует явные via в приоритете', () => {
+    const coordinates: [number, number][] = [
+      [76.9, 43.2],
+      [76.91, 43.21],
+      [76.92, 43.22],
+      [76.93, 43.23],
+    ];
+    const explicitVia: [number, number][] = [[76.92, 43.22]];
+    expect(resolveRouteViaPoints(coordinates, explicitVia, 4)).toEqual(explicitVia);
+  });
+
+  it('buildOpenRouteLink использует явные via', () => {
+    const coordinates: [number, number][] = [
+      [76.9, 43.2],
+      [76.91, 43.21],
+      [76.92, 43.22],
+      [76.93, 43.23],
+    ];
+    const url = buildOpenRouteLink(coordinates, [[76.92, 43.22]]);
+    expect(decodeURIComponent(url)).toContain('43.22,76.92');
+  });
+
+  it('buildYandexRouteLink строит rtext как start~via~finish', () => {
+    const coordinates: [number, number][] = [
+      [76.9, 43.2],
+      [76.91, 43.21],
+      [76.93, 43.23],
+    ];
+    const url = buildYandexRouteLink(coordinates, [[76.91, 43.21]]);
+    expect(url).toContain('yandex.ru/maps');
+    expect(url).toContain('rtt=bc');
+    expect(url).toContain('rtext=43.2,76.9~43.21,76.91~43.23,76.93');
+  });
+
+  it('build2GISRouteLink строит points как start|via|finish', () => {
+    const coordinates: [number, number][] = [
+      [76.9, 43.2],
+      [76.91, 43.21],
+      [76.93, 43.23],
+    ];
+    const url = build2GISRouteLink(coordinates, false, [[76.91, 43.21]]);
+    expect(url).toContain('/directions/tab/pedestrian/points/');
+    expect(url).toContain('/points/76.9,43.2|76.91,43.21|76.93,43.23');
   });
 
   it('buildOpenRouteLink возвращает пустую строку для короткого маршрута', () => {
@@ -103,14 +151,16 @@ describe('shareLinks координаты и ссылки приложения',
     expect(url).toContain('yandex.ru/maps');
   });
 
-  it('buildAppShareLink собирает origin, pathname и hash', () => {
+  it('buildAppShareLink собирает origin, base и путь deep-link /m/…', () => {
     vi.stubGlobal('window', {
       location: {
         origin: 'https://map.euc.kz',
-        pathname: '/map.euc/',
       },
     });
-    expect(buildAppShareLink('route', 'abc 1')).toBe('https://map.euc.kz/map.euc/#route=abc%201');
+    const base = import.meta.env.BASE_URL;
+    expect(buildAppShareLink('route', 'abc 1')).toBe(
+      `https://map.euc.kz${base.endsWith('/') ? base : `${base}/`}m/route/abc%201`,
+    );
     vi.unstubAllGlobals();
   });
 
