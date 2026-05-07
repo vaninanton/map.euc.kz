@@ -19,8 +19,8 @@
     "@fortawesome/react-fontawesome": "^3.3.1",
     "@supabase/supabase-js": "^2.105.3",
     "mapbox-gl": "^3.23.1",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "react-metrika": "^1.0.0",
     "react-router-dom": "^7.15.0",
     "typograf": "^7.7.0"
