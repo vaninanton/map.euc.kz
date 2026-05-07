@@ -22,7 +22,7 @@ export default defineConfig({
     webServer: {
         command: `npm run dev -- --host 127.0.0.1 --port ${String(port)}`,
         url: `http://127.0.0.1:${String(port)}`,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: false,
         timeout: 120_000,
         env: {
             VITE_MAPBOX_TOKEN: 'e2e-mapbox-token',
