@@ -432,6 +432,6 @@ export async function createMapPointDraft(input: MapPointDraftInput): Promise<vo
 
   if (error) {
     console.error('createMapPointDraft:', error);
-    throw new Error('Не удалось отправить заявку. Проверьте RLS/policy для таблицы заявок.');
+    throw new Error('Не удалось отправить заявку. Напишите об этом в чат Моноколеса Алматы или Электроклуб, мы всё исправим!');
   }
 }
