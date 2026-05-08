@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { IControl, Map as MapboxMap } from 'mapbox-gl'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faSliders, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faLocationCrosshairs, faPlus, faSliders, faXmark } from '@fortawesome/free-solid-svg-icons'
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
 import { LayerPanel } from '@/components/LayerPanel'
 import { ProjectInfoButton } from '@/components/ProjectInfoButton'
@@ -14,6 +14,8 @@ interface LayerControlsProps {
     onToggle: (layer: LayerKey) => void
     isAddingPoint: boolean
     onToggleAddPoint: () => void
+    isRadarOpen: boolean
+    onToggleRadar: () => void
     onOpenProjectInfo: () => void
 }
 
@@ -21,9 +23,10 @@ interface MapControlPortals {
     layers: HTMLDivElement | null
     addPoint: HTMLDivElement | null
     info: HTMLDivElement | null
+    radar: HTMLDivElement | null
 }
 
-const EMPTY_PORTALS: MapControlPortals = { layers: null, addPoint: null, info: null }
+const EMPTY_PORTALS: MapControlPortals = { layers: null, addPoint: null, info: null, radar: null }
 
 export function LayerControls({
     map,
@@ -32,6 +35,8 @@ export function LayerControls({
     onToggle,
     isAddingPoint,
     onToggleAddPoint,
+    isRadarOpen,
+    onToggleRadar,
     onOpenProjectInfo,
 }: LayerControlsProps) {
     const [isCollapsed, setIsCollapsed] = useState(true)
@@ -55,51 +60,46 @@ export function LayerControls({
         const addPointRootNode = document.createElement('div')
         addPointContainer.appendChild(addPointRootNode)
 
+        const radarContainer = document.createElement('div')
+        radarContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
+        const radarRootNode = document.createElement('div')
+        radarContainer.appendChild(radarRootNode)
+
         const layersControl: IControl = {
-            onAdd() {
-                return layersContainer
-            },
-            onRemove() {
-                layersContainer.remove()
-            },
-            getDefaultPosition() {
-                return 'top-left'
-            },
+            onAdd() { return layersContainer },
+            onRemove() { layersContainer.remove() },
+            getDefaultPosition() { return 'top-left' },
         }
 
         const infoControl: IControl = {
-            onAdd() {
-                return infoContainer
-            },
-            onRemove() {
-                infoContainer.remove()
-            },
-            getDefaultPosition() {
-                return 'bottom-right'
-            },
+            onAdd() { return infoContainer },
+            onRemove() { infoContainer.remove() },
+            getDefaultPosition() { return 'bottom-right' },
         }
 
         const addPointControl: IControl = {
-            onAdd() {
-                return addPointContainer
-            },
-            onRemove() {
-                addPointContainer.remove()
-            },
-            getDefaultPosition() {
-                return 'top-left'
-            },
+            onAdd() { return addPointContainer },
+            onRemove() { addPointContainer.remove() },
+            getDefaultPosition() { return 'top-left' },
+        }
+
+        const radarControl: IControl = {
+            onAdd() { return radarContainer },
+            onRemove() { radarContainer.remove() },
+            getDefaultPosition() { return 'top-right' },
         }
 
         map.addControl(layersControl, 'bottom-left')
         map.addControl(addPointControl, 'top-left')
-        map.addControl(infoControl, 'bottom-left')
+        map.addControl(infoControl, 'bottom-right')
+        map.addControl(radarControl, 'top-right')
 
         const rafId = requestAnimationFrame(() => {
             setPortals({
                 layers: layersRootNode,
                 addPoint: addPointRootNode,
                 info: infoRootNode,
+                radar: radarRootNode,
             })
         })
 
@@ -109,6 +109,7 @@ export function LayerControls({
             map.removeControl(layersControl)
             map.removeControl(addPointControl)
             map.removeControl(infoControl)
+            map.removeControl(radarControl)
         }
     }, [map, isMapReady])
 
@@ -119,9 +120,7 @@ export function LayerControls({
                     isCollapsed ? (
                         <button
                             type="button"
-                            onClick={() => {
-                                setIsCollapsed(false)
-                            }}
+                            onClick={() => { setIsCollapsed(false) }}
                             aria-label="Развернуть панель слоев"
                             title="Развернуть панель слоев"
                         >
@@ -131,9 +130,7 @@ export function LayerControls({
                         <LayerPanel
                             visibility={visibility}
                             onToggle={onToggle}
-                            onCollapse={() => {
-                                setIsCollapsed(true)
-                            }}
+                            onCollapse={() => { setIsCollapsed(true) }}
                         />
                     ),
                     portals.layers,
@@ -152,6 +149,18 @@ export function LayerControls({
                 )}
             {portals.info !== null &&
                 createPortal(<ProjectInfoButton onClick={onOpenProjectInfo} />, portals.info)}
+            {portals.radar !== null &&
+                createPortal(
+                    <button
+                        type="button"
+                        onClick={onToggleRadar}
+                        aria-label={isRadarOpen ? 'Закрыть радар' : 'Открыть радар'}
+                        title="Радар"
+                    >
+                        <FontAwesomeIcon icon={faLocationCrosshairs} aria-hidden />
+                    </button>,
+                    portals.radar,
+                )}
         </>
     )
 }
