@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
 import { useMapClick } from '@/hooks/useMapClick';
@@ -24,13 +24,14 @@ export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
-  const [isRadarOpen, setIsRadarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(min-width: 768px)').matches;
   });
   const draftMarkerRef = useRef<Marker | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isRadarOpen = location.pathname === '/radar';
   const clearMapSelectionUrl = useCallback(() => {
     void navigate('/', { replace: true });
   }, [navigate]);
@@ -92,8 +93,8 @@ export function EucMap() {
   }, [clearSelection, clearMapSelectionUrl]);
 
   const handleToggleRadar = useCallback(() => {
-    setIsRadarOpen((v) => !v);
-  }, []);
+    void navigate(isRadarOpen ? '/' : '/radar');
+  }, [navigate, isRadarOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -324,7 +325,7 @@ export function EucMap() {
       <RadarModal
         isOpen={isRadarOpen}
         onClose={() => {
-          setIsRadarOpen(false);
+          void navigate('/', { replace: true });
         }}
         telegramUsersGeo={telegramUsersGeo}
         onSelectRider={(telegramUserId) => {
