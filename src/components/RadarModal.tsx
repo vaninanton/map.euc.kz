@@ -226,7 +226,7 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { void toggleCompass() }}
+                                onClick={() => { toggleCompass() }}
                                 className={`inline-flex h-7 items-center gap-1 border px-2 text-xs font-mono transition cursor-pointer ${
                                     compassEnabled
                                         ? 'border-green-500 bg-green-950/60 text-green-300'
@@ -292,7 +292,7 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
                                         )
                                     })}
                                     <line x1={RADAR_CENTER} y1={RADAR_CENTER} x2={RADAR_CENTER} y2={RADAR_INNER_PADDING} stroke="#00ff41" strokeWidth="1.5" strokeOpacity="0.55">
-                                        <animateTransform attributeName="transform" type="rotate" from={`0 ${RADAR_CENTER} ${RADAR_CENTER}`} to={`360 ${RADAR_CENTER} ${RADAR_CENTER}`} dur="3s" repeatCount="indefinite" />
+                                        <animateTransform attributeName="transform" type="rotate" from={`0 ${String(RADAR_CENTER)} ${String(RADAR_CENTER)}`} to={`360 ${String(RADAR_CENTER)} ${String(RADAR_CENTER)}`} dur="3s" repeatCount="indefinite" />
                                     </line>
                                     <circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={4} fill="#00ff41" />
                                     {orderedRiders.map((rider) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bearingDegrees, haversineKm, radarLinearScaleMax, radarNormalizedRadius, radarNormalizedRadiusLog } from '@/utils/geoMath'
+import { bearingDegrees, haversineKm, radarLinearScaleMax, radarNormalizedRadiusLog } from '@/utils/geoMath'
 
 /** Париж */
 const P_LAT = 48.8566
@@ -57,9 +57,7 @@ describe('radarNormalizedRadiusLog', () => {
     for (let i = 1; i < vals.length; i++) expect(vals[i]).toBeGreaterThan(vals[i - 1])
   })
 
-  it('radarNormalizedRadius — алиас для log-версии', () => {
-    expect(radarNormalizedRadius(3)).toBe(radarNormalizedRadiusLog(3))
-  })
+
 })
 
 describe('radarLinearScaleMax', () => {

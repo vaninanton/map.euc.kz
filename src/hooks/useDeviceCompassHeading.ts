@@ -11,6 +11,19 @@ function readHeading(event: DeviceOrientationEvent): number | null {
   return null
 }
 
+async function requestCompassPermission(): Promise<boolean> {
+  if (typeof DeviceOrientationEvent === 'undefined') return true
+  const withPermission = DeviceOrientationEvent as unknown as {
+    requestPermission?: () => Promise<PermissionState>
+  }
+  if (typeof withPermission.requestPermission !== 'function') return true
+  try {
+    return await withPermission.requestPermission() === 'granted'
+  } catch {
+    return false
+  }
+}
+
 interface CompassHeadingResult {
   heading: number | null
   compassEnabled: boolean
@@ -25,28 +38,25 @@ export function useDeviceCompassHeading(radarOpen: boolean): CompassHeadingResul
   const [heading, setHeading] = useState<number | null>(null)
   const [compassEnabled, setCompassEnabled] = useState(false)
 
-  const toggleCompass = useCallback(async () => {
+  // Reset state when radar closes — "setState during render" pattern avoids useEffect cascades
+  const [prevRadarOpen, setPrevRadarOpen] = useState(radarOpen)
+  if (prevRadarOpen !== radarOpen) {
+    setPrevRadarOpen(radarOpen)
+    if (!radarOpen) {
+      setCompassEnabled(false)
+      setHeading(null)
+    }
+  }
+
+  const toggleCompass = useCallback(() => {
     if (compassEnabled) {
       setCompassEnabled(false)
       setHeading(null)
       return
     }
-
-    if (typeof DeviceOrientationEvent !== 'undefined') {
-      const withPermission = DeviceOrientationEvent as unknown as {
-        requestPermission?: () => Promise<PermissionState>
-      }
-      if (typeof withPermission.requestPermission === 'function') {
-        try {
-          const result = await withPermission.requestPermission()
-          if (result !== 'granted') return
-        } catch {
-          return
-        }
-      }
-    }
-
-    setCompassEnabled(true)
+    void requestCompassPermission().then((granted) => {
+      if (granted) setCompassEnabled(true)
+    })
   }, [compassEnabled])
 
   useEffect(() => {
@@ -62,13 +72,6 @@ export function useDeviceCompassHeading(radarOpen: boolean): CompassHeadingResul
       window.removeEventListener('deviceorientation', handler, true)
     }
   }, [compassEnabled, radarOpen])
-
-  useEffect(() => {
-    if (!radarOpen) {
-      setCompassEnabled(false)
-      setHeading(null)
-    }
-  }, [radarOpen])
 
   return { heading, compassEnabled, toggleCompass }
 }
