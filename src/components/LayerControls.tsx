@@ -154,7 +154,7 @@ export function LayerControls({
                     <button
                         type="button"
                         onClick={onToggleRadar}
-                        aria-label={isRadarOpen ? 'Закрыть радар райдеров' : 'Открыть радар райдеров'}
+                        aria-label={isRadarOpen ? 'Закрыть радар' : 'Открыть радар'}
                         title="Радар"
                     >
                         <FontAwesomeIcon icon={faLocationCrosshairs} aria-hidden />

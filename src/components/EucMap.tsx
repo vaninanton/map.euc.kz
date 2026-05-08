@@ -328,6 +328,7 @@ export function EucMap() {
           void navigate('/', { replace: true });
         }}
         telegramUsersGeo={telegramUsersGeo}
+        pointsGeo={pointsGeo}
         onSelectRider={(telegramUserId) => {
           const feature = getFeatureById('telegramUsers', `telegram-user-${String(telegramUserId)}`);
           if (!feature) return;
