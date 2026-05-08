@@ -1,0 +1,75 @@
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { mockExternalServices, type SupabaseRequest } from './fixtures'
+
+async function attachScreenshot(testInfo: TestInfo, name: string, page: Page) {
+    await testInfo.attach(name, {
+        body: await page.screenshot({ fullPage: true }),
+        contentType: 'image/png',
+    })
+}
+
+test.describe('map smoke flow', () => {
+    test('loads map shell, toggles layer panel, and opens project info', async ({ page }, testInfo) => {
+        await mockExternalServices(page)
+
+        await page.goto('/')
+
+        await expect(page.getByLabel('Развернуть панель слоев')).toBeVisible()
+        await page.getByLabel('Развернуть панель слоев').click()
+
+        await expect(page.getByRole('group', { name: 'Слои карты' })).toBeVisible()
+        await expect(page.getByText('Точки')).toBeVisible()
+        await expect(page.getByText('Маршруты')).toBeVisible()
+        await expect(page.getByText('Розетки')).toBeVisible()
+        await attachScreenshot(testInfo, 'map-layer-panel', page)
+
+        await page.getByLabel('Открыть информацию').click()
+        await expect(page.getByRole('heading', { name: 'map.euc.kz' })).toBeVisible()
+        await expect(page.getByText('карта для моноколесников Алматы')).toBeVisible()
+        await attachScreenshot(testInfo, 'project-info-modal', page)
+
+        await page.getByLabel('Закрыть модалку').click()
+        await expect(page.getByRole('heading', { name: 'map.euc.kz' })).toBeHidden()
+    })
+
+    test('validates add-point form before coordinates are selected', async ({ page }, testInfo) => {
+        await mockExternalServices(page)
+
+        await page.goto('/')
+        await page.getByLabel('Добавить точку').click()
+
+        await expect(page.getByRole('heading', { name: 'Добавить объект' })).toBeVisible()
+        await page.getByRole('button', { name: 'Отправить' }).click()
+
+        await expect(page.getByText('Введите название.')).toBeVisible()
+        await expect(page.getByText('Выберите место кликом по карте.')).toBeVisible()
+        await attachScreenshot(testInfo, 'add-point-validation-errors', page)
+    })
+
+    test('submits a new point draft through Supabase REST', async ({ page }, testInfo) => {
+        const requests: SupabaseRequest[] = []
+        await mockExternalServices(page, requests)
+
+        await page.goto('/')
+        await page.getByLabel('Добавить точку').click()
+        await page.locator('.mapboxgl-canvas').click({ position: { x: 360, y: 260 } })
+        await page.getByLabel('Название').fill('Новая точка встречи')
+        await page.getByLabel('Описание').fill('Проверка e2e заявки')
+        await page.getByLabel('Место встречи').check()
+        await page.getByRole('button', { name: 'Отправить' }).click()
+
+        await expect(page.getByText('Заявка отправлена на модерацию.')).toBeVisible()
+        await attachScreenshot(testInfo, 'add-point-submit-success', page)
+
+        const insertRequest = requests.find(
+            (request) => request.method === 'POST' && request.table === 'map_points_submissions',
+        )
+        expect(insertRequest?.body).toMatchObject({
+            type: 'point',
+            title: 'Новая точка встречи',
+            description: 'Проверка e2e заявки',
+            flag_is_meeting: true,
+        })
+        expect(insertRequest?.body).toHaveProperty('coordinates')
+    })
+})

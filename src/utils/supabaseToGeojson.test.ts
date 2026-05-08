@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   telegramLocationsToRecentTracksFeatureCollection,
   telegramLocationsToUsersFeatureCollection,
@@ -23,6 +23,10 @@ function row(partial: Partial<TelegramLocationRow>): TelegramLocationRow {
 }
 
 describe('supabaseToGeojson telegram conversion', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('берет последнюю точку пользователя для user-фичи', () => {
     const now = Date.now();
     const rows = [
@@ -88,6 +92,7 @@ describe('supabaseToGeojson telegram conversion', () => {
   });
 
   it('строит шлейф для всех райдеров, считая tail от их последней точки', () => {
+    vi.stubEnv('VITE_TELEGRAM_GEO_TTL_MINUTES', '60');
     const now = Date.now();
     const rows = [
       row({
