@@ -101,7 +101,6 @@ npm run lint
 | `VITE_SUPABASE_PUBLISHABLE_KEY`     | Anon-ключ Supabase для чтения публичных данных.             |
 | `VITE_YANDEX_METRIKA_ID`            | ID счётчика Яндекс.Метрики (необязательно).                 |
 | `VITE_TELEGRAM_GEO_TTL_MINUTES`     | Сколько минут показывать геопозиции Telegram-пользователей. |
-| `VITE_RADAR_TTL_MINUTES`            | Сколько минут показывать райдеров на радаре (по умолчанию — из `VITE_TELEGRAM_GEO_TTL_MINUTES` или 30). |
 | `VITE_TELEGRAM_TRACK_TAIL_MINUTES`  | Длина «хвоста» трека по времени.                            |
 | `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Максимально допустимая погрешность координат, м.            |
 

@@ -10,7 +10,7 @@ import {
     radarNormalizedRadiusLog,
     radarLinearScaleMax,
 } from '@/utils/geoMath'
-import { getRadarTtlMinutes } from '@/utils/numberParsers'
+import { getTelegramGeoTtlMinutes } from '@/lib/env'
 
 interface RadarModalProps {
     isOpen: boolean
@@ -73,7 +73,7 @@ function getRadarRiders(
     headingDeg: number
 ): RadarRider[] {
     if (!telegramUsersGeo) return []
-    const ttlMinutes = getRadarTtlMinutes()
+    const ttlMinutes = getTelegramGeoTtlMinutes()
     const ttlMs = ttlMinutes * 60 * 1000
     const now = Date.now()
     const riders: RadarRider[] = []
