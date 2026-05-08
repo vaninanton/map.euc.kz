@@ -59,7 +59,7 @@ const routeRows = [
 const telegramLocationRows = [
     {
         id: 100,
-        created_at: '2026-05-07T09:00:00Z',
+        created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago — within TTL
         chat_id: -1,
         chat_title: 'EUC Almaty',
         telegram_user_id: 777,
@@ -114,6 +114,14 @@ export async function mockExternalServices(page: Page, requests: SupabaseRequest
     })
     await context.route('https://events.mapbox.com/**', async (route) => {
         await fulfillJson(route, 200, {})
+    })
+    // 1×1 transparent PNG stub for avatar images served from Supabase Storage
+    const transparentPng = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64',
+    )
+    await context.route('https://e2e.supabase.co/storage/**', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng })
     })
     await context.route('https://*.supabase.co/rest/v1/**', async (route) => {
         const request = route.request()
