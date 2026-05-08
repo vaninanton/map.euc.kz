@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
 import { useMapClick } from '@/hooks/useMapClick';
@@ -18,12 +18,20 @@ import { AddPointPanel } from '@/components/AddPointPanel';
 import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
+import { RadarModal } from '@/components/RadarModal';
+
 export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  });
   const draftMarkerRef = useRef<Marker | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isRadarOpen = location.pathname === '/radar';
   const clearMapSelectionUrl = useCallback(() => {
     void navigate('/', { replace: true });
   }, [navigate]);
@@ -83,6 +91,19 @@ export function EucMap() {
     clearSelection();
     clearMapSelectionUrl();
   }, [clearSelection, clearMapSelectionUrl]);
+
+  const handleToggleRadar = useCallback(() => {
+    void navigate(isRadarOpen ? '/' : '/radar');
+  }, [navigate, isRadarOpen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const handleMediaChange = () => { setIsDesktop(mediaQuery.matches); };
+    handleMediaChange();
+    mediaQuery.addEventListener('change', handleMediaChange);
+    return () => { mediaQuery.removeEventListener('change', handleMediaChange); };
+  }, []);
 
   useEffect(() => {
     if (!selectedFeature) return;
@@ -267,17 +288,21 @@ export function EucMap() {
         }}
         onCloseLocationError={clearLocationError}
       />
-      <LayerControls
-        map={map}
-        isMapReady={isMapReady}
-        visibility={visibility}
-        onToggle={toggleLayer}
-        isAddingPoint={isAddingPoint}
-        onToggleAddPoint={handleToggleAddPoint}
-        onOpenProjectInfo={() => {
-          setIsProjectInfoOpen(true);
-        }}
-      />
+      {(!selectedFeature || isDesktop) && (
+        <LayerControls
+          map={map}
+          isMapReady={isMapReady}
+          visibility={visibility}
+          onToggle={toggleLayer}
+          isAddingPoint={isAddingPoint}
+          onToggleAddPoint={handleToggleAddPoint}
+          isRadarOpen={isRadarOpen}
+          onToggleRadar={handleToggleRadar}
+          onOpenProjectInfo={() => {
+            setIsProjectInfoOpen(true);
+          }}
+        />
+      )}
       {isAddingPoint && (
         <AddPointPanel
           coordinates={draftCoordinates}
@@ -295,6 +320,19 @@ export function EucMap() {
         }}
         onClearCache={() => {
           void handleResetCacheAndReload();
+        }}
+      />
+      <RadarModal
+        isOpen={isRadarOpen}
+        onClose={() => {
+          void navigate('/', { replace: true });
+        }}
+        telegramUsersGeo={telegramUsersGeo}
+        pointsGeo={pointsGeo}
+        onSelectRider={(telegramUserId) => {
+          const feature = getFeatureById('telegramUsers', `telegram-user-${String(telegramUserId)}`);
+          if (!feature) return;
+          openFeature(feature, 'telegramUsers');
         }}
       />
     </div>
