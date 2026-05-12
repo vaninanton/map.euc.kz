@@ -21,11 +21,10 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
   const telegramAvatarUrl = feature.properties.type === 'telegramUser'
     ? feature.properties.avatarUrl
     : null;
-  const isMeeting = type === 'point' ? feature.properties.isMeeting : false;
+  const isMeeting = feature.properties.isMeeting === true;
   const hasSocket = type === 'point' ? feature.properties.hasSocket === true : false;
   const isErlan = feature.properties.isErlan === true;
-  const typeLabel =
-    type === 'point' && isMeeting ? POINT_FLAG_LABELS.meeting : FEATURE_TYPE_LABELS[type];
+  const typeLabel = FEATURE_TYPE_LABELS[type];
   const typeColor = COLORS[type];
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const activePhoto = lightboxIndex !== null ? photos[lightboxIndex] : null;
@@ -101,6 +100,11 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
         >
           {typeLabel}
         </span>
+        {isMeeting && (
+          <span className="inline-block text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md text-white bg-slate-600 ml-2">
+            {POINT_FLAG_LABELS.meeting}
+          </span>
+        )}
         <h3 className="font-semibold text-neutral-900 mt-2 text-[15px]">
           {name || 'Без названия'}
         </h3>
