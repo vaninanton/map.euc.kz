@@ -46,6 +46,7 @@ export function mapPointsToFeatureCollection(
       }),
       ...(row.flag_is_meeting === true && { isMeeting: true }),
       ...(row.flag_has_socket === true && { hasSocket: true }),
+      ...(row.flag_erlan === true && { isErlan: true }),
     },
   }));
   return { type: 'FeatureCollection', features };
@@ -66,6 +67,7 @@ export function mapRoutesToFeatureCollection(rows: MapRouteRow[]): FeatureCollec
       description: row.description ?? undefined,
       type: 'route',
       ...(row.via_coordinates.length > 0 && { viaCoordinates: row.via_coordinates }),
+      ...(row.flag_erlan === true && { isErlan: true }),
     },
   }));
   return { type: 'FeatureCollection', features };

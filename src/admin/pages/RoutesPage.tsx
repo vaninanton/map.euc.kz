@@ -95,7 +95,10 @@ export function RoutesPage() {
                                 className="cursor-pointer hover:bg-neutral-50"
                             >
                                 <td className="px-3 py-2 font-mono text-xs text-neutral-500">{route.id}</td>
-                                <td className="px-3 py-2 font-medium">{route.title}</td>
+                                <td className="px-3 py-2 font-medium">
+                                    {route.title}
+                                    {route.flag_erlan && <span className="ml-1 text-xs text-neutral-500">· ерландия</span>}
+                                </td>
                                 <td className="px-3 py-2 text-neutral-600">
                                     <div className="flex flex-col">
                                         <span>{route.coordinates.length}</span>

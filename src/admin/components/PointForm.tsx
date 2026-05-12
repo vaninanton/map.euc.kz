@@ -35,6 +35,7 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
     const [lat, setLat] = useState(String(initial.coordinates[1]))
     const [flagIsMeeting, setFlagIsMeeting] = useState(initial.flag_is_meeting)
     const [flagHasSocket, setFlagHasSocket] = useState(initial.flag_has_socket)
+    const [flagErlan, setFlagErlan] = useState(initial.flag_erlan)
     const [flagDisabled, setFlagDisabled] = useState(initial.flag_disabled)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -115,6 +116,7 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
                 coordinates: [lngNum, latNum],
                 flag_is_meeting: type === 'point' ? flagIsMeeting : false,
                 flag_has_socket: type === 'socket' ? true : flagHasSocket,
+                flag_erlan: flagErlan,
                 flag_disabled: flagDisabled,
             })
         } catch (err) {
@@ -238,6 +240,20 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
                         Есть розетка
                     </label>
                 )}
+                <label
+                    className="flex items-center gap-2 text-sm text-neutral-700"
+                    title="проезжает только Ерлан"
+                >
+                    <input
+                        type="checkbox"
+                        checked={flagErlan}
+                        onChange={(event) => {
+                            setFlagErlan(event.target.checked)
+                        }}
+                        className="h-4 w-4 rounded border-neutral-300 text-blue-600"
+                    />
+                    Ерландия
+                </label>
                 <label className="flex items-center gap-2 text-sm text-neutral-700">
                     <input
                         type="checkbox"

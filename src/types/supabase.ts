@@ -18,6 +18,8 @@ export interface MapPointRow {
   flag_is_meeting?: boolean | null;
   /** Для точки доступна зарядка. */
   flag_has_socket?: boolean | null;
+  /** Ерландия — проезжает только Ерлан. */
+  flag_erlan?: boolean | null;
   title: string;
   description: string | null;
   coordinates: [number, number]; // [lon, lat]
@@ -38,6 +40,8 @@ export interface MapRouteRow {
   description: string | null;
   coordinates: Array<[number, number] | [number, number, number]>; // [lon, lat] or [lon, lat, elevation]
   via_coordinates: Array<[number, number]>; // [lon, lat]
+  /** Ерландия — проезжает только Ерлан. */
+  flag_erlan?: boolean | null;
 }
 
 export interface TelegramLocationRow {

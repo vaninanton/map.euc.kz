@@ -68,6 +68,7 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     const coordinates = raw.coordinates
     const flag_is_meeting = raw.flag_is_meeting
     const flag_has_socket = raw.flag_has_socket
+    const flag_erlan = raw.flag_erlan
     const flag_disabled = raw.flag_disabled
 
     if (typeof id !== 'number' || !Number.isFinite(id)) throw new Error('id')
@@ -79,6 +80,7 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     }
     if (typeof flag_is_meeting !== 'boolean') throw new Error('flag_is_meeting')
     if (typeof flag_has_socket !== 'boolean') throw new Error('flag_has_socket')
+    if (typeof flag_erlan !== 'boolean') throw new Error('flag_erlan')
     if (typeof flag_disabled !== 'boolean') throw new Error('flag_disabled')
 
     const descriptionNorm: string | null =
@@ -93,6 +95,7 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
         coordinates: asCoordinatePair(coordinates),
         flag_is_meeting,
         flag_has_socket,
+        flag_erlan,
         flag_disabled,
     }
 }
@@ -108,6 +111,7 @@ export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
     const description = raw.description
     const coordinates = raw.coordinates
     const via_coordinates = raw.via_coordinates
+    const flag_erlan = raw.flag_erlan
     const flag_disabled = raw.flag_disabled
 
     if (typeof id !== 'number' || !Number.isFinite(id)) throw new Error('id')
@@ -116,6 +120,7 @@ export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
     if (description !== undefined && description !== null && typeof description !== 'string') {
         throw new Error('description')
     }
+    if (typeof flag_erlan !== 'boolean') throw new Error('flag_erlan')
     if (typeof flag_disabled !== 'boolean') throw new Error('flag_disabled')
 
     const descriptionNorm: string | null =
@@ -128,6 +133,7 @@ export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
         description: descriptionNorm,
         coordinates: asRouteCoordinates(coordinates),
         via_coordinates: asCoordinatePairList(via_coordinates),
+        flag_erlan,
         flag_disabled,
     }
 }

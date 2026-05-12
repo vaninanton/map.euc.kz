@@ -20,6 +20,8 @@ interface BaseFeatureProperties {
   id: string;
   name: string;
   description?: string | null;
+  /** Ерландия — проезжает только Ерлан. */
+  isErlan?: boolean;
 }
 
 export interface PointPhoto {

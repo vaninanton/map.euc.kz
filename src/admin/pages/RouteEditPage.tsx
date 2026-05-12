@@ -28,6 +28,7 @@ interface FormValue {
     description: string
     coordinates: RouteEditorCoordinates
     viaCoordinates: Array<[number, number]>
+    flagErlan: boolean
     flagDisabled: boolean
 }
 
@@ -41,6 +42,7 @@ const DEFAULT_VALUE: FormValue = {
     description: '',
     coordinates: DEFAULT_COORDINATES,
     viaCoordinates: [],
+    flagErlan: false,
     flagDisabled: false,
 }
 
@@ -75,6 +77,7 @@ function routeToFormValue(route: AdminMapRoute): FormValue {
         description: route.description ?? '',
         coordinates: route.coordinates,
         viaCoordinates: normalizeViaCoordinates(route.coordinates, route.via_coordinates),
+        flagErlan: route.flag_erlan,
         flagDisabled: route.flag_disabled,
     }
 }
@@ -177,6 +180,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                 description: value.description.trim() || null,
                 coordinates: value.coordinates,
                 via_coordinates: normalizeViaCoordinates(value.coordinates, value.viaCoordinates),
+                flag_erlan: value.flagErlan,
                 flag_disabled: value.flagDisabled,
             }
             if (mode === 'create') {
@@ -303,6 +307,21 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                                 className="w-full resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                             />
                         </div>
+
+                        <label
+                            className="flex items-center gap-2 text-sm text-neutral-700"
+                            title="проезжает только Ерлан"
+                        >
+                            <input
+                                type="checkbox"
+                                checked={value.flagErlan}
+                                onChange={(event) => {
+                                    setValue({ ...value, flagErlan: event.target.checked })
+                                }}
+                                className="h-4 w-4 rounded border-neutral-300 text-blue-600"
+                            />
+                            Ерландия
+                        </label>
 
                         <label className="flex items-center gap-2 text-sm text-neutral-700">
                             <input

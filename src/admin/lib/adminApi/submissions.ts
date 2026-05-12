@@ -49,6 +49,7 @@ export async function approveSubmission(id: string): Promise<AdminMapPoint> {
         coordinates,
         flag_is_meeting: sub.type === 'point' ? sub.flag_is_meeting : false,
         flag_has_socket: sub.type === 'socket',
+        flag_erlan: false,
         flag_disabled: false,
     })
 

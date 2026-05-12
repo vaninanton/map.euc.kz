@@ -127,6 +127,7 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
   const coordinates = asPointCoordinates(row.coordinates);
   const isMeeting = row.flag_is_meeting;
   const hasSocket = row.flag_has_socket;
+  const isErlan = row.flag_erlan;
   const photos = normalizeMapPointPhotos(row.map_point_photos);
   if ((typeof id !== 'string' && typeof id !== 'number') || (type !== 'point' && type !== 'socket') || typeof title !== 'string' || !coordinates) {
     return null;
@@ -139,6 +140,7 @@ function normalizeMapPointRow(row: unknown): MapPointRow | null {
     coordinates,
     flag_is_meeting: typeof isMeeting === 'boolean' ? isMeeting : null,
     flag_has_socket: typeof hasSocket === 'boolean' ? hasSocket : null,
+    flag_erlan: typeof isErlan === 'boolean' ? isErlan : null,
     photos,
   };
 }
@@ -203,12 +205,14 @@ function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
   ) {
     return null;
   }
+  const isErlan = row.flag_erlan;
   return {
     id: String(id),
     title,
     description: typeof description === 'string' ? description : null,
     coordinates,
     via_coordinates: viaCoordinates,
+    flag_erlan: typeof isErlan === 'boolean' ? isErlan : null,
   };
 }
 
@@ -295,7 +299,7 @@ export async function fetchMapPoints(): Promise<MapPointRow[]> {
   const { data, error } = await withTimeoutAndRetry('fetchMapPoints', () =>
     supabase
       .from('map_points')
-      .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket, map_point_photos(id, bucket_name, storage_path, alt_text, sort_order)')
+      .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket, flag_erlan, map_point_photos(id, bucket_name, storage_path, alt_text, sort_order)')
       .eq('flag_disabled', false)
   );
 
@@ -320,7 +324,7 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
   const { data, error } = await withTimeoutAndRetry('fetchMapRoutes', () =>
     supabase
       .from('map_routes')
-      .select('id, title, description, coordinates, via_coordinates')
+      .select('id, title, description, coordinates, via_coordinates, flag_erlan')
       .eq('flag_disabled', false)
   );
 

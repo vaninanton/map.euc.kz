@@ -9,6 +9,7 @@ export interface AdminMapPoint {
     coordinates: [number, number]
     flag_is_meeting: boolean
     flag_has_socket: boolean
+    flag_erlan: boolean
     flag_disabled: boolean
 }
 
@@ -19,6 +20,7 @@ export interface AdminMapRoute {
     description: string | null
     coordinates: Array<[number, number] | [number, number, number]>
     via_coordinates: Array<[number, number]>
+    flag_erlan: boolean
     flag_disabled: boolean
 }
 
@@ -54,6 +56,7 @@ export interface MapPointInput {
     coordinates: [number, number]
     flag_is_meeting: boolean
     flag_has_socket: boolean
+    flag_erlan: boolean
     flag_disabled: boolean
 }
 
@@ -62,5 +65,6 @@ export interface MapRouteInput {
     description: string | null
     coordinates: Array<[number, number] | [number, number, number]>
     via_coordinates: Array<[number, number]>
+    flag_erlan: boolean
     flag_disabled: boolean
 }

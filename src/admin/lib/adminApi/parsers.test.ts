@@ -12,6 +12,7 @@ describe('adminApi parsers', () => {
             coordinates: [76.9, 43.2],
             flag_is_meeting: false,
             flag_has_socket: false,
+            flag_erlan: false,
             flag_disabled: false,
         })
         expect(row.id).toBe(1)
@@ -29,6 +30,7 @@ describe('adminApi parsers', () => {
                 [4, 5, 6],
             ],
             via_coordinates: [[2, 3]],
+            flag_erlan: false,
             flag_disabled: false,
         })
         expect(row.coordinates).toEqual([
@@ -48,6 +50,7 @@ describe('adminApi parsers', () => {
                 [1, 2],
                 [4, 5],
             ],
+            flag_erlan: false,
             flag_disabled: false,
         })
         expect(row.via_coordinates).toEqual([])
@@ -64,6 +67,7 @@ describe('adminApi parsers', () => {
                 coordinates: [0, 0],
                 flag_is_meeting: false,
                 flag_has_socket: false,
+                flag_erlan: false,
                 flag_disabled: false,
             }),
         ).toThrow()

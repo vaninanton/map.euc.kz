@@ -97,6 +97,7 @@ export function PointsPage() {
                                 <td className="px-3 py-2">
                                     {point.type === 'socket' ? 'Розетка' : 'Точка'}
                                     {point.flag_is_meeting && ' · встреча'}
+                                    {point.flag_erlan && ' · ерландия'}
                                 </td>
                                 <td className="px-3 py-2 font-medium">{point.title}</td>
                                 <td className="px-3 py-2 font-mono text-xs text-neutral-600">

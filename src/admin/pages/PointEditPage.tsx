@@ -23,6 +23,7 @@ const DEFAULT_VALUE: PointFormValue = {
     coordinates: [76.945, 43.238],
     flag_is_meeting: false,
     flag_has_socket: false,
+    flag_erlan: false,
     flag_disabled: false,
 }
 
@@ -34,6 +35,7 @@ function pointToFormValue(point: AdminMapPoint): PointFormValue {
         coordinates: point.coordinates,
         flag_is_meeting: point.flag_is_meeting,
         flag_has_socket: point.flag_has_socket,
+        flag_erlan: point.flag_erlan,
         flag_disabled: point.flag_disabled,
     }
 }

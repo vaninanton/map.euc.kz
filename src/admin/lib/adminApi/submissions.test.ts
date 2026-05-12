@@ -46,6 +46,7 @@ describe('adminApi submissions', () => {
             coordinates: [76.95, 43.24],
             flag_is_meeting: false,
             flag_has_socket: true,
+            flag_erlan: false,
             flag_disabled: false,
         } satisfies AdminMapPoint)
     })
@@ -67,6 +68,7 @@ describe('adminApi submissions', () => {
             coordinates: [76.95, 43.24],
             flag_is_meeting: false,
             flag_has_socket: true,
+            flag_erlan: false,
             flag_disabled: false,
         } satisfies MapPointInput)
         expect(update).toHaveBeenCalledWith({
