@@ -146,7 +146,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
       'line-opacity': stateHighlight.opacity(),
     }, visibility.bikeLanes);
   }
-  if (telegramUsersGeo?.features.length) {
+  if (telegramUsersGeo) {
     if (!map.getSource(SOURCE_IDS.telegramUsers)) {
       map.addSource(SOURCE_IDS.telegramUsers, {
         type: 'geojson',

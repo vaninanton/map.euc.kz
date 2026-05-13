@@ -91,11 +91,12 @@ function getRadarRiders(
     userLon: number,
     headingDeg: number,
     pointsGeo: FeatureCollection | null,
+    nowMs: number,
 ): RadarRider[] {
     if (!telegramUsersGeo) return []
     const ttlMinutes = getTelegramGeoTtlMinutes()
     const ttlMs = ttlMinutes * 60 * 1000
-    const now = Date.now()
+    const now = nowMs
     const riders: RadarRider[] = []
 
     for (const feature of telegramUsersGeo.features) {
@@ -132,11 +133,17 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
     const { heading, compassEnabled, toggleCompass } = useDeviceCompassHeading(isOpen)
     const headingDeg = heading ?? 0
     const [scaleLog, setScaleLog] = useState(true)
+    const [nowMs, setNowMs] = useState(() => Date.now())
+    useEffect(() => {
+        if (!isOpen) return
+        const id = setInterval(() => { setNowMs(Date.now()) }, 1000)
+        return () => { clearInterval(id) }
+    }, [isOpen])
 
     const riders = useMemo(() => {
         if (!position) return []
-        return getRadarRiders(telegramUsersGeo, position.coords.latitude, position.coords.longitude, headingDeg, pointsGeo)
-    }, [telegramUsersGeo, position, headingDeg, pointsGeo])
+        return getRadarRiders(telegramUsersGeo, position.coords.latitude, position.coords.longitude, headingDeg, pointsGeo, nowMs)
+    }, [telegramUsersGeo, position, headingDeg, pointsGeo, nowMs])
 
     const linearScaleMax = useMemo(() => {
         if (scaleLog || riders.length === 0) return 1
@@ -155,13 +162,6 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
         () => (scaleLog ? (RADAR_RING_KM_LOG as readonly number[]) : [linearScaleMax / 2, linearScaleMax]),
         [scaleLog, linearScaleMax],
     )
-
-    const [tick, setTick] = useState(0)
-    useEffect(() => {
-        if (!isOpen) return
-        const id = setInterval(() => { setTick((t) => t + 1) }, 1000)
-        return () => { clearInterval(id) }
-    }, [isOpen])
 
     const orderedRiders = useMemo(() => {
         if (riders.length <= 1) return riders
@@ -195,7 +195,7 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
             if (group.length === 1) {
                 result.push(riders[group[0]])
             } else {
-                const activeIdx = tick % group.length
+                const activeIdx = Math.floor(nowMs / 1000) % group.length
                 for (let i = 0; i < group.length; i++) {
                     if (i !== activeIdx) result.push(riders[group[i]])
                 }
@@ -203,7 +203,7 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
             }
         }
         return result
-    }, [riders, tick, normalizeRadius])
+    }, [riders, nowMs, normalizeRadius])
 
     if (!isOpen) return null
 
