@@ -6,6 +6,7 @@ const NAV_ITEMS = [
     { to: 'submissions', label: 'Заявки' },
     { to: 'points', label: 'Точки' },
     { to: 'routes', label: 'Маршруты' },
+    { to: 'geo', label: 'Гео' },
 ] as const
 
 export function AdminLayout() {

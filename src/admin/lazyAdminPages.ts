@@ -25,3 +25,8 @@ export const AdminRouteEditPage = lazy(async () => {
     const m = await import('@/admin/pages/RouteEditPage')
     return { default: m.RouteEditPage }
 })
+
+export const AdminGeoPage = lazy(async () => {
+    const m = await import('@/admin/pages/GeoPage')
+    return { default: m.GeoPage }
+})

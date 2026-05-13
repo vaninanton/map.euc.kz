@@ -10,6 +10,7 @@ import {
     AdminPointsPage,
     AdminRoutesListPage,
     AdminSubmissionsPage,
+    AdminGeoPage,
 } from '@/admin/lazyAdminPages'
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
                     <Route path="routes" element={<AdminRoutesListPage />} />
                     <Route path="routes/new" element={<AdminRouteEditPage mode="create" />} />
                     <Route path="routes/:id" element={<AdminRouteEditPage mode="edit" />} />
+                    <Route path="geo" element={<AdminGeoPage />} />
                     <Route path="*" element={<Navigate to="submissions" replace />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
