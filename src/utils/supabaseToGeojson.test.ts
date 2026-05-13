@@ -42,24 +42,25 @@ describe('supabaseToGeojson telegram conversion', () => {
 
   it('строит трек в исходном порядке строк', () => {
     const now = Date.now();
+    // Три точки рядом (~0.3 км между соседними), чтобы не разрывать сегмент
     const rows = [
       row({
         telegram_user_id: 11,
         created_at: new Date(now - 3 * 60 * 1000).toISOString(),
-        longitude: 1,
-        latitude: 1,
+        longitude: 76.900,
+        latitude: 43.200,
       }),
       row({
         telegram_user_id: 11,
         created_at: new Date(now - 2 * 60 * 1000).toISOString(),
-        longitude: 2,
-        latitude: 2,
+        longitude: 76.903,
+        latitude: 43.202,
       }),
       row({
         telegram_user_id: 11,
         created_at: new Date(now - 1 * 60 * 1000).toISOString(),
-        longitude: 3,
-        latitude: 3,
+        longitude: 76.906,
+        latitude: 43.204,
       }),
     ];
 
@@ -67,9 +68,9 @@ describe('supabaseToGeojson telegram conversion', () => {
     expect(collection.features).toHaveLength(1);
     expect(collection.features[0]?.geometry.type).toBe('LineString');
     expect(collection.features[0]?.geometry.coordinates).toEqual([
-      [1, 1],
-      [2, 2],
-      [3, 3],
+      [76.900, 43.200],
+      [76.903, 43.202],
+      [76.906, 43.204],
     ]);
   });
 
@@ -95,29 +96,30 @@ describe('supabaseToGeojson telegram conversion', () => {
     vi.stubEnv('VITE_TELEGRAM_GEO_TTL_MINUTES', '60');
     const now = Date.now();
     const rows = [
+      // Точки в пределах ~0.5 км, чтобы не разрывать сегмент
       row({
         telegram_user_id: 1,
         created_at: new Date(now - 10 * 60 * 1000).toISOString(),
-        longitude: 76.90,
-        latitude: 43.20,
+        longitude: 76.900,
+        latitude: 43.200,
       }),
       row({
         telegram_user_id: 1,
         created_at: new Date(now - 5 * 60 * 1000).toISOString(),
-        longitude: 76.91,
-        latitude: 43.21,
+        longitude: 76.905,
+        latitude: 43.202,
       }),
       row({
         telegram_user_id: 2,
         created_at: new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        longitude: 76.80,
-        latitude: 43.10,
+        longitude: 76.800,
+        latitude: 43.100,
       }),
       row({
         telegram_user_id: 2,
         created_at: new Date(now - (10 * 24 * 60 * 60 * 1000 - 5 * 60 * 1000)).toISOString(),
-        longitude: 76.81,
-        latitude: 43.11,
+        longitude: 76.805,
+        latitude: 43.102,
       }),
     ];
 

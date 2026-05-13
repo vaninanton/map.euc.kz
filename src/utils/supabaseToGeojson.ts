@@ -1,6 +1,7 @@
 import type { Feature, FeatureCollection, PointFeature, RouteFeature } from '@/types/geojson';
 import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supabase';
 import { getTelegramGeoTtlMinutes, getTelegramTrackTailMinutes } from '@/lib/env';
+import { haversineKm } from '@/utils/geoMath';
 
 const TELEGRAM_SPEED_SAMPLE_POINTS = 5;
 
@@ -225,26 +226,44 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
     const displayName = buildTelegramDisplayName(lastPoint);
     const avatarUrl = buildTelegramAvatarUrl(lastPoint);
 
-    features.push({
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: tailRows.map((point) => [point.longitude, point.latitude] as [number, number]),
-      },
-      properties: {
-        id: `telegram-track-${String(telegramUserId)}`,
-        name: `Трек ${displayName}`,
-        description: `Маршрут за последние ${String(trackTailMinutes)} минут (${String(tailRows.length)} точек).`,
-        type: 'telegramUser',
-        telegramUserId,
-        username: lastPoint.username,
-        firstName: lastPoint.first_name,
-        lastName: lastPoint.last_name,
-        updatedAt: lastPoint.created_at,
-        avatarUrl,
-        avgSpeedKmh: avgSpeedByUser.get(telegramUserId) ?? null,
-        avgSpeedWindowPoints: TELEGRAM_SPEED_SAMPLE_POINTS,
-      },
+    // Разбиваем трек на сегменты: разрыв ≥ 1 км между соседними точками → новый сегмент.
+    const MAX_SEGMENT_KM = 1;
+    const segments: [number, number][][] = [];
+    let currentSegment: [number, number][] = [[tailRows[0].longitude, tailRows[0].latitude]];
+    for (let i = 1; i < tailRows.length; i++) {
+      const prev = tailRows[i - 1];
+      const curr = tailRows[i];
+      if (haversineKm(prev.latitude, prev.longitude, curr.latitude, curr.longitude) >= MAX_SEGMENT_KM) {
+        if (currentSegment.length >= 2) segments.push(currentSegment);
+        currentSegment = [];
+      }
+      currentSegment.push([curr.longitude, curr.latitude]);
+    }
+    if (currentSegment.length >= 2) segments.push(currentSegment);
+
+    const sharedProperties = {
+      name: `Трек ${displayName}`,
+      description: `Маршрут за последние ${String(trackTailMinutes)} минут (${String(tailRows.length)} точек).`,
+      type: 'telegramUser' as const,
+      telegramUserId,
+      username: lastPoint.username,
+      firstName: lastPoint.first_name,
+      lastName: lastPoint.last_name,
+      updatedAt: lastPoint.created_at,
+      avatarUrl,
+      avgSpeedKmh: avgSpeedByUser.get(telegramUserId) ?? null,
+      avgSpeedWindowPoints: TELEGRAM_SPEED_SAMPLE_POINTS,
+    };
+
+    segments.forEach((coords, idx) => {
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: coords },
+        properties: {
+          id: `telegram-track-${String(telegramUserId)}-${String(idx)}`,
+          ...sharedProperties,
+        },
+      });
     });
   }
 
