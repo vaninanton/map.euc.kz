@@ -21,7 +21,7 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
   const telegramAvatarUrl = feature.properties.type === 'telegramUser'
     ? feature.properties.avatarUrl
     : null;
-  const isMeeting = feature.properties.isMeeting === true;
+  const isMeeting = feature.properties.type === 'point' && feature.properties.isMeeting === true;
   const hasSocket = type === 'point' ? feature.properties.hasSocket === true : false;
   const isErlan = feature.properties.isErlan === true;
   const typeLabel = FEATURE_TYPE_LABELS[type];
