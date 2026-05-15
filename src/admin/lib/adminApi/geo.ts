@@ -38,8 +38,9 @@ export async function fetchTelegramLocations(periodMinutes: number | null): Prom
     const PAGE_SIZE = 1000
     const result: TelegramLocationRow[] = []
     let offset = 0
+    let hasMore = true
 
-    while (true) {
+    while (hasMore) {
         const base = db()
             .from('telegram_locations')
             .select(LOCATIONS_SELECT)
@@ -49,7 +50,7 @@ export async function fetchTelegramLocations(periodMinutes: number | null): Prom
 
         const page = await runManyRaw('fetchRiderLocations', since !== null ? base.gte('created_at', since) : base)
         result.push(...(page as TelegramLocationRow[]))
-        if (page.length < PAGE_SIZE) break
+        hasMore = page.length >= PAGE_SIZE
         offset += PAGE_SIZE
     }
 
