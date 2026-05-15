@@ -1,39 +1,57 @@
 # Мономаршруты — map.euc.kz
 
-Интерактивная карта точек, розеток и маршрутов для райдеров на моноколёсах в Алматы. Помогает планировать поездки, находить места встреч и розетки для подзарядки, а также видеть геопозиции участников Telegram-чатов и сеть городских велодорожек.
+Интерактивная карта точек, розеток и маршрутов для райдеров на моноколёсах в Алматы. Помогает планировать поездки, находить места встреч и розетки для подзарядки, а также видеть геопозиции участников Telegram-чатов в реальном времени и сеть городских велодорожек.
 
-Доступно по адресу: [https://map.euc.kz](https://map.euc.kz)
+**Ссылка:** https://map.euc.kz  
+**Статус:** Production (React 19 + Mapbox GL + Supabase + PWA)  
+**Архитектура:** Подробно описана в [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) — для новых инженеров и архитектурных обзоров.
 
 ## Основной функционал
 
-Веб-приложение представляет собой одностраничный PWA на базе Mapbox GL JS с несколькими тематическими слоями, которые пользователь может включать и выключать независимо.
+Одностраничный PWA на базе Mapbox GL JS с несколькими тематическими слоями. Статические данные (точки, маршруты) кэшируются агрессивно; только Telegram-локации обновляются в реальном времени через Supabase Realtime (обновление <500ms).
 
-**Слои карты:**
+### Слои карты
 
-- **Точки** — места встреч, парковки, точки интереса для райдеров.
+- **Точки** — места встреч, парковки, точки интереса (модерируются администратором).
 - **Розетки** — публичные точки подзарядки моноколёс.
-- **Маршруты** — заранее проложенные треки для покатушек.
-- **Велодорожки** — сеть велоинфраструктуры Алматы (данные проекта Velojol).
-- **Геопозиции из чатов (Telegram)** — актуальные геопозиции участников из подключённых Telegram-чатов и их недавние треки.
+- **Маршруты** — заранее проложенные треки для покатушек (с опциональными высотами).
+- **Велодорожки** — сеть велоинфраструктуры Алматы (статический датасет Velojol).
+- **Геопозиции Telegram** — живые геопозиции райдеров из подключённых чатов + недавние треки (TTL-фильтр, точность фильтр).
 
-**Возможности интерфейса:**
+### Интерфейс
 
-- Переключение между стилями подложки: «Карта» (Mapbox Streets) и «Спутник».
-- Сайдбар с подробной информацией по выбранной фиче (точке, маршруту, велодорожке или райдеру), включая фотогалерею.
-- Шаринг состояния через hash: ссылка вида `#point-123` открывает карту с предвыбранной точкой и автозумом.
-- Поддержка офлайна и установки как PWA: service worker, иконки, splash-screens для всех актуальных моделей iPhone/iPad.
-- Запоминание выбора видимости слоёв в `localStorage`.
-- Быстрая кнопка «Обновить страницу» при ошибке с полным сбросом кеша, IndexedDB и service worker.
-- Hover- и click-эффекты с подсветкой и затемнением остальных фич через `feature-state`.
-- Корректные отступы под safe-area iOS (notch, home indicator).
+- **Переключение подложки:** Карта (Mapbox Streets) ↔ Спутник (сохраняется в localStorage).
+- **Детали фичи:** Сайдбар с информацией, фотогалерея, координаты, поделиться ссылкой.
+- **Deep links:** `#point-123`, `#route-456` — прямая ссылка на фичу с автозумом.
+- **Offline-first:** Service Worker кэширует app shell, статические ассеты, Mapbox-тайлы. Карта работает офлайн.
+- **PWA:** Установима на iOS/Android (splash-screens для всех современных устройств).
+- **Интерактивность:** Hover/click-эффекты через Mapbox `feature-state` (без React re-renders!).
+- **Видимость слоёв:** Запоминается в localStorage; быстрая кнопка сброса кеша при ошибке.
+- **Safe Area:** Корректные отступы для iOS notch и home indicator.
 
-**Добавление точек пользователями:**
+### Добавление точек пользователями
 
-Любой посетитель может предложить новую точку или розетку. Координаты выбираются кликом по карте, после чего форма отправляет заявку в таблицу `map_points_submissions` для модерации. Опубликованные модератором точки попадают в основной слой.
+Любой посетитель может предложить новую точку или розетку (вкладка «Добавить точку»):
+1. Клик на карте → выбор координат.
+2. Заполнение формы (тип, название, описание, флаги).
+3. Заявка отправляется в таблицу `map_points_submissions` (статус: pending).
+4. Администратор проверяет в `/admin/submissions`, одобряет или отклоняет.
+5. Одобренная точка появляется на карте всем пользователям.
 
-**Сбор геопозиций из Telegram:**
+### Telegram-бот для живых геопозиций
 
-В составе проекта работает Edge Function `telegram-location-bot` — webhook для Telegram-бота. Бот, добавленный в чат райдеров, получает обновления и сохраняет сообщения с `location` в таблицу `telegram_locations`, попутно подтягивая профиль пользователя (никнейм, имя, аватар) в `telegram_profiles`. На карте показываются только свежие точки (TTL и максимальная допустимая погрешность настраиваются через переменные окружения).
+Edge Function `telegram-location-bot` — webhook для Telegram-бота:
+
+1. **Сбор локаций:** Бот, добавленный в чат, получает обновления локаций.
+2. **Сохранение:** INSERT в `telegram_locations` с координатами, user ID, chat ID.
+3. **Профиль пользователя:** Автоматически подтягивает/кэширует аватар в `telegram_profiles`.
+4. **Realtime broadcast:** Supabase отправляет изменение на фронтенд.
+5. **Отображение:** На карте видны только свежие точки в пределах TTL и погрешности.
+
+**Фильтры (переменные окружения):**
+- `VITE_TELEGRAM_GEO_TTL_MINUTES` (default: 60) — сколько минут показывать локацию.
+- `VITE_TELEGRAM_MAX_ACCURACY_METERS` (default: 100) — максимальная погрешность GPS.
+- `VITE_TELEGRAM_TRACK_TAIL_MINUTES` (default: 30) — длина недавнего трека.
 
 ## Технологический стек
 
@@ -48,22 +66,65 @@
 
 ```
 src/
-├── components/      # React-компоненты (EucMap, FeatureSidebar, LayerControls, AddPointPanel, …)
-├── hooks/           # Хуки: useMapbox, useLayers, useMapClick, useMapHover,
-│                    #        useHashSelectionSync, useSelectedFeatureState
-├── lib/             # Низкоуровневые обёртки: supabase.ts, mapLayers.ts
-├── utils/           # Геометрия, hash-навигация, popup, гварды, share-ссылки
-├── constants/       # ID слоёв, источники, цвета, центр карты
-├── types/           # Типы GeoJSON, Supabase, velojol
-├── data/            # Статичные данные (almaty.json — велодорожки)
-├── index.css
-└── main.tsx
+├── components/        # Основные: EucMap (оркестратор), LayerControls, FeatureSidebar, AddPointPanel
+├── hooks/             # Ключевые: useMapData (fetch), useMapbox (instance), useLayers, useTelegramRealtime
+├── lib/
+│   ├── supabase.ts   # Все API-вызовы, timeout+retry, нормализация
+│   └── mapLayers.ts  # Определения слоёв, paint expressions, feature-state
+├── utils/             # Геометрия, hash-навигация, типовые гварды, GeoJSON нормализация
+├── constants/         # LAYER_IDS, SOURCE_IDS, COLORS
+├── types/             # GeoJSON Features, Supabase rows, Velojol
+├── data/              # almaty.json (велодорожки)
+└── main.tsx, App.tsx
+
 supabase/
-├── migrations/      # Миграции схемы (map_points, map_routes, telegram_locations, …)
+├── migrations/        # DDL: таблицы, RLS, Storage, индексы
 ├── functions/
-│   └── telegram-location-bot/   # Edge Function: приём webhook-ов от Telegram
-└── seed.sql
-public/              # Статика PWA: манифест, иконки, splash, sw.js
+│   └── telegram-location-bot/index.ts  # Deno: webhook, avatar fetch, INSERT
+└── schema.sql         # Full export
+
+public/
+├── sw.js              # Service Worker: cache strategy (STATIC, RUNTIME, TILES)
+├── manifest.webmanifest
+├── favicon.svg, icons/, splash screens
+```
+
+**Для понимания архитектуры:** см. [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) с полными диаграммами, data flow, top-10 файлов и опасных зон.
+
+## Как система работает (в двух словах)
+
+### Ментальная модель
+
+Это **read-heavy, realtime-optional** система:
+
+1. **Статические данные** (точки, маршруты) → Supabase → Frontend кэширует агрессивно
+2. **Telegram-локации** → Webhook → Edge Function → Supabase Realtime → Frontend обновляется <500ms
+3. **Service Worker** → App shell работает офлайн, Mapbox-тайлы кэшируются
+4. **Mapbox feature-state** → Hover/select эффекты без React re-renders
+
+### Поток данных пользователя
+
+```
+Пользователь открывает карту
+  → EucMap монтируется
+  → useMapData параллельно фетчит из Supabase (points, routes, telegram, velojol)
+  → useLayers добавляет GeoJSON sources + layers в Mapbox
+  → useTelegramRealtime подписывается на изменения
+  → Карта готова к взаимодействию
+
+Пользователь кликает на точку
+  → Mapbox click event → useMapClick слушатель
+  → feature-state selected=true → подсветка в Mapbox
+  → URL hash обновляется (#point-123)
+  → FeatureSidebar рендерится (React)
+
+Telegram-райдер отправляет локацию в чат
+  → Telegram API → Edge Function webhook
+  → Скачивается аватар, удаляется bot token, загружается в Storage
+  → INSERT telegram_locations
+  → Supabase Realtime broadcast
+  → Frontend refreshTelegramUsers() → GeoJSON обновляется
+  → Mapbox source обновляется → карта перерисовывается
 ```
 
 ## Быстрый старт
@@ -106,7 +167,14 @@ npm run lint
 
 ## Админка карты
 
-Маршрут `/admin` (на проде с учётом `base`, например `https://map.euc.kz/admin`): модерация заявок, CRUD точек и маршрутов, фото точек. Доступ только через **Supabase Auth** и запись в таблице **`map_admin_users`** — секретный `service_role` ключ в браузере **не используется** (Supabase его блокирует).
+Маршрут `/admin` (на проде: `https://map.euc.kz/admin`): модерация заявок, CRUD точек и маршрутов, фото, просмотр live Telegram-трекинга.
+
+### Аутентификация
+
+- **Тип:** Supabase Auth (email/пароль)
+- **Авторизация:** Проверка `map_admin_users` таблицы через RLS
+- **Безопасность:** Service role ключ **не** попадает в браузер (Supabase блокирует). Только anon ключ.
+- **Сессия:** Хранится в localStorage; refresh token управляется SDK
 
 ### Настройка один раз
 
@@ -166,19 +234,83 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 
 Функция пройдёт по `telegram_profiles` и обновит только небезопасные/пустые `avatar_url`.
 
+## Отладка
+
+### Service Worker / PWA
+
+```bash
+# Проблема: изменения не видны после деплоя
+# Решение: очистить все кэши
+- DevTools → Application → Service Workers → Unregister
+- Clear All (Storage)
+- Hard refresh (Ctrl+Shift+R или Cmd+Shift+R)
+# Или: используй кнопку "Сброс кеша" в приложении
+```
+
+### Mapbox не загружается
+
+```javascript
+// DevTools console:
+map.getStyle()              // Проверить стиль
+map.getSources()            // Список источников
+map.getLayers()             // Список слоёв
+map.querySourceFeatures(sourceId)  // Данные в источнике
+```
+
+### Supabase не подключён
+
+- Проверить `.env.local`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
+- Протестировать в Supabase Dashboard → SQL Editor (SELECT 1 как anon)
+
+### Telegram-локации не появляются
+
+- Supabase Dashboard → Edge Functions → `telegram-location-bot` → Logs
+- Проверить `TELEGRAM_WEBHOOK_SECRET` совпадает с Telegram API
+- Ручной тест webhook (см. KNOWLEDGE_BASE.md → Debugging Guide)
+
 ## База данных (Supabase)
 
-Основные таблицы:
+| Таблица | Цель |
+|---------|------|
+| `map_points` | Точки и розетки (type: point \| socket), флаги: meeting, socket, disabled |
+| `map_routes` | Маршруты (LineString с опциональными высотами, via_coordinates) |
+| `map_points_submissions` | Очередь модерации (status: pending \| approved \| rejected) |
+| `map_point_photos` | Фото (FK → points), Storage bucket references |
+| `map_admin_users` | Администраторы (FK → auth.users), заполняется вручную |
+| `telegram_locations` | Живые локации (с фильтром TTL в коде) |
+| `telegram_profiles` | Кэш аватаров, имён, ников Telegram-пользователей |
 
-- `map_points` — точки и розетки (тип `point_types`: `point` / `socket`), флаги «место встречи», «есть розетка», «скрыта».
-- `map_routes` — маршруты как `LineString` в массиве координат.
-- `map_points_submissions` — заявки на добавление точек от пользователей (модерация).
-- `map_point_photos` — фотографии точек, файлы лежат в Storage-бакете.
-- `map_admin_users` — пользователи Supabase Auth с правами администратора карты (заполняется вручную).
-- `telegram_locations` — геопозиции из Telegram (полный payload хранится в `raw_update`, но анонимному ключу выдан SELECT только по безопасным колонкам без `raw_update`).
-- `telegram_profiles` — кэш профилей Telegram (имя, ник, аватар).
+**RLS:** Все публичные таблицы: чтение анонимно (где `flag_disabled = false`), запись только администраторам.
 
-Все публичные таблицы защищены RLS и доступны на чтение анонимно только для записей с `flag_disabled = false`.
+## Для новых инженеров
+
+### Первые 30 минут
+
+1. Прочитай этот README + [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md)
+2. `npm install && npm run dev`
+3. Открой `http://localhost:5173` в браузере
+4. Кликни на точку → смотри как это работает в DevTools
+
+### Первый час
+
+5. Откройте DevTools → Console, Application, Network
+6. Кликните на точку на карте → watch `useMapClick` trigger → `feature-state` updated → Mapbox перерисует
+7. Переключите видимость слоя → watch localStorage update
+8. Посмотрите код в `src/components/EucMap.tsx` (оркестратор), `src/hooks/useMapData.ts` (fetch), `src/lib/mapLayers.ts` (слои)
+
+### Первая задача
+
+**Низкий риск:** Добавь новый toggle для слоя (копируй существующий паттерн)  
+**Средний риск:** Измени TTL или max accuracy для Telegram  
+**Высокий риск:** Трогай RLS policies, paint expressions, Mapbox feature-state logic
+
+### Опасные файлы
+
+Не модифицируй впервые без очень хорошей причины:
+- `src/lib/mapLayers.ts` — paint expression ошибки → невидимые слои
+- `supabase/migrations/` — RLS ошибки → утечка данных
+- `src/hooks/useMapData.ts` — race condition → stale data
+- `supabase/functions/telegram-location-bot/index.ts` — утечка bot token
 
 ## Генерация PWA-ассетов
 
@@ -188,6 +320,50 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 npm run generate:pwa-icons
 npm run generate:pwa-startup
 ```
+
+## Ключевые архитектурные паттерны
+
+### 1. Feature-State вместо React re-renders
+
+**Что:** Mapbox `feature-state` с paint expressions для hover/select вместо DOM обновления.
+
+```javascript
+// No React re-render! Pure Mapbox update:
+map.setFeatureState({source, id}, {selected: true})
+// Paint expr: ["case", ["feature-state", "selected"], selectedColor, defaultColor]
+```
+
+**Зачем:** Ultra-smooth interactions без JavaScript bottleneck. Hover на 10K точек → zero lag.
+
+### 2. Promise.allSettled для resilience
+
+**Что:** Если одна из 4 фетчей упадёт, карта всё равно грузится с остальными данными.
+
+```javascript
+const [pointsResult, routesResult, telegramResult, bikeLanesResult] 
+  = await Promise.allSettled([...])
+// Даже если одна rejected, остальные fulfilled работают
+```
+
+**Зачем:** Degrade gracefully. Telegram down? Остальные слои видны.
+
+### 3. Timeout + Retry для API-вызовов
+
+**Что:** Каждый API-вызов обёрнут в `withTimeoutAndRetry` (10s timeout, 2 retries, экспоненциальная задержка).
+
+**Зачем:** Надёжность на плохом интернете. На мобильных сетях часто бывают висящие запросы.
+
+### 4. Service Worker aggressive caching
+
+**Что:** Три кэша: STATIC (app shell), RUNTIME (pages), TILES (Mapbox tiles).
+
+**Зачем:** Приложение работает офлайн. Тайлы кэшируются forever (immutable by URL).
+
+### 5. Supabase Realtime только для Telegram
+
+**Что:** Только `telegram_locations` и `telegram_profiles` на живой подписке. Остальное batch-fetch.
+
+**Зачем:** Simpler. Eventual consistency OK для points/routes (не меняются часто).
 
 ## Деплой
 
