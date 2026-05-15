@@ -158,7 +158,6 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
             map.remove()
             mapRef.current = null
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- инициализируется один раз
     }, [])
 
     // ResizeObserver

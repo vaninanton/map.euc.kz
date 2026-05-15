@@ -53,10 +53,11 @@ export function GeoPage() {
 
     // При смене периода: сбросить выбор, сдвинуть fitKey, загрузить данные
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedRiderId(null)
         setFitKey((k) => k + 1)
         void fetchData()
-    }, [fetchData])
+    }, [periodMinutes, fetchData])
 
     // Realtime-обновления при новых записях в telegram_locations
     useEffect(() => {
