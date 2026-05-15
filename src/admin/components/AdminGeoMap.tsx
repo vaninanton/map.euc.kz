@@ -80,7 +80,7 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
     // Инициализация карты
     useEffect(() => {
         const container = containerRef.current
-        const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined
+        const token = import.meta.env.VITE_MAPBOX_TOKEN
         if (!container || !token) return
 
         mapboxgl.accessToken = token
