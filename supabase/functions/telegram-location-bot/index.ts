@@ -26,7 +26,45 @@ type TelegramMessage = {
     message_id: number
     from?: TelegramUser
     chat: TelegramChat
+    text?: string
     location?: TelegramLocation
+}
+
+type TelegramInlineQuery = {
+    id: string
+    from: TelegramUser
+    query: string
+    offset: string
+}
+
+type TelegramInlineQueryResultArticle = {
+    type: 'article'
+    id: string
+    title: string
+    description?: string
+    input_message_content: {
+        message_text: string
+        parse_mode?: string
+        disable_web_page_preview?: boolean
+    }
+    url?: string
+    reply_markup?: {
+        inline_keyboard: Array<Array<{ text: string; url: string }>>
+    }
+}
+
+type TelegramInlineQueryResultPhoto = {
+    type: 'photo'
+    id: string
+    photo_url: string
+    thumbnail_url?: string
+    title?: string
+    description?: string
+    caption?: string
+    parse_mode?: string
+    reply_markup?: {
+        inline_keyboard: Array<Array<{ text: string; url: string }>>
+    }
 }
 
 type TelegramUpdate = {
@@ -35,6 +73,7 @@ type TelegramUpdate = {
     edited_message?: TelegramMessage
     channel_post?: TelegramMessage
     edited_channel_post?: TelegramMessage
+    inline_query?: TelegramInlineQuery
 }
 
 type TelegramProfileRow = {
@@ -218,6 +257,258 @@ function parsePositiveIntEnv(raw: string | undefined, fallback: number): number 
     const n = Number.parseInt(raw.trim(), 10)
     if (!Number.isFinite(n) || n < 1) return fallback
     return n
+}
+
+/**
+ * Generic helper для вызова Telegram Bot API методов.
+ * POST {method} с JSON body, возвращает распарсенный результат.
+ */
+async function callTelegramApi(
+    method: string,
+    body: Record<string, unknown>,
+    botToken: string,
+): Promise<{ ok: boolean; result?: unknown; error_code?: number; description?: string }> {
+    try {
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+        })
+
+        if (!response.ok) {
+            console.error('[telegram-location-bot] Telegram API error', {
+                method,
+                status: response.status,
+            })
+            return { ok: false }
+        }
+
+        return (await response.json()) as { ok: boolean; result?: unknown; error_code?: number; description?: string }
+    } catch (error) {
+        console.error('[telegram-location-bot] callTelegramApi exception', {
+            method,
+            error,
+        })
+        return { ok: false }
+    }
+}
+
+/**
+ * Handles Telegram commands (e.g., /start).
+ */
+async function handleCommand(message: TelegramMessage, botToken: string): Promise<void> {
+    const text = message.text?.trim()
+    if (!text?.startsWith('/')) return
+
+    const command = text.split(/\s+/)[0].toLowerCase()
+
+    if (command === '/start') {
+        // Only respond to /start in private chats
+        if (message.chat.type && message.chat.type !== 'private') {
+            return
+        }
+
+        const welcomeMessage = `Привет! Я бот для моноколесников и им завидующим
+
+Что я умею:
+• Отслеживаю геопозиции райдеров в реальном времени (нужно поделиться геолокацией в чате <a href="https://t.me/monoalmaty">Моноколеса Алматы</a>/<a href="https://t.me/+ADUCLEjBA5pmNjQ6">Электроклуб</a>)
+• Помогаю делиться точками карты: напиши @EUCkz_bot в любом чате и выбери нужную метку
+
+Ссылка на карту: https://map.euc.kz`
+
+        await callTelegramApi(
+            'sendMessage',
+            {
+                chat_id: message.chat.id,
+                text: welcomeMessage,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true,
+            },
+            botToken,
+        )
+    }
+}
+
+/**
+ * Handles Telegram inline queries — search and return points/routes/sockets.
+ * Meeting points appear first in results.
+ */
+async function handleInlineQuery(
+    inlineQuery: TelegramInlineQuery,
+    botToken: string,
+    mapBaseUrl: string,
+): Promise<void> {
+    const query = inlineQuery.query.trim()
+    const searchPattern = query ? `%${query}%` : '%'
+
+    try {
+        const [meetingPointsResult, regularPointsResult, routesResult] = await Promise.all([
+            supabase
+                .from('map_points')
+                .select('id, title, type, description')
+                .eq('flag_disabled', false)
+                .eq('flag_is_meeting', true)
+                .ilike('title', searchPattern)
+                .order('title')
+                .limit(20),
+            supabase
+                .from('map_points')
+                .select('id, title, type, description')
+                .eq('flag_disabled', false)
+                .eq('flag_is_meeting', false)
+                .ilike('title', searchPattern)
+                .order('title')
+                .limit(15),
+            supabase
+                .from('map_routes')
+                .select('id, title, description')
+                .eq('flag_disabled', false)
+                .ilike('title', searchPattern)
+                .order('title')
+                .limit(20),
+        ])
+
+        const results: Array<TelegramInlineQueryResultArticle | TelegramInlineQueryResultPhoto> = []
+
+        // Collect all point IDs to fetch their photos in one query
+        const allPoints = [...(meetingPointsResult.data ?? []), ...(regularPointsResult.data ?? [])]
+        const pointIds = allPoints.map((p) => p.id)
+
+        let photosByPointId: Record<number, string> = {}
+        if (pointIds.length > 0) {
+            const { data: photos } = await supabase
+                .from('map_point_photos')
+                .select('point_id, bucket_name, storage_path')
+                .in('point_id', pointIds)
+                .order('sort_order')
+                .limit(pointIds.length)
+
+            if (photos) {
+                const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+                for (const photo of photos) {
+                    const pointId = (photo as any).point_id
+                    if (!photosByPointId[pointId]) {
+                        const bucketName = (photo as any).bucket_name
+                        const storagePath = (photo as any).storage_path
+                        const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${encodeURIComponent(storagePath)}`
+                        photosByPointId[pointId] = publicUrl
+                    }
+                }
+            }
+        }
+
+        const addPointsToResults = (points: typeof meetingPointsResult.data) => {
+            if (!points) return
+            for (const point of points) {
+                const type = point.type === 'socket' ? 'socket' : 'point'
+                const emoji = type === 'socket' ? '🔌' : '📌'
+                const label = type === 'socket' ? 'Зарядная розетка' : 'Точка'
+                const resultId = `${type}-${point.id}`
+                const baseUrl = `${mapBaseUrl}/m/${type}/${point.id}`
+                const urlWithUtm = `${baseUrl}?utm_source=telegram_bot&utm_medium=inline&utm_campaign=search`
+
+                // Format caption/message with title and optional description
+                let caption = `${emoji} <b>${point.title}</b>`
+                if (point.description) {
+                    caption += `\n${point.description}`
+                }
+
+                const photoUrl = photosByPointId[point.id]
+
+                // If photo exists, use photo result type; otherwise use article
+                if (photoUrl) {
+                    results.push({
+                        type: 'photo',
+                        id: resultId,
+                        photo_url: photoUrl,
+                        thumbnail_url: photoUrl,
+                        title: point.title,
+                        description: label,
+                        caption,
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [[{ text: 'Показать на карте', url: urlWithUtm }]],
+                        },
+                    })
+                } else {
+                    results.push({
+                        type: 'article',
+                        id: resultId,
+                        title: point.title,
+                        description: label,
+                        input_message_content: {
+                            message_text: caption,
+                            parse_mode: 'HTML',
+                            disable_web_page_preview: true,
+                        },
+                        url: baseUrl,
+                        reply_markup: {
+                            inline_keyboard: [[{ text: 'Показать на карте', url: urlWithUtm }]],
+                        },
+                    })
+                }
+            }
+        }
+
+        // Add meeting points first
+        addPointsToResults(meetingPointsResult.data)
+        // Then regular points
+        addPointsToResults(regularPointsResult.data)
+
+        if (routesResult.data) {
+            for (const route of routesResult.data) {
+                const resultId = `route-${route.id}`
+                const baseUrl = `${mapBaseUrl}/m/route/${route.id}`
+                const urlWithUtm = `${baseUrl}?utm_source=telegram_bot&utm_medium=inline&utm_campaign=search`
+
+                // Format message with title and optional description
+                let messageText = `🛤 <b>${route.title}</b>`
+                if (route.description) {
+                    messageText += `\n${route.description}`
+                }
+
+                results.push({
+                    type: 'article',
+                    id: resultId,
+                    title: route.title,
+                    description: 'Маршрут',
+                    input_message_content: {
+                        message_text: messageText,
+                        parse_mode: 'HTML',
+                        disable_web_page_preview: true,
+                    },
+                    url: baseUrl,
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Показать на карте', url: urlWithUtm }]],
+                    },
+                })
+            }
+        }
+
+        await callTelegramApi(
+            'answerInlineQuery',
+            {
+                inline_query_id: inlineQuery.id,
+                results: results.slice(0, 50),
+                cache_time: 60,
+                is_personal: false,
+            },
+            botToken,
+        )
+    } catch (error) {
+        console.error('[telegram-location-bot] handleInlineQuery error', {
+            inline_query_id: inlineQuery.id,
+            error,
+        })
+        await callTelegramApi(
+            'answerInlineQuery',
+            {
+                inline_query_id: inlineQuery.id,
+                results: [],
+            },
+            botToken,
+        )
+    }
 }
 
 /**
@@ -415,12 +706,46 @@ Deno.serve(async (req) => {
     //     update_id: update.update_id,
     // })
 
+    const mapBaseUrl = Deno.env.get('MAP_BASE_URL') ?? 'https://map.euc.kz'
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+
+    // Route inline queries
+    if (update.inline_query) {
+        if (botToken) {
+            await handleInlineQuery(update.inline_query, botToken, mapBaseUrl)
+        } else {
+            console.warn('[telegram-location-bot] Inline query ignored: TELEGRAM_BOT_TOKEN not set')
+        }
+        return new Response('ok', { status: 200 })
+    }
+
+    // Route text commands
+    const messageWithText = update.message || update.edited_message || update.channel_post || update.edited_channel_post
+    if (messageWithText?.text?.trim().startsWith('/')) {
+        if (botToken) {
+            await handleCommand(messageWithText, botToken)
+        } else {
+            console.warn('[telegram-location-bot] Command ignored: TELEGRAM_BOT_TOKEN not set')
+        }
+        return new Response('ok', { status: 200 })
+    }
+
+    // Route location updates (existing behavior)
     const message = getMessageWithLocation(update)
     if (!message?.location || !message.from) {
         console.info('[telegram-location-bot] Update пропущен: нет location или from', {
             update_id: update.update_id,
             has_location: Boolean(message?.location),
             has_from: Boolean(message?.from),
+        })
+        return new Response('ok', { status: 200 })
+    }
+
+    // Only save live locations (not static point shares)
+    if (!message.location.live_period || message.location.live_period <= 0) {
+        console.info('[telegram-location-bot] Update пропущен: не живая геолокация', {
+            update_id: update.update_id,
+            live_period: message.location.live_period,
         })
         return new Response('ok', { status: 200 })
     }
@@ -455,7 +780,6 @@ Deno.serve(async (req) => {
         return new Response('Internal Server Error', { status: 500 })
     }
 
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
     let avatarUrl = isAvatarUrlSafe(existingProfile?.avatar_url) ? existingProfile?.avatar_url ?? null : null
     if (!avatarUrl && botToken) {
         const refreshResult = await refreshTelegramAvatarUrl(telegramUserId, botToken)
