@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
-import { useMapbox } from '@/hooks/useMapbox'
 import { haversineKm } from '@/utils/geoMath'
 import type { RiderTrack } from '@/admin/lib/adminApi/geo'
+import { MAP_CENTER, MAP_ZOOM_DEFAULT } from '@/constants'
 
 const TRACKS_SOURCE = 'admin-geo-tracks'
-const LATEST_SOURCE = 'admin-geo-latest'
 const TRACKS_LAYER = 'admin-geo-tracks-layer'
-const LATEST_LAYER = 'admin-geo-latest-layer'
-const LABELS_LAYER = 'admin-geo-labels-layer'
+
+const TRACK_COLOR = '#00e5ff'
 
 interface AdminGeoMapProps {
     tracks: RiderTrack[]
@@ -39,7 +38,7 @@ function buildTracksGeojson(tracks: RiderTrack[]): GeoJSON.FeatureCollection {
                 if (current.length >= 2) {
                     features.push({
                         type: 'Feature',
-                        properties: { riderId: track.riderId, color: track.color },
+                        properties: { riderId: track.riderId },
                         geometry: { type: 'LineString', coordinates: current },
                     })
                 }
@@ -51,7 +50,7 @@ function buildTracksGeojson(tracks: RiderTrack[]): GeoJSON.FeatureCollection {
         if (current.length >= 2) {
             features.push({
                 type: 'Feature',
-                properties: { riderId: track.riderId, color: track.color },
+                properties: { riderId: track.riderId },
                 geometry: { type: 'LineString', coordinates: current },
             })
         }
@@ -60,162 +59,131 @@ function buildTracksGeojson(tracks: RiderTrack[]): GeoJSON.FeatureCollection {
     return { type: 'FeatureCollection', features }
 }
 
-function buildLatestGeojson(tracks: RiderTrack[]): GeoJSON.FeatureCollection {
-    return {
-        type: 'FeatureCollection',
-        features: tracks.map((t) => {
-            const last = t.locations[t.locations.length - 1]
-            return {
-                type: 'Feature' as const,
-                properties: { riderId: t.riderId, color: t.color, displayName: t.displayName },
-                geometry: { type: 'Point' as const, coordinates: [last.longitude, last.latitude] },
-            }
-        }),
-    }
-}
-
 function visibleTracks(tracks: RiderTrack[], selectedRiderId: number | null): RiderTrack[] {
     return selectedRiderId !== null ? tracks.filter((t) => t.riderId === selectedRiderId) : tracks
 }
 
 export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: AdminGeoMapProps) {
     const containerRef = useRef<HTMLDivElement | null>(null)
-    const { map, isMapReady } = useMapbox(containerRef)
+    const mapRef = useRef<mapboxgl.Map | null>(null)
+    const isReadyRef = useRef(false)
     const onRiderClickRef = useRef(onRiderClick)
     const selectedRiderIdRef = useRef(selectedRiderId)
     const tracksRef = useRef(tracks)
     const hasFittedForKeyRef = useRef<number | null>(null)
     const hasToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN)
 
-    useEffect(() => {
-        onRiderClickRef.current = onRiderClick
-    }, [onRiderClick])
-    useEffect(() => {
-        selectedRiderIdRef.current = selectedRiderId
-    }, [selectedRiderId])
-    useEffect(() => {
-        tracksRef.current = tracks
-    }, [tracks])
+    useEffect(() => { onRiderClickRef.current = onRiderClick }, [onRiderClick])
+    useEffect(() => { selectedRiderIdRef.current = selectedRiderId }, [selectedRiderId])
+    useEffect(() => { tracksRef.current = tracks }, [tracks])
 
-    // Setup sources, layers, event handlers — once on map ready
+    // Инициализация карты
     useEffect(() => {
-        if (!map || !isMapReady) return
+        const container = containerRef.current
+        const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined
+        if (!container || !token) return
+
+        mapboxgl.accessToken = token
+        const map = new mapboxgl.Map({
+            container,
+            style: 'mapbox://styles/mapbox/standard',
+            center: MAP_CENTER,
+            zoom: MAP_ZOOM_DEFAULT,
+            logoPosition: 'bottom-right',
+            attributionControl: false,
+            transformRequest: (url) => {
+                if (!url) return { url }
+                try {
+                    if (new URL(url).hostname === 'events.mapbox.com') {
+                        return { url: 'data:application/json;base64,e30=' }
+                    }
+                } catch { /* ignore */ }
+                return { url }
+            },
+        })
+        mapRef.current = map
+
+        map.addControl(new mapboxgl.AttributionControl({ customAttribution: 'velojol.kz' }), 'bottom-right')
+        map.addControl(new mapboxgl.NavigationControl({ showCompass: false, visualizePitch: false }), 'bottom-right')
 
         const ensureAll = () => {
+            // Тёмная тема Standard-стиля
+            map.setConfigProperty('basemap', 'lightPreset', 'night')
+
             const visible = visibleTracks(tracksRef.current, selectedRiderIdRef.current)
             if (!map.getSource(TRACKS_SOURCE)) {
                 map.addSource(TRACKS_SOURCE, { type: 'geojson', data: buildTracksGeojson(visible) })
-            }
-            if (!map.getSource(LATEST_SOURCE)) {
-                map.addSource(LATEST_SOURCE, { type: 'geojson', data: buildLatestGeojson(visible) })
             }
             if (!map.getLayer(TRACKS_LAYER)) {
                 map.addLayer({
                     id: TRACKS_LAYER,
                     type: 'line',
+                    slot: 'top',
                     source: TRACKS_SOURCE,
                     layout: { 'line-cap': 'round', 'line-join': 'round' },
                     paint: {
-                        'line-color': ['get', 'color'],
-                        'line-width': 3,
-                        'line-opacity': 0.85,
-                    },
-                })
-            }
-            if (!map.getLayer(LATEST_LAYER)) {
-                map.addLayer({
-                    id: LATEST_LAYER,
-                    type: 'circle',
-                    source: LATEST_SOURCE,
-                    paint: {
-                        'circle-color': ['get', 'color'],
-                        'circle-radius': 7,
-                        'circle-stroke-width': 2,
-                        'circle-stroke-color': '#ffffff',
-                        'circle-stroke-opacity': 1,
-                    },
-                })
-            }
-            if (!map.getLayer(LABELS_LAYER)) {
-                map.addLayer({
-                    id: LABELS_LAYER,
-                    type: 'symbol',
-                    source: LATEST_SOURCE,
-                    layout: {
-                        'text-field': ['get', 'displayName'],
-                        'text-size': 11,
-                        'text-offset': [0, 1.6],
-                        'text-anchor': 'top',
-                    },
-                    paint: {
-                        'text-color': '#1f2937',
-                        'text-halo-color': '#ffffff',
-                        'text-halo-width': 1.5,
+                        'line-color': TRACK_COLOR,
+                        'line-width': 1.5,
+                        'line-opacity': 0.9,
+                        'line-emissive-strength': 1,
                     },
                 })
             }
         }
 
-        ensureAll()
+        map.on('load', () => {
+            isReadyRef.current = true
+            ensureAll()
+        })
         map.on('style.load', ensureAll)
 
-        const handleLatestClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.GeoJSONFeature[] }) => {
-            const riderId = e.features?.[0]?.properties?.riderId as number | undefined
-            if (riderId == null) return
-            onRiderClickRef.current(selectedRiderIdRef.current === riderId ? null : riderId)
-        }
         const handleTrackClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.GeoJSONFeature[] }) => {
             const riderId = e.features?.[0]?.properties?.riderId as number | undefined
             if (riderId == null) return
             onRiderClickRef.current(selectedRiderIdRef.current === riderId ? null : riderId)
         }
-        const onEnterCircle = () => {
-            map.getCanvas().style.cursor = 'pointer'
-        }
-        const onLeaveCircle = () => {
-            map.getCanvas().style.cursor = ''
-        }
+        const onEnter = () => { map.getCanvas().style.cursor = 'pointer' }
+        const onLeave = () => { map.getCanvas().style.cursor = '' }
 
-        map.on('click', LATEST_LAYER, handleLatestClick)
         map.on('click', TRACKS_LAYER, handleTrackClick)
-        map.on('mouseenter', LATEST_LAYER, onEnterCircle)
-        map.on('mouseleave', LATEST_LAYER, onLeaveCircle)
-
-        const nav = new mapboxgl.NavigationControl({ showCompass: false, visualizePitch: false })
-        map.addControl(nav, 'bottom-right')
+        map.on('mouseenter', TRACKS_LAYER, onEnter)
+        map.on('mouseleave', TRACKS_LAYER, onLeave)
 
         return () => {
+            isReadyRef.current = false
             map.off('style.load', ensureAll)
-            map.off('click', LATEST_LAYER, handleLatestClick)
             map.off('click', TRACKS_LAYER, handleTrackClick)
-            map.off('mouseenter', LATEST_LAYER, onEnterCircle)
-            map.off('mouseleave', LATEST_LAYER, onLeaveCircle)
-            map.removeControl(nav)
-            try {
-                if (map.getLayer(LABELS_LAYER)) map.removeLayer(LABELS_LAYER)
-                if (map.getLayer(LATEST_LAYER)) map.removeLayer(LATEST_LAYER)
-                if (map.getLayer(TRACKS_LAYER)) map.removeLayer(TRACKS_LAYER)
-                if (map.getSource(LATEST_SOURCE)) map.removeSource(LATEST_SOURCE)
-                if (map.getSource(TRACKS_SOURCE)) map.removeSource(TRACKS_SOURCE)
-            } catch {
-                // style reset
-            }
+            map.off('mouseenter', TRACKS_LAYER, onEnter)
+            map.off('mouseleave', TRACKS_LAYER, onLeave)
+            map.remove()
+            mapRef.current = null
         }
-    }, [map, isMapReady])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- инициализируется один раз
+    }, [])
+
+    // ResizeObserver
+    useEffect(() => {
+        const container = containerRef.current
+        const map = mapRef.current
+        if (!container || !map) return
+        const ro = new ResizeObserver(() => { map.resize() })
+        ro.observe(container)
+        return () => { ro.disconnect() }
+    }, [])
 
     // Обновляем GeoJSON при смене треков или выбранного райдера
     useEffect(() => {
-        if (!map || !isMapReady) return
+        const map = mapRef.current
+        if (!map || !isReadyRef.current) return
         const visible = visibleTracks(tracks, selectedRiderId)
-        const tracksSrc = map.getSource(TRACKS_SOURCE)
-        if (tracksSrc?.type === 'geojson') tracksSrc.setData(buildTracksGeojson(visible))
-        const latestSrc = map.getSource(LATEST_SOURCE)
-        if (latestSrc?.type === 'geojson') latestSrc.setData(buildLatestGeojson(visible))
-    }, [map, isMapReady, tracks, selectedRiderId])
+        const src = map.getSource(TRACKS_SOURCE)
+        if (src?.type === 'geojson') src.setData(buildTracksGeojson(visible))
+    }, [tracks, selectedRiderId])
 
-    // Fit bounds: once per fitKey value (resets on period change)
+    // Fit bounds: один раз на каждый fitKey
     useEffect(() => {
-        if (!map || !isMapReady || tracks.length === 0) return
+        const map = mapRef.current
+        if (!map || !isReadyRef.current || tracks.length === 0) return
         if (hasFittedForKeyRef.current === fitKey) return
         hasFittedForKeyRef.current = fitKey
         const all = tracks.flatMap((t) => t.locations.map((l) => [l.longitude, l.latitude] as [number, number]))
@@ -223,7 +191,7 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
         const bounds = new mapboxgl.LngLatBounds(all[0], all[0])
         for (const p of all) bounds.extend(p)
         map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 400 })
-    }, [map, isMapReady, tracks, fitKey])
+    }, [tracks, fitKey])
 
     if (!hasToken) {
         return (
@@ -233,5 +201,5 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
         )
     }
 
-    return <div ref={containerRef} className="admin-editor-map rounded-xl border border-neutral-200" />
+    return <div ref={containerRef} className="admin-editor-map rounded-xl border border-neutral-800" />
 }
