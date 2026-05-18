@@ -89,7 +89,7 @@ export function PointsPage() {
                             <tr
                                 key={point.id}
                                 onClick={() => {
-                                    void navigate(`/admin/points/${String(point.id)}`)
+                                    void navigate(`/admin/point/${String(point.id)}`)
                                 }}
                                 className="cursor-pointer hover:bg-neutral-50"
                             >

@@ -71,10 +71,10 @@ export function PointEditPage({ mode }: PointEditPageProps) {
     const handleSubmit = async (value: PointFormValue) => {
         if (mode === 'create') {
             const created = await createPoint(value)
-            await navigate(`/admin/points/${String(created.id)}`, { replace: true })
+            await navigate(`/admin/point/${String(created.id)}`, { replace: true })
         } else if (pointId !== null) {
             await updatePoint(pointId, value)
-            await navigate('/admin/points')
+            await navigate('/admin/point')
         }
     }
 
@@ -83,7 +83,7 @@ export function PointEditPage({ mode }: PointEditPageProps) {
         setDeleting(true)
         try {
             await deletePoint(pointId)
-            await navigate('/admin/points')
+            await navigate('/admin/point')
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
         } finally {
@@ -126,7 +126,7 @@ export function PointEditPage({ mode }: PointEditPageProps) {
                     submitLabel={mode === 'create' ? 'Создать' : 'Сохранить'}
                     onSubmit={handleSubmit}
                     onCancel={() => {
-                        void navigate('/admin/points')
+                        void navigate('/admin/point')
                     }}
                 />
             ) : (

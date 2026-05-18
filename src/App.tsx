@@ -24,12 +24,12 @@ export default function App() {
                 <Route path="/admin" element={<AdminShell />}>
                     <Route index element={<Navigate to="submissions" replace />} />
                     <Route path="submissions" element={<AdminSubmissionsPage />} />
-                    <Route path="points" element={<AdminPointsPage />} />
-                    <Route path="points/new" element={<AdminPointEditPage mode="create" />} />
-                    <Route path="points/:id" element={<AdminPointEditPage mode="edit" />} />
-                    <Route path="routes" element={<AdminRoutesListPage />} />
-                    <Route path="routes/new" element={<AdminRouteEditPage mode="create" />} />
-                    <Route path="routes/:id" element={<AdminRouteEditPage mode="edit" />} />
+                    <Route path="point" element={<AdminPointsPage />} />
+                    <Route path="point/new" element={<AdminPointEditPage mode="create" />} />
+                    <Route path="point/:id" element={<AdminPointEditPage mode="edit" />} />
+                    <Route path="route" element={<AdminRoutesListPage />} />
+                    <Route path="route/new" element={<AdminRouteEditPage mode="create" />} />
+                    <Route path="route/:id" element={<AdminRouteEditPage mode="edit" />} />
                     <Route path="geo" element={<AdminGeoPage />} />
                     <Route path="*" element={<Navigate to="/admin/submissions" replace />} />
                 </Route>

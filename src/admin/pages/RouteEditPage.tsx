@@ -185,10 +185,10 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
             }
             if (mode === 'create') {
                 const created = await createRoute(payload)
-                await navigate(`/admin/routes/${String(created.id)}`, { replace: true })
+                await navigate(`/admin/route/${String(created.id)}`, { replace: true })
             } else if (routeId !== null) {
                 await updateRoute(routeId, payload)
-                await navigate('/admin/routes')
+                await navigate('/admin/route')
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
@@ -202,7 +202,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
         setDeleting(true)
         try {
             await deleteRoute(routeId)
-            await navigate('/admin/routes')
+            await navigate('/admin/route')
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
         } finally {
@@ -381,7 +381,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    void navigate('/admin/routes')
+                                    void navigate('/admin/route')
                                 }}
                                 disabled={submitting}
                                 className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-60"

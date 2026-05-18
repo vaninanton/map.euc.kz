@@ -90,7 +90,7 @@ export function RoutesPage() {
                             <tr
                                 key={route.id}
                                 onClick={() => {
-                                    void navigate(`/admin/routes/${String(route.id)}`)
+                                    void navigate(`/admin/route/${String(route.id)}`)
                                 }}
                                 className="cursor-pointer hover:bg-neutral-50"
                             >

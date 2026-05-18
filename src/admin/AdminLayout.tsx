@@ -4,8 +4,8 @@ import { supabase } from '@/lib/supabase'
 
 const NAV_ITEMS = [
     { to: 'submissions', label: 'Заявки' },
-    { to: 'points', label: 'Точки' },
-    { to: 'routes', label: 'Маршруты' },
+    { to: 'point', label: 'Точки' },
+    { to: 'route', label: 'Маршруты' },
     { to: 'geo', label: 'Гео' },
 ] as const
 
