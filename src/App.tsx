@@ -31,7 +31,7 @@ export default function App() {
                     <Route path="routes/new" element={<AdminRouteEditPage mode="create" />} />
                     <Route path="routes/:id" element={<AdminRouteEditPage mode="edit" />} />
                     <Route path="geo" element={<AdminGeoPage />} />
-                    <Route path="*" element={<Navigate to="submissions" replace />} />
+                    <Route path="*" element={<Navigate to="/admin/submissions" replace />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
             </Routes>
