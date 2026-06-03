@@ -305,7 +305,13 @@ export function EucMap() {
           visibility={visibility}
           onToggle={toggleLayer}
           isAddingPoint={isAddingPoint}
-          onToggleAddPoint={handleToggleAddPoint}
+          onToggleAddPoint={() => {
+            handleToggleAddPoint();
+            if (!isAddingPoint) {
+              setIsRouteListOpen(false);
+              setIsPointListOpen(false);
+            }
+          }}
           isRadarOpen={isRadarOpen}
           onToggleRadar={handleToggleRadar}
           onOpenProjectInfo={() => {
@@ -314,10 +320,18 @@ export function EucMap() {
           isRouteListOpen={isRouteListOpen}
           onToggleRouteList={() => {
             setIsRouteListOpen((prev) => !prev);
+            if (!isRouteListOpen) {
+              setIsPointListOpen(false);
+              if (isAddingPoint) handleCancelAddPoint();
+            }
           }}
           isPointListOpen={isPointListOpen}
           onTogglePointList={() => {
             setIsPointListOpen((prev) => !prev);
+            if (!isPointListOpen) {
+              setIsRouteListOpen(false);
+              if (isAddingPoint) handleCancelAddPoint();
+            }
           }}
         />
       )}

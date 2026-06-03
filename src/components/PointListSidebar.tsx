@@ -53,10 +53,10 @@ export function PointListSidebar({
     return (
         <aside
             className="fixed z-20 flex flex-col bg-white/95 backdrop-blur-md shadow-2xl border-neutral-200/80 overflow-hidden
-                bottom-0 left-0 right-0 max-h-[80vh] rounded-t-2xl border-t
+                bottom-0 left-0 right-0 h-[80vh] rounded-t-2xl border-t animate-slide-up
                 pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]
                 pb-[max(0px,env(safe-area-inset-bottom))]
-                md:bottom-0 md:top-0 md:left-0 md:right-auto md:max-h-none md:w-[360px] md:max-w-[90vw] md:rounded-none md:rounded-r-2xl md:border-t-0 md:border-r md:control-inset-left md:control-inset-top md:control-inset-bottom"
+                md:bottom-0 md:top-0 md:left-0 md:right-auto md:max-h-none md:w-[360px] md:max-w-[90vw] md:rounded-none md:rounded-r-2xl md:border-t-0 md:border-r md:control-inset-left md:control-inset-top md:control-inset-bottom md:animate-slide-in-left"
             role="dialog"
             aria-label="Список точек"
         >

@@ -136,6 +136,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
       'line-color': COLORS.route,
       'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
       'line-opacity': stateHighlight.opacity(),
+      'line-width-transition': { duration: 200 },
     }, visibility.routes);
   }
   if (bikeLanesGeo?.features.length) {
@@ -144,6 +145,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
       'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
       'line-dasharray': [2, 1.5],
       'line-opacity': stateHighlight.opacity(),
+      'line-width-transition': { duration: 200 },
     }, visibility.bikeLanes);
   }
   if (telegramUsersGeo) {
@@ -167,6 +169,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         paint: {
           'line-width': stateHighlight.lineWidth(3.6, 5, 4.4),
           'line-opacity': stateHighlight.opacity(),
+          'line-width-transition': { duration: 200 },
           'line-gradient': [
             'interpolate',
             ['linear'],
@@ -194,6 +197,8 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
           'circle-color': COLORS.telegramUser,
           'circle-stroke-width': stateHighlight.circleStrokeWidth(2, 2.5, 4),
           'circle-stroke-color': '#fff',
+          'circle-radius-transition': { duration: 200 },
+          'circle-stroke-width-transition': { duration: 200 },
           'circle-opacity': [
             'interpolate',
             ['linear'],
@@ -234,6 +239,8 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
           'circle-stroke-width': stateHighlight.circleStrokeWidth(2, 2.5, 4),
           'circle-stroke-color': '#fff',
           'circle-opacity': stateHighlight.opacity(),
+          'circle-radius-transition': { duration: 200 },
+          'circle-stroke-width-transition': { duration: 200 },
         },
       };
       map.addLayer(pointLayer);
@@ -268,6 +275,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
               0.45,
               ['case', ['boolean', ['feature-state', 'hover'], false], 1.2, 1],
             ],
+            'icon-opacity-transition': { duration: 200 },
           },
         };
         map.addLayer(socketLayer);
