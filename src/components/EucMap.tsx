@@ -18,6 +18,7 @@ import { AddPointPanel } from '@/components/AddPointPanel';
 import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
 import { RouteListSidebar } from '@/components/RouteListSidebar';
+import { PointListSidebar } from '@/components/PointListSidebar';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
 import { RadarModal } from '@/components/RadarModal';
 
@@ -26,6 +27,7 @@ export function EucMap() {
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
   const [isRouteListOpen, setIsRouteListOpen] = useState(false);
+  const [isPointListOpen, setIsPointListOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(min-width: 768px)').matches;
@@ -108,7 +110,7 @@ export function EucMap() {
   }, []);
 
   useEffect(() => {
-    if (!selectedFeature && !isRouteListOpen) return;
+    if (!selectedFeature && !isRouteListOpen && !isPointListOpen) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -116,6 +118,8 @@ export function EucMap() {
           handleSidebarClose();
         } else if (isRouteListOpen) {
           setIsRouteListOpen(false);
+        } else if (isPointListOpen) {
+          setIsPointListOpen(false);
         }
       }
     };
@@ -124,7 +128,7 @@ export function EucMap() {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [selectedFeature, isRouteListOpen, handleSidebarClose]);
+  }, [selectedFeature, isRouteListOpen, isPointListOpen, handleSidebarClose]);
 
   const handleResetCacheAndReload = useCallback(async () => {
     if (isResettingCache) return;
@@ -311,6 +315,10 @@ export function EucMap() {
           onToggleRouteList={() => {
             setIsRouteListOpen((prev) => !prev);
           }}
+          isPointListOpen={isPointListOpen}
+          onTogglePointList={() => {
+            setIsPointListOpen((prev) => !prev);
+          }}
         />
       )}
       {isAddingPoint && (
@@ -332,6 +340,22 @@ export function EucMap() {
           routesGeo={routesGeo}
           syncSelectionUrl={syncSelectionUrl}
           selectedRouteId={selectedFeature?.properties.type === 'route' ? selectedFeature.properties.id : undefined}
+          isDesktop={isDesktop}
+        />
+      )}
+      {isPointListOpen && (
+        <PointListSidebar
+          isOpen={isPointListOpen}
+          onClose={() => {
+            setIsPointListOpen(false);
+          }}
+          pointsGeo={pointsGeo}
+          syncSelectionUrl={syncSelectionUrl}
+          selectedPointId={
+            selectedFeature?.properties.type === 'point' || selectedFeature?.properties.type === 'socket'
+              ? selectedFeature.properties.id
+              : undefined
+          }
           isDesktop={isDesktop}
         />
       )}
