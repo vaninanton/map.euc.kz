@@ -17,6 +17,8 @@ import { LayerControls } from '@/components/LayerControls';
 import { AddPointPanel } from '@/components/AddPointPanel';
 import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
+import { RouteListSidebar } from '@/components/RouteListSidebar';
+import { PointListSidebar } from '@/components/PointListSidebar';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
 import { RadarModal } from '@/components/RadarModal';
 
@@ -24,6 +26,8 @@ export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
   const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
+  const [isRouteListOpen, setIsRouteListOpen] = useState(false);
+  const [isPointListOpen, setIsPointListOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(min-width: 768px)').matches;
@@ -106,11 +110,17 @@ export function EucMap() {
   }, []);
 
   useEffect(() => {
-    if (!selectedFeature) return;
+    if (!selectedFeature && !isRouteListOpen && !isPointListOpen) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        handleSidebarClose();
+        if (selectedFeature) {
+          handleSidebarClose();
+        } else if (isRouteListOpen) {
+          setIsRouteListOpen(false);
+        } else if (isPointListOpen) {
+          setIsPointListOpen(false);
+        }
       }
     };
 
@@ -118,7 +128,7 @@ export function EucMap() {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [selectedFeature, handleSidebarClose]);
+  }, [selectedFeature, isRouteListOpen, isPointListOpen, handleSidebarClose]);
 
   const handleResetCacheAndReload = useCallback(async () => {
     if (isResettingCache) return;
@@ -295,11 +305,33 @@ export function EucMap() {
           visibility={visibility}
           onToggle={toggleLayer}
           isAddingPoint={isAddingPoint}
-          onToggleAddPoint={handleToggleAddPoint}
+          onToggleAddPoint={() => {
+            handleToggleAddPoint();
+            if (!isAddingPoint) {
+              setIsRouteListOpen(false);
+              setIsPointListOpen(false);
+            }
+          }}
           isRadarOpen={isRadarOpen}
           onToggleRadar={handleToggleRadar}
           onOpenProjectInfo={() => {
             setIsProjectInfoOpen(true);
+          }}
+          isRouteListOpen={isRouteListOpen}
+          onToggleRouteList={() => {
+            setIsRouteListOpen((prev) => !prev);
+            if (!isRouteListOpen) {
+              setIsPointListOpen(false);
+              if (isAddingPoint) handleCancelAddPoint();
+            }
+          }}
+          isPointListOpen={isPointListOpen}
+          onTogglePointList={() => {
+            setIsPointListOpen((prev) => !prev);
+            if (!isPointListOpen) {
+              setIsRouteListOpen(false);
+              if (isAddingPoint) handleCancelAddPoint();
+            }
           }}
         />
       )}
@@ -313,6 +345,34 @@ export function EucMap() {
         />
       )}
       <MapFeatureInfoModal feature={displaySelectedFeature} onClose={handleSidebarClose} />
+      {isRouteListOpen && (
+        <RouteListSidebar
+          isOpen={isRouteListOpen}
+          onClose={() => {
+            setIsRouteListOpen(false);
+          }}
+          routesGeo={routesGeo}
+          syncSelectionUrl={syncSelectionUrl}
+          selectedRouteId={selectedFeature?.properties.type === 'route' ? selectedFeature.properties.id : undefined}
+          isDesktop={isDesktop}
+        />
+      )}
+      {isPointListOpen && (
+        <PointListSidebar
+          isOpen={isPointListOpen}
+          onClose={() => {
+            setIsPointListOpen(false);
+          }}
+          pointsGeo={pointsGeo}
+          syncSelectionUrl={syncSelectionUrl}
+          selectedPointId={
+            selectedFeature?.properties.type === 'point' || selectedFeature?.properties.type === 'socket'
+              ? selectedFeature.properties.id
+              : undefined
+          }
+          isDesktop={isDesktop}
+        />
+      )}
       <ProjectInfoModal
         isOpen={isProjectInfoOpen}
         onClose={() => {
