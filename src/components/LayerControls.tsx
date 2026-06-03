@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { IControl, Map as MapboxMap } from 'mapbox-gl'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faLocationCrosshairs, faPlus, faSliders, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faLocationCrosshairs, faPlus, faSliders, faXmark, faRoute } from '@fortawesome/free-solid-svg-icons'
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
 import { LayerPanel } from '@/components/LayerPanel'
 import { ProjectInfoButton } from '@/components/ProjectInfoButton'
@@ -17,6 +17,8 @@ interface LayerControlsProps {
     isRadarOpen: boolean
     onToggleRadar: () => void
     onOpenProjectInfo: () => void
+    isRouteListOpen: boolean
+    onToggleRouteList: () => void
 }
 
 interface MapControlPortals {
@@ -24,9 +26,10 @@ interface MapControlPortals {
     addPoint: HTMLDivElement | null
     info: HTMLDivElement | null
     radar: HTMLDivElement | null
+    routes: HTMLDivElement | null
 }
 
-const EMPTY_PORTALS: MapControlPortals = { layers: null, addPoint: null, info: null, radar: null }
+const EMPTY_PORTALS: MapControlPortals = { layers: null, addPoint: null, info: null, radar: null, routes: null }
 
 export function LayerControls({
     map,
@@ -38,6 +41,8 @@ export function LayerControls({
     isRadarOpen,
     onToggleRadar,
     onOpenProjectInfo,
+    isRouteListOpen,
+    onToggleRouteList,
 }: LayerControlsProps) {
     const [isCollapsed, setIsCollapsed] = useState(true)
     const [portals, setPortals] = useState<MapControlPortals>(EMPTY_PORTALS)
@@ -65,10 +70,15 @@ export function LayerControls({
         const radarRootNode = document.createElement('div')
         radarContainer.appendChild(radarRootNode)
 
+        const routesContainer = document.createElement('div')
+        routesContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
+        const routesRootNode = document.createElement('div')
+        routesContainer.appendChild(routesRootNode)
+
         const layersControl: IControl = {
             onAdd() { return layersContainer },
             onRemove() { layersContainer.remove() },
-            getDefaultPosition() { return 'top-left' },
+            getDefaultPosition() { return 'bottom-left' },
         }
 
         const infoControl: IControl = {
@@ -83,6 +93,12 @@ export function LayerControls({
             getDefaultPosition() { return 'top-left' },
         }
 
+        const routesControl: IControl = {
+            onAdd() { return routesContainer },
+            onRemove() { routesContainer.remove() },
+            getDefaultPosition() { return 'top-left' },
+        }
+
         const radarControl: IControl = {
             onAdd() { return radarContainer },
             onRemove() { radarContainer.remove() },
@@ -91,6 +107,7 @@ export function LayerControls({
 
         map.addControl(layersControl, 'bottom-left')
         map.addControl(addPointControl, 'top-left')
+        map.addControl(routesControl, 'top-left')
         map.addControl(infoControl, 'bottom-right')
         map.addControl(radarControl, 'top-right')
 
@@ -100,6 +117,7 @@ export function LayerControls({
                 addPoint: addPointRootNode,
                 info: infoRootNode,
                 radar: radarRootNode,
+                routes: routesRootNode,
             })
         })
 
@@ -108,6 +126,7 @@ export function LayerControls({
             setPortals(EMPTY_PORTALS)
             map.removeControl(layersControl)
             map.removeControl(addPointControl)
+            map.removeControl(routesControl)
             map.removeControl(infoControl)
             map.removeControl(radarControl)
         }
@@ -146,6 +165,19 @@ export function LayerControls({
                         <FontAwesomeIcon icon={isAddingPoint ? faXmark : faPlus} aria-hidden />
                     </button>,
                     portals.addPoint,
+                )}
+            {portals.routes !== null &&
+                createPortal(
+                    <button
+                        type="button"
+                        onClick={onToggleRouteList}
+                        className={isRouteListOpen ? 'bg-[#f25824]! text-white!' : ''}
+                        aria-label={isRouteListOpen ? 'Закрыть список маршрутов' : 'Открыть список маршрутов'}
+                        title="Список маршрутов"
+                    >
+                        <FontAwesomeIcon icon={faRoute} aria-hidden />
+                    </button>,
+                    portals.routes,
                 )}
             {portals.info !== null &&
                 createPortal(<ProjectInfoButton onClick={onOpenProjectInfo} />, portals.info)}
