@@ -23,7 +23,7 @@ function makeTelegramUser(id: string): Feature {
     return {
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [76.9, 43.2] },
-        properties: { id, type: 'telegramUser', name: 'Rider', updatedAt: new Date().toISOString() },
+        properties: { id, type: 'telegramUser', name: 'Rider', updatedAt: new Date().toISOString(), telegramUserId: 1 },
     }
 }
 

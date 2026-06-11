@@ -27,7 +27,7 @@ function makeRouteFeature(): Feature {
     return {
         type: 'Feature',
         geometry: { type: 'LineString', coordinates: [[76.9, 43.2], [76.95, 43.25]] },
-        properties: { id: 'r1', type: 'route', name: 'Маршрут', viaCoordinates: null },
+        properties: { id: 'r1', type: 'route', name: 'Маршрут' },
     }
 }
 

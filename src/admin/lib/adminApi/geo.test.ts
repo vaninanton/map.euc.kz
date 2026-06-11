@@ -54,7 +54,7 @@ describe('buildRiderTracks', () => {
             makeRow({ telegram_user_id: 2, created_at: '2024-06-02T10:00:00Z', first_name: 'Анна', last_name: null }),
         ]
         const tracks = buildRiderTracks(rows)
-        expect(tracks[0].telegram_user_id ?? tracks[0].riderId).toBe(2)
+        expect(tracks[0].riderId).toBe(2)
     })
 
     it('displayName = "Имя Фамилия" если есть оба поля', () => {

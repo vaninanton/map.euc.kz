@@ -57,7 +57,7 @@ function makeTelegramUser(): Feature {
             type: 'telegramUser',
             name: 'Rider',
             updatedAt: new Date(Date.now() - 30000).toISOString(),
-            avatarUrl: null,
+            telegramUserId: 1,
         },
     }
 }
@@ -69,7 +69,7 @@ describe('PopupContent', () => {
     })
 
     it('показывает "Без названия" если name отсутствует', () => {
-        render(<PopupContent feature={makePoint({ name: null })} />)
+        render(<PopupContent feature={makePoint({ name: undefined })} />)
         expect(screen.getByText('Без названия')).toBeInTheDocument()
     })
 
@@ -114,8 +114,9 @@ describe('PopupContent', () => {
     })
 
     it('показывает аватар telegramUser если avatarUrl задан', () => {
-        const feature = { ...makeTelegramUser() }
-        feature.properties = { ...feature.properties, avatarUrl: 'https://example.com/avatar.jpg' }
+        const feature = makeTelegramUser()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- мутируем тестовые данные напрямую
+        ;(feature.properties as any).avatarUrl = 'https://example.com/avatar.jpg'
         render(<PopupContent feature={feature} />)
         expect(screen.getByRole('img')).toBeInTheDocument()
     })

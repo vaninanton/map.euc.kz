@@ -15,7 +15,7 @@ import type { MapPointDraftInput } from '@/types'
 const mockCreate = vi.mocked(createMapPointDraft)
 
 const DRAFT_INPUT: MapPointDraftInput = {
-    name: 'Тестовая точка',
+    title: 'Тестовая точка',
     type: 'point',
     coordinates: [76.9, 43.2],
     description: null,
