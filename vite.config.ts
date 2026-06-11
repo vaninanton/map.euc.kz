@@ -50,6 +50,11 @@ export default defineConfig(() => {
     resolve: {
       alias: { '@': path.resolve(__dirname, 'src') },
     },
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['src/test/setup.ts'],
+    },
     base: process.env.GITHUB_PAGES === 'true' ? '/map.euc/' : '/',
     server: {
       host: true,
