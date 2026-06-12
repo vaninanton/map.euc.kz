@@ -7,7 +7,7 @@ import type {
   TelegramLocationRow,
   TelegramProfileRow,
 } from '@/types';
-import { getTelegramGeoTtlMinutes, getTelegramMaxAccuracyMeters, getViteSupabaseConfig } from '@/lib/env';
+import { getTelegramGeoTtlMinutes, getTelegramMaxAccuracyMeters, getTelegramTrackTailMinutes, getViteSupabaseConfig } from '@/lib/env';
 import { isRecord } from '@/utils/mapFeatureGuards';
 
 const supabaseConfig = getViteSupabaseConfig();
@@ -348,8 +348,10 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
 
   const pageSize = 1000;
   const ttlMinutes = getTelegramGeoTtlMinutes();
+  const trackTailMinutes = getTelegramTrackTailMinutes();
   const maxAccuracyMeters = getTelegramMaxAccuracyMeters();
-  const ttlThresholdIso = new Date(Date.now() - ttlMinutes * 60 * 1000).toISOString();
+  // Граница = TTL + хвост шлейфа: пользователь виден TTL минут, его шлейф — ещё trackTail минут назад от последней точки
+  const ttlThresholdIso = new Date(Date.now() - (ttlMinutes + trackTailMinutes) * 60 * 1000).toISOString();
   const locationRowsRaw: unknown[] = [];
   for (let from = 0; ; from += pageSize) {
     const to = from + pageSize - 1;

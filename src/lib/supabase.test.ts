@@ -60,6 +60,7 @@ describe('lib/supabase data access', () => {
         vi.stubEnv('VITE_SUPABASE_URL', 'https://project.supabase.co')
         vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'anon-key')
         vi.stubEnv('VITE_TELEGRAM_GEO_TTL_MINUTES', '30')
+        vi.stubEnv('VITE_TELEGRAM_TRACK_TAIL_MINUTES', '10')
         vi.stubEnv('VITE_TELEGRAM_MAX_ACCURACY_METERS', '25')
 
         const calls: QueryCall[] = []
@@ -132,7 +133,7 @@ describe('lib/supabase data access', () => {
         expect(calls).toContainEqual({
             table: 'telegram_locations',
             method: 'gte',
-            args: ['created_at', '2026-05-07T11:30:00.000Z'],
+            args: ['created_at', '2026-05-07T11:20:00.000Z'], // now - TTL(30) - trackTail(10) = 12:00 - 40min
         })
         expect(calls).toContainEqual({
             table: 'telegram_locations',
