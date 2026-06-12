@@ -124,19 +124,37 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
     map.setStyle(MAPBOX_STYLES[baseStyle]);
   }, [baseStyle, isMapReady, map]);
 
-  const flyTo = (center: [number, number], zoom?: number) => {
-    map?.flyTo({ center, zoom: zoom ?? MAP_ZOOM_DEFAULT });
-  };
+  const flyTo = useCallback((center: [number, number], zoom?: number, padding?: mapboxgl.PaddingOptions) => {
+    const m = mapRef.current;
+    if (!m) return;
+    // Padding выставляем синхронно — чтобы useMapPadding сразу видел целевое значение
+    // и не запускал конкурирующий easeTo, прерывающий эту анимацию.
+    if (padding) m.setPadding(padding);
+    m.flyTo({ center, zoom: zoom ?? MAP_ZOOM_DEFAULT });
+  }, []);
 
-  const flyToBounds = (
+  const flyToBounds = useCallback((
     bounds: [[number, number], [number, number]],
     options?: { padding?: number | mapboxgl.PaddingOptions; maxZoom?: number }
   ) => {
-    map?.fitBounds(bounds, {
-      padding: options?.padding ?? 40,
-      maxZoom: options?.maxZoom ?? 15,
-    });
-  };
+    const m = mapRef.current;
+    if (!m) return;
+    const padding = options?.padding ?? 40;
+    if (typeof padding === 'object') {
+      // basePadding — чистый sidebar-padding (совпадает с тем, что выставит useMapPadding).
+      // Выставляем синхронно до fitBounds: useMapPadding при ре-рендере увидит совпадение
+      // и не запустит конкурирующий easeTo, который прерывал бы анимацию fitBounds.
+      // Extra-отступ (разница padding − basePadding) передаём только в fitBounds как локальный —
+      // он не меняет глобальный map.getPadding(), конфликта нет.
+      // Выставляем весь итоговый padding (sidebar + extra) синхронно через jumpTo внутри setPadding —
+      // чтобы getPadding() сразу вернул целевое значение и useMapPadding не запустил конкурирующий easeTo.
+      // fitBounds вызываем без padding — он использует глобальный map.padding автоматически.
+      m.setPadding(padding);
+      m.fitBounds(bounds, { maxZoom: options?.maxZoom ?? 15 });
+    } else {
+      m.fitBounds(bounds, { padding, maxZoom: options?.maxZoom ?? 15 });
+    }
+  }, []);
 
   return {
     map,

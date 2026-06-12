@@ -232,7 +232,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
           onClick={() => {
             void handleAppShare();
           }}
-          className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
+          className="cursor-pointer inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
           title="Копировать ссылку"
         >
           <IconShare />

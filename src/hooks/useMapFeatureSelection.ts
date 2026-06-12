@@ -4,15 +4,25 @@ import type { LayerKey } from '@/constants';
 import { LAYER_IDS, LAYER_ID_TO_SOURCE, MAP_ZOOM_FOCUS } from '@/constants';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import type { SelectedFeatureState } from '@/utils/selectionOpacity';
+import { computeMapPadding } from '@/hooks/useMapPadding';
 
-// useMapPadding устанавливает map.padding под открытые панели,
-// поэтому fitBounds учитывает его автоматически — здесь только базовый отступ.
-const FOCUS_PADDING_BASE = 40;
+type PaddingRect = { top: number; right: number; bottom: number; left: number };
 
-type FlyTo = (center: [number, number], zoom: number) => void;
+/**
+ * Возвращает padding точно совпадающий с тем, что выставляет useMapPadding при hasFeatureSidebar=true.
+ * Передаём явно в fitBounds/flyTo — Mapbox применит его как глобальный side effect,
+ * и useMapPadding при ре-рендере увидит совпадение и не запустит конфликтующий easeTo.
+ */
+function getSidebarPadding(): PaddingRect {
+    if (typeof window === 'undefined') return { top: 0, right: 0, bottom: 0, left: 0 };
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    return computeMapPadding(isDesktop, true, false);
+}
+
+type FlyTo = (center: [number, number], zoom: number, padding?: PaddingRect) => void;
 type FlyToBounds = (
     bounds: [[number, number], [number, number]],
-    options?: { padding?: number | { top: number; right: number; bottom: number; left: number } }
+    options?: { padding?: number | PaddingRect; maxZoom?: number }
 ) => void;
 
 /**
@@ -34,21 +44,27 @@ export function useMapFeatureSelection(params: {
     }, []);
 
     /**
-     * Открывает фичу: ставит selected-state и фокусирует карту
-     * (по bounds для линий, по центру для точек).
+     * Открывает фичу: ставит selected-state и фокусирует карту.
+     * Передаём итоговый padding (sidebar + base) явно в fitBounds/flyTo —
+     * Mapbox применяет его как глобальный side effect, и useMapPadding при ре-рендере
+     * увидит совпадение с текущим map.padding и не запустит конфликтующий easeTo.
      */
     const openFeature = useCallback(
         (feature: Feature, layerKey: LayerKey, lngLat?: [number, number]) => {
             const sourceId = LAYER_ID_TO_SOURCE[LAYER_IDS[layerKey]];
             const id = feature.properties.id;
-            setSelectedFeatureState(sourceId ? { sourceId, id } : null);
-            setSelectedFeature(feature);
+            // Сначала двигаем камеру — setPadding внутри flyTo/flyToBounds должен сработать
+            // ДО того как React применит новый state и запустит useMapPadding эффект.
+            // Если поставить setState первыми — React ре-рендерит синхронно (в React 18 batching),
+            // useMapPadding видит старый map.getPadding() и запускает конкурирующий easeTo.
             if (feature.geometry.type === 'LineString') {
-                flyToBounds(getFeatureBounds(feature), { padding: FOCUS_PADDING_BASE });
+                flyToBounds(getFeatureBounds(feature), { padding: getSidebarPadding() });
             } else {
                 const center = lngLat ?? getFeatureCenter(feature);
-                flyTo(center, MAP_ZOOM_FOCUS);
+                flyTo(center, MAP_ZOOM_FOCUS, getSidebarPadding());
             }
+            setSelectedFeatureState(sourceId ? { sourceId, id } : null);
+            setSelectedFeature(feature);
         },
         [flyTo, flyToBounds]
     );

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 
 interface UseMapPaddingOptions {
@@ -10,35 +10,33 @@ interface UseMapPaddingOptions {
     hasListSidebar: boolean;
 }
 
+/** Вычисляет целевой padding карты под открытые панели (без base-отступа). */
+export function computeMapPadding(isDesktop: boolean, hasFeatureSidebar: boolean, hasListSidebar: boolean): { top: number; right: number; bottom: number; left: number } {
+    let bottom = 0, right = 0, left = 0;
+    if (isDesktop) {
+        if (hasFeatureSidebar) right = 320;
+        if (hasListSidebar) left = 360;
+    } else {
+        if (hasFeatureSidebar) bottom = Math.round(window.innerHeight * 0.45);
+        else if (hasListSidebar) bottom = Math.round(window.innerHeight * 0.80);
+    }
+    return { top: 0, right, bottom, left };
+}
+
 /**
  * Подстраивает видимую область карты под открытые панели через map.easeTo({ padding }).
- * Первое применение — мгновенное (duration: 0), чтобы fitBounds при deep link
- * уже видел актуальный padding. Последующие изменения — анимированные (duration: 300).
+ * Если текущий map.padding уже совпадает с целевым — easeTo не вызывается
+ * (предотвращает конфликт с fitBounds/flyTo, которые выставляют padding как side effect).
  */
 export function useMapPadding({ map, isDesktop, hasFeatureSidebar, hasListSidebar }: UseMapPaddingOptions): void {
-    const isFirstRef = useRef(true);
-
     useEffect(() => {
         if (!map) return;
-
-        let bottom = 0;
-        let right = 0;
-        let left = 0;
-
-        if (isDesktop) {
-            if (hasFeatureSidebar) right = 320;
-            if (hasListSidebar) left = 360;
-        } else {
-            if (hasFeatureSidebar) bottom = Math.round(window.innerHeight * 0.45);
-            else if (hasListSidebar) bottom = Math.round(window.innerHeight * 0.80);
-        }
-
-        if (isFirstRef.current) {
-            // Синхронно — чтобы fitBounds при deep link уже видел актуальный padding
-            isFirstRef.current = false;
-            map.setPadding({ top: 0, right, bottom, left });
-        } else {
-            map.easeTo({ padding: { top: 0, right, bottom, left }, duration: 300 });
-        }
+        const target = computeMapPadding(isDesktop, hasFeatureSidebar, hasListSidebar);
+        const cur = map.getPadding();
+        // Если padding уже совпадает (выставлен синхронно через setPadding в flyTo/fitBounds) —
+        // не запускаем easeTo, иначе он прервёт идущую анимацию камеры.
+        if (cur.top === target.top && cur.right === target.right &&
+            cur.bottom === target.bottom && cur.left === target.left) return;
+        map.easeTo({ padding: target, duration: 300 });
     }, [map, isDesktop, hasFeatureSidebar, hasListSidebar]);
 }

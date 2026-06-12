@@ -74,7 +74,7 @@ describe('useMapFeatureSelection', () => {
         const { result, flyTo } = makeHook()
         const lngLat: [number, number] = [77.0, 43.5]
         act(() => { result.current.openFeature(makePoint('p1'), 'points', lngLat) })
-        expect(flyTo).toHaveBeenCalledWith(lngLat, expect.any(Number))
+        expect(flyTo).toHaveBeenCalledWith(lngLat, expect.any(Number), expect.any(Object))
     })
 
     it('clearSelection обнуляет фичу', () => {

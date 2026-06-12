@@ -154,7 +154,7 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
                   onClick={() => {
                     setLightboxIndex(index);
                   }}
-                  className="block shrink-0 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-100"
+                  className="cursor-pointer block shrink-0 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-100"
                 >
                   <img
                     src={photo.url}
@@ -206,7 +206,7 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
             onClick={() => {
               setLightboxIndex(null);
             }}
-            className="absolute top-4 right-4 text-white/90 hover:text-white text-3xl leading-none"
+            className="cursor-pointer absolute top-4 right-4 text-white/90 hover:text-white text-3xl leading-none"
             aria-label="Закрыть просмотр"
           >
             ×
@@ -218,7 +218,7 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
                 event.stopPropagation();
                 setLightboxIndex((prev) => (prev === null ? null : (prev - 1 + photos.length) % photos.length));
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white text-4xl leading-none"
+              className="cursor-pointer absolute left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white text-4xl leading-none"
               aria-label="Предыдущее фото"
             >
               ‹
@@ -246,7 +246,7 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
                 event.stopPropagation();
                 setLightboxIndex((prev) => (prev === null ? null : (prev + 1) % photos.length));
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white text-4xl leading-none"
+              className="cursor-pointer absolute right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white text-4xl leading-none"
               aria-label="Следующее фото"
             >
               ›
