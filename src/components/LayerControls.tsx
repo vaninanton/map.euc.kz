@@ -4,6 +4,7 @@ import type { IControl, Map as MapboxMap } from 'mapbox-gl'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLocationCrosshairs, faPlus, faSliders, faXmark, faRoute, faMapPin } from '@fortawesome/free-solid-svg-icons'
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
+import type { BaseMapStyle } from '@/hooks/useMapbox'
 import { LayerPanel } from '@/components/LayerPanel'
 import { ProjectInfoButton } from '@/components/ProjectInfoButton'
 
@@ -12,6 +13,8 @@ interface LayerControlsProps {
     isMapReady: boolean
     visibility: LayerVisibility
     onToggle: (layer: LayerKey) => void
+    baseStyle: BaseMapStyle
+    onToggleBaseStyle: () => void
     isAddingPoint: boolean
     onToggleAddPoint: () => void
     isRadarOpen: boolean
@@ -39,6 +42,8 @@ export function LayerControls({
     isMapReady,
     visibility,
     onToggle,
+    baseStyle,
+    onToggleBaseStyle,
     isAddingPoint,
     onToggleAddPoint,
     isRadarOpen,
@@ -169,6 +174,8 @@ export function LayerControls({
                             visibility={visibility}
                             onToggle={onToggle}
                             onCollapse={() => { setIsCollapsed(true) }}
+                            baseStyle={baseStyle}
+                            onToggleBaseStyle={onToggleBaseStyle}
                         />
                     ),
                     portals.layers,

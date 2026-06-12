@@ -47,7 +47,7 @@ export function EucMap() {
     [navigate],
   );
 
-  const { map, isMapReady, flyTo, flyToBounds } = useMapbox(containerRef);
+  const { map, isMapReady, baseStyle, setBaseMapStyle, flyTo, flyToBounds } = useMapbox(containerRef);
   const { locationErrorMessage, clearLocationError } = useGeolocateControl(map, isMapReady);
   const {
     visibility,
@@ -304,6 +304,8 @@ export function EucMap() {
           isMapReady={isMapReady}
           visibility={visibility}
           onToggle={toggleLayer}
+          baseStyle={baseStyle}
+          onToggleBaseStyle={() => { setBaseMapStyle(baseStyle === 'satellite' ? 'streets' : 'satellite') }}
           isAddingPoint={isAddingPoint}
           onToggleAddPoint={() => {
             handleToggleAddPoint();

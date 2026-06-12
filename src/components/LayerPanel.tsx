@@ -1,10 +1,13 @@
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers';
+import type { BaseMapStyle } from '@/hooks/useMapbox';
 import { COLORS } from '@/constants';
 
 interface LayerPanelProps {
   visibility: LayerVisibility;
   onToggle: (layer: LayerKey) => void;
   onCollapse: () => void;
+  baseStyle: BaseMapStyle;
+  onToggleBaseStyle: () => void;
 }
 
 const LABELS: Record<LayerKey, string> = {
@@ -29,12 +32,14 @@ export function LayerPanel({
   visibility,
   onToggle,
   onCollapse,
+  baseStyle,
+  onToggleBaseStyle,
 }: LayerPanelProps) {
   return (
     <div
       role="group"
       aria-label="Слои карты"
-      className="relative min-w-[180px] p-6"
+      className="relative min-w-45 p-6"
     >
       <button
         type="button"
@@ -87,6 +92,22 @@ export function LayerPanel({
           );
         })}
       </ul>
+      <div className="mt-3 border-t border-neutral-100 pt-3">
+        <label htmlFor="layer-panel-satellite" className="flex items-center justify-between gap-3 text-[13px] text-neutral-800 cursor-pointer">
+          <span className="flex-1">Спутник</span>
+          <span className="relative inline-flex h-5 w-9 items-center">
+            <input
+              id="layer-panel-satellite"
+              type="checkbox"
+              checked={baseStyle === 'satellite'}
+              onChange={onToggleBaseStyle}
+              className="peer sr-only"
+            />
+            <span className="absolute inset-0 rounded-full bg-neutral-200 transition-colors peer-checked:bg-neutral-500" aria-hidden />
+            <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" aria-hidden />
+          </span>
+        </label>
+      </div>
     </div>
   );
 }
