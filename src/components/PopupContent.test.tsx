@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { PopupContent } from './PopupContent'
 import type { Feature } from '@/types/geojson'
 
+const user = userEvent.setup({ delay: null })
+
 vi.mock('typograf', () => ({
     default: class {
         execute(text: string) { return text }
@@ -132,23 +134,23 @@ describe('PopupContent', () => {
     it('клик на фото открывает лайтбокс', async () => {
         const photos = [{ id: 'ph1', url: 'https://example.com/1.jpg', alt: 'Фото 1' }]
         render(<PopupContent feature={makePoint({ photos })} />)
-        await userEvent.click(screen.getAllByRole('button')[0])
+        await user.click(screen.getAllByRole('button')[0])
         expect(screen.getByRole('dialog', { name: /просмотр фотографии/i })).toBeInTheDocument()
     })
 
     it('лайтбокс закрывается по кнопке ×', async () => {
         const photos = [{ id: 'ph1', url: 'https://example.com/1.jpg', alt: 'Фото 1' }]
         render(<PopupContent feature={makePoint({ photos })} />)
-        await userEvent.click(screen.getAllByRole('button')[0])
-        await userEvent.click(screen.getByRole('button', { name: /закрыть просмотр/i }))
+        await user.click(screen.getAllByRole('button')[0])
+        await user.click(screen.getByRole('button', { name: /закрыть просмотр/i }))
         expect(screen.queryByRole('dialog', { name: /просмотр фотографии/i })).not.toBeInTheDocument()
     })
 
     it('лайтбокс закрывается по клавише Escape', async () => {
         const photos = [{ id: 'ph1', url: 'https://example.com/1.jpg', alt: 'Фото 1' }]
         render(<PopupContent feature={makePoint({ photos })} />)
-        await userEvent.click(screen.getAllByRole('button')[0])
-        await userEvent.keyboard('{Escape}')
+        await user.click(screen.getAllByRole('button')[0])
+        await user.keyboard('{Escape}')
         expect(screen.queryByRole('dialog', { name: /просмотр фотографии/i })).not.toBeInTheDocument()
     })
 
@@ -158,8 +160,8 @@ describe('PopupContent', () => {
             { id: 'ph2', url: 'https://example.com/2.jpg', alt: 'Фото 2' },
         ]
         render(<PopupContent feature={makePoint({ photos })} />)
-        await userEvent.click(screen.getAllByRole('button')[0])
-        await userEvent.keyboard('{ArrowRight}')
+        await user.click(screen.getAllByRole('button')[0])
+        await user.keyboard('{ArrowRight}')
         // Лайтбокс всё ещё открыт, показывается второе фото
         expect(screen.getByRole('dialog', { name: /просмотр фотографии/i })).toBeInTheDocument()
     })
