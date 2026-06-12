@@ -82,8 +82,10 @@ function buildTelegramDisplayName(row: TelegramLocationRow): string {
   return `Пользователь ${String(row.telegram_user_id)}`;
 }
 
-function buildTelegramAvatarUrl(row: TelegramLocationRow): string | null {
-  return row.avatar_url ?? null;
+function buildTelegramAvatarUrl(row: TelegramLocationRow): string {
+  if (row.avatar_url) return row.avatar_url;
+  const seed = row.username ?? String(row.telegram_user_id);
+  return `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 }
 
 function toRadians(degrees: number): number {
