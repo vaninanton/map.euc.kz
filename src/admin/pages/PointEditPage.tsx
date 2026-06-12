@@ -10,6 +10,7 @@ import {
 import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { PointForm, type PointFormValue } from '@/admin/components/PointForm'
 import { PhotoManager } from '@/admin/components/PhotoManager'
+import { buildMapDeepLinkPath } from '@/utils/hashNav'
 import { getUndoRedoShortcuts } from '@/utils/platformShortcuts'
 
 interface PointEditPageProps {
@@ -102,7 +103,15 @@ export function PointEditPage({ mode }: PointEditPageProps) {
                     Шаги отменяются {shortcuts.undo} и повторяются {shortcuts.redo} (вне полей ввода).
                 </p>
                 {mode === 'edit' && pointId !== null && (
-                    <div className="mt-3">
+                    <div className="mt-3 flex gap-2">
+                        <a
+                            href={`${import.meta.env.BASE_URL}${buildMapDeepLinkPath('point', String(pointId))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                        >
+                            Открыть на сайте ↗
+                        </a>
                         <button
                             type="button"
                             disabled={deleting}

@@ -2,18 +2,13 @@ import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from '
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCoordinateHistory } from '@/admin/hooks/useCoordinateHistory'
 import { useUndoRedoHotkeys } from '@/admin/hooks/useUndoRedoHotkeys'
-import {
-    createRoute,
-    deleteRoute,
-    getRoute,
-    updateRoute,
-    type AdminMapRoute,
-} from '@/admin/lib/adminApi'
+import { createRoute, deleteRoute, getRoute, updateRoute, type AdminMapRoute } from '@/admin/lib/adminApi'
 import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { AdminRoutePolylineMap } from '@/admin/components/AdminRoutePolylineMap'
 import type { RouteEditorCoordinates } from '@/admin/route-editor/routeGeometry'
 import { validateMinimumVertices, validateRouteTitleTrimmed } from '@/admin/route-editor/routeValidation'
 import { RouteVertexEditorList } from '@/admin/components/RouteVertexEditorList'
+import { buildMapDeepLinkPath } from '@/utils/hashNav'
 import { fillMissingRouteElevations } from '@/utils/fetchMissingRouteElevations'
 import { getUndoRedoShortcuts } from '@/utils/platformShortcuts'
 import { routeVertexElevationStats } from '@/utils/routeVertexElevationStats'
@@ -96,8 +91,12 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
     const [fillingElevations, setFillingElevations] = useState(false)
     const [hoveredVertexIndex, setHoveredVertexIndex] = useState<number | null>(null)
     const [hoverSource, setHoverSource] = useState<'map' | 'list' | null>(null)
-    const { reset: resetCoordHistory, prepareCommit, undo: undoCoordStep, redo: redoCoordStep } =
-        useCoordinateHistory<RouteEditorCoordinates>()
+    const {
+        reset: resetCoordHistory,
+        prepareCommit,
+        undo: undoCoordStep,
+        redo: redoCoordStep,
+    } = useCoordinateHistory<RouteEditorCoordinates>()
 
     useEffect(() => {
         if (mode !== 'edit' || routeId === null) return
@@ -236,10 +235,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
         }
     }
 
-    const vertexStats = useMemo(
-        () => (value ? routeVertexElevationStats(value.coordinates) : null),
-        [value],
-    )
+    const vertexStats = useMemo(() => (value ? routeVertexElevationStats(value.coordinates) : null), [value])
 
     const effectiveHoveredVertexIndex = useMemo(() => {
         if (!value || hoveredVertexIndex === null) return null
@@ -259,7 +255,15 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                     {shortcuts.redo}
                 </p>
                 {mode === 'edit' && routeId !== null && (
-                    <div className="mt-3">
+                    <div className="mt-3 flex gap-2">
+                        <a
+                            href={`${import.meta.env.BASE_URL}${buildMapDeepLinkPath('route', String(routeId))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                        >
+                            Открыть на сайте ↗
+                        </a>
                         <button
                             type="button"
                             disabled={deleting}
@@ -391,7 +395,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                         </div>
                     </form>
 
-                    <div className="flex min-h-[280px] min-w-0 flex-col gap-2 lg:min-h-0">
+                    <div className="flex min-h-70 min-w-0 flex-col gap-2 lg:min-h-0">
                         <h2 className="shrink-0 text-sm font-medium text-neutral-800">Карта</h2>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                             <AdminRoutePolylineMap
