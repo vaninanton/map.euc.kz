@@ -48,7 +48,7 @@ function makeRoute(): Feature {
     }
 }
 
-function makeTelegramUser(): Feature {
+function makeTelegramUser(overrides: Record<string, unknown> = {}): Feature {
     return {
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [76.9, 43.2] },
@@ -58,6 +58,7 @@ function makeTelegramUser(): Feature {
             name: 'Rider',
             updatedAt: new Date(Date.now() - 30000).toISOString(),
             telegramUserId: 1,
+            ...overrides,
         },
     }
 }
@@ -114,9 +115,7 @@ describe('PopupContent', () => {
     })
 
     it('показывает аватар telegramUser если avatarUrl задан', () => {
-        const feature = makeTelegramUser()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- мутируем тестовые данные напрямую
-        ;(feature.properties as any).avatarUrl = 'https://example.com/avatar.jpg'
+        const feature = makeTelegramUser({ avatarUrl: 'https://example.com/avatar.jpg' })
         render(<PopupContent feature={feature} />)
         expect(screen.getByRole('img')).toBeInTheDocument()
     })

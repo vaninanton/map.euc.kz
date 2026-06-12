@@ -1,18 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useFeatureIndexes } from './useFeatureIndexes'
-import type { Feature, FeatureCollection } from '@/types/geojson'
+import type { Feature, FeatureCollection, FeatureProperties, FeatureType } from '@/types/geojson'
 
 function makeCollection(features: FeatureCollection['features']): FeatureCollection {
     return { type: 'FeatureCollection', features }
 }
 
-function makePoint(id: string, type: Feature['properties']['type'] = 'point'): Feature {
+function makePoint(id: string, type: FeatureType = 'point'): Feature {
     return {
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [76.9, 43.2] },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- минимальные тестовые данные для индексирования
-        properties: { id, type, name: id } as any,
+        properties: { id, type, name: id } as FeatureProperties,
     }
 }
 
