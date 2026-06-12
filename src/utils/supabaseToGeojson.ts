@@ -252,6 +252,7 @@ export function telegramLocationsToRecentTracksFeatureCollection(rows: TelegramL
       firstName: lastPoint.first_name,
       lastName: lastPoint.last_name,
       updatedAt: lastPoint.created_at,
+      ageMinutes: Math.max(0, (Date.now() - lastPointTs) / 60000),
       avatarUrl,
       avgSpeedKmh: avgSpeedByUser.get(telegramUserId) ?? null,
       avgSpeedWindowPoints: TELEGRAM_SPEED_SAMPLE_POINTS,

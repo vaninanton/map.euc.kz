@@ -36,8 +36,29 @@ export function useMapHover(map: MapboxMap | null) {
       tooltipRef.current = tooltipEl;
     }
 
-    const showTooltip = (x: number, y: number, name: string) => {
-      tooltipEl.textContent = name || 'Без названия';
+    const formatStaleTime = (updatedAt: string): string => {
+      const ts = Date.parse(updatedAt);
+      if (!Number.isFinite(ts)) return '';
+      const diffMs = Date.now() - ts;
+      const min = Math.floor(diffMs / 60000);
+      if (min < 60) return `${String(min)} мин назад`;
+      const hours = Math.floor(min / 60);
+      if (hours < 24) return `${String(hours)} ч назад`;
+      return `${String(Math.floor(hours / 24))} дн назад`;
+    };
+
+    const showTooltip = (x: number, y: number, name: string, extraLine?: string) => {
+      tooltipEl.textContent = '';
+      const nameLine = document.createElement('div');
+      nameLine.textContent = name || 'Без названия';
+      tooltipEl.appendChild(nameLine);
+      if (extraLine) {
+        const timeLine = document.createElement('div');
+        timeLine.textContent = extraLine;
+        timeLine.style.opacity = '0.75';
+        timeLine.style.fontSize = '11px';
+        tooltipEl.appendChild(timeLine);
+      }
       tooltipEl.style.display = 'block';
       const leftPx = x + TOOLTIP_OFFSET;
       const topPx = y + TOOLTIP_OFFSET;
@@ -85,6 +106,13 @@ export function useMapHover(map: MapboxMap | null) {
       const featureId = f.id ?? getStringProperty(f.properties, 'id');
       const sourceId = layerId ? getSourceIdByLayerId(layerId) ?? undefined : undefined;
       const name = getStringProperty(f.properties, 'name') ?? '';
+      const featureType = getStringProperty(f.properties, 'type');
+      const ageMinutes = typeof f.properties?.ageMinutes === 'number' ? f.properties.ageMinutes : null;
+      const updatedAt = getStringProperty(f.properties, 'updatedAt');
+      const staleLabel =
+        featureType === 'telegramUser' && ageMinutes !== null && ageMinutes > 5 && updatedAt
+          ? formatStaleTime(updatedAt)
+          : undefined;
 
       const prev = hoveredRef.current;
       if (prev && (prev.sourceId !== sourceId || prev.id !== featureId)) {
@@ -103,7 +131,7 @@ export function useMapHover(map: MapboxMap | null) {
           // ignore
         }
         setCanvasCursor('pointer');
-        showTooltip(e.point.x, e.point.y, name);
+        showTooltip(e.point.x, e.point.y, name, staleLabel);
       } else {
         setCanvasCursor('');
         hideTooltip();

@@ -168,7 +168,11 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         filter: ['==', ['geometry-type'], 'LineString'],
         paint: {
           'line-width': stateHighlight.lineWidth(3.6, 5, 4.4),
-          'line-opacity': stateHighlight.opacity(),
+          'line-opacity': [
+            '*',
+            stateHighlight.opacity(),
+            ['interpolate', ['linear'], ['get', 'ageMinutes'], 0, 1, 10, 0.6],
+          ],
           'line-width-transition': { duration: 200 },
           'line-gradient': [
             'interpolate',
@@ -206,7 +210,16 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
             0,
             1,
             10,
-            0.25,
+            0.6,
+          ],
+          'circle-stroke-opacity': [
+            'interpolate',
+            ['linear'],
+            ['get', 'ageMinutes'],
+            0,
+            1,
+            10,
+            0.6,
           ],
         },
       };
@@ -228,6 +241,17 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
           'icon-anchor': 'center',
+        },
+        paint: {
+          'icon-opacity': [
+            'interpolate',
+            ['linear'],
+            ['get', 'ageMinutes'],
+            0,
+            1,
+            10,
+            0.6,
+          ],
         },
       };
       map.addLayer(avatarLayer);
