@@ -65,7 +65,7 @@ export interface TelegramUserProperties extends BaseFeatureProperties {
   lastName?: string | null;
   updatedAt: string;
   ageMinutes?: number;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   avgSpeedKmh?: number | null;
   avgSpeedWindowPoints?: number;
 }

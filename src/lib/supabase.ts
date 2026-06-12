@@ -402,7 +402,6 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
     const normalized = normalizeTelegramProfileRow(row);
     if (normalized) profilesByUserId.set(normalized.telegram_user_id, normalized);
   }
-
   const rows: TelegramLocationRow[] = [];
   for (const row of locationRowsRaw) {
     const normalized = normalizeTelegramLocationRow(row);
