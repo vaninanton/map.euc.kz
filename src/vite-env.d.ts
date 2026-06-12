@@ -15,3 +15,10 @@ interface ImportMeta {
 }
 
 declare const __APP_VERSION__: string
+
+declare namespace React {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- T нужен для совместимости с сигнатурой InputHTMLAttributes
+    interface InputHTMLAttributes<T> {
+        passwordrules?: string
+    }
+}
