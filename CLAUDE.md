@@ -30,6 +30,8 @@ Run a single test file:
 npx vitest run src/utils/hashNav.test.ts
 ```
 
+**Pre-commit hook** (husky): автоматически запускает `lint → tsc → test → build` перед каждым коммитом.
+
 ## Environment Setup
 
 Copy `.env.example` to `.env.local` and fill in:
@@ -87,13 +89,18 @@ UI-тексты, пользовательские сообщения и комм
 ```
 src/
 ├── components/    # UI rendering only — no business logic
-│   └── admin/     # Админка /admin в проде (Supabase Auth + map_admin_users)
 ├── hooks/         # State management, side effects, data fetching
 ├── lib/           # Initialization wrappers (Supabase client, Mapbox layer definitions)
 ├── utils/         # Pure functions, no React/Mapbox dependencies (all tested)
 ├── constants/     # LAYER_IDS, SOURCE_IDS, COLORS, MAP_CENTER
 ├── types/         # TypeScript types: GeoJSON features, DB row shapes, Velojol
-└── data/          # Static Velojol bike lane GeoJSON (almaty.json)
+├── data/          # Static Velojol bike lane GeoJSON (almaty.json)
+└── admin/         # Админка /admin (lazy-loaded, Supabase Auth)
+    ├── pages/         # Страницы: PointEditPage, RouteEditPage, SubmissionsPage, GeoPage
+    ├── components/    # Формы, карты редактирования, PhotoManager
+    ├── hooks/         # useAdminAuth, useCoordinateHistory, useUndoRedoHotkeys
+    ├── lib/adminApi/  # CRUD-функции для точек, маршрутов, фото, заявок
+    └── route-editor/  # Геометрия и валидация маршрута (routeGeometry, routeValidation)
 supabase/
 ├── migrations/    # PostgreSQL migrations (8 tables)
 ├── functions/     # Deno Edge Functions (Telegram webhook bot)
@@ -172,4 +179,3 @@ supabase/
 
 - При правках слоёв/источников/цветов использовать константы из `src/constants`, не дублировать строковые ID.
 - Для публичных методов/функций (хуки, utils, API-слой, edge functions) добавлять краткий JSDoc с назначением и ключевыми эффектами.
-- Перед завершением задачи запускать: `npm run lint`, `npm test`; при необходимости `npm run build`.
