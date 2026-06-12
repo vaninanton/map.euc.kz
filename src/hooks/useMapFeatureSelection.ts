@@ -5,32 +5,9 @@ import { LAYER_IDS, LAYER_ID_TO_SOURCE, MAP_ZOOM_FOCUS } from '@/constants';
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds';
 import type { SelectedFeatureState } from '@/utils/selectionOpacity';
 
-const SIDEBAR_DESKTOP_WIDTH = 320;
-const SIDEBAR_MOBILE_HEIGHT_RATIO = 0.45;
+// useMapPadding устанавливает map.padding под открытые панели,
+// поэтому fitBounds учитывает его автоматически — здесь только базовый отступ.
 const FOCUS_PADDING_BASE = 40;
-
-function getRouteFocusPadding(): number | { top: number; right: number; bottom: number; left: number } {
-    if (typeof window === 'undefined') return FOCUS_PADDING_BASE;
-
-    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
-    if (isDesktop) {
-        return {
-            top: FOCUS_PADDING_BASE,
-            right: SIDEBAR_DESKTOP_WIDTH + FOCUS_PADDING_BASE,
-            bottom: FOCUS_PADDING_BASE,
-            left: FOCUS_PADDING_BASE,
-        };
-    }
-
-    const viewportHeight = window.innerHeight || 0;
-    const mobileSidebarHeight = Math.round(viewportHeight * SIDEBAR_MOBILE_HEIGHT_RATIO);
-    return {
-        top: FOCUS_PADDING_BASE,
-        right: FOCUS_PADDING_BASE,
-        bottom: mobileSidebarHeight + FOCUS_PADDING_BASE,
-        left: FOCUS_PADDING_BASE,
-    };
-}
 
 type FlyTo = (center: [number, number], zoom: number) => void;
 type FlyToBounds = (
@@ -67,7 +44,7 @@ export function useMapFeatureSelection(params: {
             setSelectedFeatureState(sourceId ? { sourceId, id } : null);
             setSelectedFeature(feature);
             if (feature.geometry.type === 'LineString') {
-                flyToBounds(getFeatureBounds(feature), { padding: getRouteFocusPadding() });
+                flyToBounds(getFeatureBounds(feature), { padding: FOCUS_PADDING_BASE });
             } else {
                 const center = lngLat ?? getFeatureCenter(feature);
                 flyTo(center, MAP_ZOOM_FOCUS);

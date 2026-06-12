@@ -22,6 +22,7 @@ import { PointListSidebar } from '@/components/PointListSidebar';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
 import { RadarModal } from '@/components/RadarModal';
 import { useTelegramAvatars } from '@/hooks/useTelegramAvatars';
+import { useMapPadding } from '@/hooks/useMapPadding';
 
 export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -279,6 +280,13 @@ export function EucMap() {
     ensureLayerVisible: (layerKey) => {
       setLayerVisibility(layerKey, true);
     },
+  });
+
+  useMapPadding({
+    map,
+    isDesktop,
+    hasFeatureSidebar: Boolean(displaySelectedFeature),
+    hasListSidebar: isRouteListOpen || isPointListOpen,
   });
 
   return (
