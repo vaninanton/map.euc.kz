@@ -4,37 +4,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PWA-карта для райдеров на моноколёсах (EUC) в Алматы — live at **map.euc.kz**. Точки встреч, розетки, маршруты, велодорожки и геопозиции из Telegram-чатов.
+PWA-карта для райдеров на моноколёсах (EUC) в Алматы — live at **map.euc.kz**. Точки встреч, розетки, маршруты, велодорожки и live-геопозиции из Telegram-чатов.
 
 ## Stack
 
-- **React 19** + **TypeScript** (strict)
-- **Vite 8** — сборка и dev-сервер
-- **Tailwind CSS 4** — стили (`@tailwindcss/vite`)
-- **Mapbox GL JS 3** — карта
-- **Supabase** — PostgreSQL + RLS + Storage + Edge Functions
-- **Vitest + ESLint + Prettier** — качество кода
+- **React 19** + **TypeScript 6** (strict) + **Vite 8** + **Tailwind CSS 4** (`@tailwindcss/vite`)
+- **Mapbox GL JS 3** — карта; **react-router-dom 7** — SPA-роутинг; **Font Awesome 7** — иконки
+- **Supabase** — PostgreSQL + RLS + Realtime + Storage + Deno Edge Functions
+- **Vitest 4** + **RTL 16** + **jsdom** — unit-тесты; **Playwright** — e2e
+- **Husky 9** — pre-commit хук; **ESLint 10** + **Prettier** — качество кода
 
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server (localhost:5173)
+npm run dev          # Vite dev server (localhost:5173; host: true — доступен по сети)
 npm run build        # tsc -b && vite build (type-check + bundle)
-npm run lint         # ESLint with TypeScript strict rules
-npm run test         # Vitest unit tests (run once)
+npm run lint         # ESLint (TypeScript strict + React hooks)
+npm run test         # Vitest (run once)
 npm run preview      # Preview production build locally
 ```
 
-Run a single test file:
+Запуск одного теста:
 ```bash
 npx vitest run src/utils/hashNav.test.ts
 ```
 
-**Pre-commit hook** (husky): автоматически запускает `lint → tsc → test → build` перед каждым коммитом.
+**Pre-commit хук** (`.husky/pre-commit`) запускает автоматически: `lint → tsc --noEmit → test → build`.
 
-## Environment Setup
+E2E тесты: `npm run test:e2e` / `npm run test:e2e:ui`
 
-Copy `.env.example` to `.env.local` and fill in:
+## Environment
+
+Скопировать `.env.example` → `.env.local`:
 ```
 VITE_MAPBOX_TOKEN=             # Mapbox public token
 VITE_SUPABASE_URL=             # Supabase project URL
@@ -45,42 +46,35 @@ VITE_TELEGRAM_TRACK_TAIL_MINUTES=30
 VITE_TELEGRAM_MAX_ACCURACY_METERS=100
 ```
 
-При добавлении любой новой переменной окружения синхронизировать во всех четырёх местах: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md`.
+При добавлении переменной синхронизировать в четырёх местах: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md`.
 
-После добавления предлагать команды `gh secret set` / `gh variable set` из `.env.local`:
-- чувствительные значения → `gh secret set SECRET_NAME --body "$SECRET_NAME"`
-- некритичные значения → `gh variable set VARIABLE_NAME --body "$VARIABLE_NAME"`
+Предлагать команды из `.env.local`:
+- чувствительные → `gh secret set NAME --body "$NAME"`
+- некритичные → `gh variable set NAME --body "$NAME"`
 
 ## Language
 
-UI-тексты, пользовательские сообщения и комментарии в коде — **русский**.
+UI-тексты, сообщения пользователю, комментарии в коде — **русский**.
 
 ## Code Style
 
 - **Prettier**: 4-space tabs, 120-char line width, single quotes, no semicolons, trailing commas
-- **TypeScript**: strict mode, `noUnusedLocals`, `noUnusedParameters` — no unused variables allowed
-- **ESLint**: flat config (v10), TypeScript strict + React hooks rules enforced
-
-### TypeScript & React
-
-- Строгий TypeScript (`typescript-eslint/configs.strictTypeChecked`). Избегать `any`; при необходимости — явный `eslint-disable` с обоснованием.
+- **TypeScript**: strict, `noUnusedLocals`, `noUnusedParameters`. Избегать `any`; при необходимости — явный `eslint-disable` с обоснованием.
+- **ESLint**: flat config, `typescript-eslint/configs.strictTypeChecked` + React hooks rules.
 - Импорты: сначала внешние библиотеки, затем внутренние по пути, в конце `type`-импорты.
-- Именование: PascalCase для компонентов и типов, camelCase для функций/хуков/переменных, UPPER_SNAKE для глобальных констант.
-- Только функциональные компоненты. Именованный экспорт: `export function ComponentName()`.
+- Именование: PascalCase — компоненты/типы; camelCase — функции/хуки/переменные; UPPER_SNAKE — глобальные константы.
+- Только функциональные компоненты, именованный экспорт: `export function ComponentName()`.
 - Пропсы — отдельный интерфейс `ComponentNameProps`, не инлайнить в `FC<...>`.
-- Логику карты/слоёв держать в хуках. Хуки возвращают объект с нужными полями и функциями.
-- В эффектах с подписками использовать ref для актуального значения колбэка, чтобы не переподписываться на каждый рендер.
 - Для отключения правил хуков — `// eslint-disable-next-line react-hooks/... -- краткое обоснование`.
+- В эффектах с подписками — ref для актуального колбэка, чтобы не переподписываться на каждый рендер.
 
 ### Styles & UI
 
 - Стилизация только через классы Tailwind. Глобальные стили — в `src/index.css`.
-- Цвета интерфейса — из палитры Tailwind (neutral, white). Цвета слоёв карты — из `constants` (`COLORS`).
+- Цвета интерфейса — из палитры Tailwind (neutral, white). Цвета слоёв карты — из `COLORS` в `src/constants/index.ts`.
 - Инлайн `style` — только для динамических значений (цвет по типу фичи, позиционирование попапа).
-- Карта и оверлеи: `fixed`/`absolute` с `inset-0` для полного покрытия. Учитывать safe area (`safe-area-padding`, `control-inset-*`) на мобильных.
-- Адаптив: использовать `sm:` breakpoints (например `text-xs sm:text-sm`).
-- Кнопки/переключатели: `type="button"`, `aria-label` где нужно. Декоративные иконки — `aria-hidden`.
-- Весь текст интерфейса — на русском.
+- Карта и оверлеи: `fixed`/`absolute` с `inset-0`. Safe area (`safe-area-padding`, `control-inset-*`) — глобально в `src/index.css` на `.mapboxgl-ctrl-*`, `.mapboxgl-popup`.
+- Адаптив: `sm:` breakpoints. Кнопки: `type="button"`, `aria-label` где нужно, декоративные иконки — `aria-hidden`.
 
 ## Architecture
 
@@ -88,94 +82,131 @@ UI-тексты, пользовательские сообщения и комм
 
 ```
 src/
-├── components/    # UI rendering only — no business logic
-├── hooks/         # State management, side effects, data fetching
-├── lib/           # Initialization wrappers (Supabase client, Mapbox layer definitions)
-├── utils/         # Pure functions, no React/Mapbox dependencies (all tested)
-├── constants/     # LAYER_IDS, SOURCE_IDS, COLORS, MAP_CENTER
-├── types/         # TypeScript types: GeoJSON features, DB row shapes, Velojol
-├── data/          # Static Velojol bike lane GeoJSON (almaty.json)
-└── admin/         # Админка /admin (lazy-loaded, Supabase Auth)
-    ├── pages/         # Страницы: PointEditPage, RouteEditPage, SubmissionsPage, GeoPage
-    ├── components/    # Формы, карты редактирования, PhotoManager
-    ├── hooks/         # useAdminAuth, useCoordinateHistory, useUndoRedoHotkeys
-    ├── lib/adminApi/  # CRUD-функции для точек, маршрутов, фото, заявок
-    └── route-editor/  # Геометрия и валидация маршрута (routeGeometry, routeValidation)
+├── components/    # UI только — никакой бизнес-логики
+├── hooks/         # Состояние, эффекты, загрузка данных
+├── lib/           # env.ts, supabase.ts, mapLayers.ts
+├── utils/         # Чистые функции без React/Mapbox (все покрыты тестами)
+├── constants/     # Единственный источник LAYER_IDS, SOURCE_IDS, COLORS, MAP_CENTER
+├── types/         # geojson.ts, supabase.ts, velojol.ts — реэкспорт через index.ts
+├── data/          # almaty.json — статичный GeoJSON велодорожек (Velojol)
+├── test/          # setup.ts для Vitest + jsdom
+└── admin/         # Lazy-loaded по /admin, Supabase Auth + map_admin_users
+    ├── pages/         # PointEditPage, RouteEditPage, SubmissionsPage, GeoPage, PointsPage, RoutesPage
+    ├── components/    # PointForm, PhotoManager, AdminRoutePolylineMap, ConfirmDialog, ...
+    ├── hooks/         # useAdminAuth, useCoordinateHistory, useUndoRedoHotkeys, useAdminListLoader
+    ├── lib/adminApi/  # CRUD: points, routes, photos, submissions, geo; types, parsers, query
+    └── route-editor/  # routeGeometry.ts, routeValidation.ts (геометрия и валидация маршрута)
 supabase/
-├── migrations/    # PostgreSQL migrations (8 tables)
-├── functions/     # Deno Edge Functions (Telegram webhook bot)
-└── schema.sql     # Full DB schema export
+├── migrations/    # 16 PostgreSQL-миграций (все таблицы + RLS + индексы)
+├── functions/     # telegram-location-bot (Deno, webhook-обработчик)
+└── schema.sql     # Полный экспорт схемы БД
 ```
 
 ### Data Flow
 
-1. `hooks/useLayers.ts` — координирует все Supabase-запросы через `Promise.allSettled` (resilient)
-2. `utils/supabaseToGeojson.ts` — трансформирует строки БД → Mapbox-ready GeoJSON FeatureCollections
-3. `lib/mapLayers.ts` — определяет paint/layout-выражения слоёв, добавляет/обновляет sources+layers в Mapbox
-4. Click/hover-обработчики (`useMapClick`, `useMapHover`) обновляют Mapbox **feature-state** (`hover`, `selected`) — без DOM-ререндеров
-5. URL-путь `…/m/{тип}/{id}` синхронизируется с выбранной фичей через `useMapSelectionSync`; устаревший hash `#point=…` редиректится на путь
+```
+useMapData.ts
+  ├─ fetchMapPoints()      → mapPointsToFeatureCollection()    → pointsGeo
+  ├─ fetchMapRoutes()      → mapRoutesToFeatureCollection()    → routesGeo
+  ├─ velojolToFeatureCollection(almaty.json)                   → bikeLanesGeo
+  └─ fetchTelegramLocations()
+       ├─ telegramLocationsToUsersFeatureCollection()          → telegramUsersGeo
+       └─ telegramLocationsToRecentTracksFeatureCollection()   → telegramTracksGeo
+
+Все запросы — через Promise.allSettled (один упавший не блокирует остальные).
+Каждый запрос обёрнут withTimeoutAndRetry() — 10с таймаут, 2 повтора, экспоненциальный backoff.
+
+useLayers.ts
+  └─ lib/mapLayers.ts → добавляет/обновляет GeoJSON sources + paint layers в Mapbox
+
+Telegram realtime:
+  useTelegramRealtime.ts → postgres_changes → 300ms debounce → fetchTelegramLocations() → source.setData()
+```
 
 ### Main Component (`EucMap.tsx`)
 
-Оркестрирует 10+ хуков; владеет `<div ref={containerRef}>` — точкой монтирования Mapbox. Компонует:
-- `LayerControls` — переключение видимости слоёв (localStorage через `useLayerVisibilityStore`)
-- `FeatureSidebar` / `PopupContent` — детали выбранной фичи + фотогалерея
-- `AddPointPanel` — форма добавления точки (`useDraftPointFlow`)
+Оркестрирует хуки в порядке зависимостей:
+1. `useMapbox(containerRef)` — создаёт Mapbox-инстанс (один раз)
+2. `useMapData` — загружает данные, управляет realtime
+3. `useLayers` — добавляет слои, управляет видимостью
+4. `useMapClick`, `useMapHover` — attach listeners, обновляют feature-state
+5. `useMapSelectionSync` — синхронизирует URL ↔ выбранная фича
+6. `useMapPopup` — управляет Mapbox popup
+7. `useGeolocateControl`, `useUserGeolocation`, `useDeviceCompassHeading` — геолокация
+
+Рендерит: `LayerControls`, `FeatureSidebar`, `PopupContent`, `AddPointPanel`, `MapOverlayButtons`, `MapNotificationModals`, `PwaPrompts`.
+
+### Feature State (нет DOM-ререндеров)
+
+Hover/select реализованы через Mapbox feature-state — нулевые React-ререндеры:
+```javascript
+map.setFeatureState({ source, id }, { selected: true })
+// Paint: ["case", ["feature-state", "selected"], selectedColor, defaultColor]
+```
+
+### URL Deep Links
+
+- Формат: `/m/point/11`, `/m/route/5`, `/m/socket/3`, `/m/bikelane/alm1`, `/m/telegramuser/123`
+- Старый hash `#point=11` → автоматически редиректит на путь
+- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — иначе сломается в prod (`base = /map.euc/`)
+
+### Constants (`src/constants/index.ts`)
+
+Единственный источник истины — не дублировать строковые ID в коде:
+- `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`, `LAYER_ID_TO_SOURCE`
+- `COLORS` — цвета по типу фичи для paint-выражений
+- `FEATURE_TYPE_LABELS`, `POINT_FLAG_LABELS` — русские подписи
+- `MAPBOX_STYLES` (`streets`, `satellite`), тип `BaseMapStyle`, тип `LayerKey`
+- `MAP_CENTER` (`[76.904848, 43.226807]`), `MAP_ZOOM_DEFAULT` (12), `MAP_ZOOM_FOCUS` (15)
+
+### GeoJSON & Types (`src/types/`)
+
+- `FeatureType = 'point' | 'socket' | 'route' | 'bikeLane' | 'telegramUser'`
+- `FeatureProperties` — union: `PointProperties | SocketProperties | RouteProperties | BikeLaneProperties | TelegramUserProperties`
+- Координаты: `[lon, lat]` или `[lon, lat, elevation]` (тип `Position`)
+- `PointFeature`, `RouteFeature`, `BikeLaneFeature`, `LineStringFeature` — типизированные обёртки
 
 ### Mapbox
 
-- Инициализация — в хуке `useMapbox(containerRef)`. Один инстанс на контейнер; при смене базового стиля — `map.setStyle(...)`, пересоздание слоёв через событие `style.load`.
-- Проверка перед добавлением слоёв: `if (map.getStyle() === undefined) return;`
-- Popup: контент рендерить через `createRoot` + React-компонент, при закрытии — `root.unmount()`.
-- Токен: `import.meta.env.VITE_MAPBOX_TOKEN`. Отключать телеметрию через `transformRequest` (пустой ответ на `events.mapbox.com`).
-
-#### Map Controls
-
-- UI-элементы управления картой добавлять только через `mapbox-gl` controls (`map.addControl(...)`), не как overlay.
-- Контрол — кнопка только с иконкой (без текста), иконка выровнена по центру. Допустимы стандартные иконки Mapbox или Font Awesome.
-- Не добавлять кастомные стили/классы к контролу — никаких `className`, inline-стилей, кастомных CSS-классов.
-- Safe area для контролов и попапов — **глобально** в `src/index.css` на `.mapboxgl-ctrl-*`, `.mapboxgl-popup`.
-- Если control рендерится из React-компонента, монтировать в контейнер из `IControl.onAdd`.
-- Позиционирование через стандартные позиции `mapbox-gl` (`top-left`, `top-right`, `bottom-left`, `bottom-right`).
-
-### Constants
-
-- ID слоёв, источников, цвета, центр и зум — только в `src/constants/index.ts`. Не дублировать строковые ID по коду.
-- Экспорты: `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`, `COLORS`, `MAPBOX_STYLES`, тип `BaseMapStyle`, тип `LayerKey`.
-
-### GeoJSON & Types
-
-- Типы фич — из `src/types/geojson.ts`: `Feature`, `FeatureCollection`, `PointFeature`, `LineStringFeature`, `FeatureProperties`, `FeatureType`.
-- Координаты — `[lon, lat]` или `[lon, lat, elevation]`. Работа с bounds/центром — в `src/utils/bounds.ts`.
-- Данные слоёв: точки и маршруты из Supabase (`mapPointsToFeatureCollection`, `mapRoutesToFeatureCollection`); велодорожки — `data/almaty.json`.
-- Общие типы — в `src/types/` (geojson, supabase, velojol). Реэкспорт через `src/types/index.ts`.
+- Инициализация — `useMapbox(containerRef)`. Один инстанс; при `setStyle(...)` — пересоздание слоёв через `style.load`.
+- Перед добавлением слоёв: `if (map.getStyle() === undefined) return`
+- Popup: `createRoot` + React-компонент, при закрытии — `root.unmount()`
+- Токен: `import.meta.env.VITE_MAPBOX_TOKEN`. Телеметрия отключена через `transformRequest` (пустой ответ на `events.mapbox.com`)
+- Map controls: только через `map.addControl(...)`, кнопка без текста, без кастомных классов/стилей. Позиции: `top-left`, `top-right`, `bottom-left`, `bottom-right`.
 
 ### Supabase Backend
 
-- **Tables**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions` (moderation queue), `telegram_locations`, `telegram_profiles`
-- **Storage**: `map-point-photos/` and `telegram-avatars/` buckets (public URLs, no bot tokens)
-- **RLS**: All tables publicly readable (except disabled/draft items); writes require auth or Edge Function
-- **Resilience**: `withTimeoutAndRetry()` in `lib/supabase.ts` — 10s timeout, up to 2 retries, exponential backoff, transient error detection
-- При отсутствии URL/ключа — fallback на Cache API и предупреждение в консоль. Не бросать ошибки при старте.
+- **Таблицы**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions`, `telegram_locations`, `telegram_profiles`, `map_admin_users`
+- **Storage**: бакеты `map-point-photos/` и `telegram-avatars/` (публичные URL, без bot-токенов)
+- **RLS**: публичное чтение (кроме disabled/draft); запись требует auth или Edge Function
+- **Resilience**: `withTimeoutAndRetry()` в `lib/supabase.ts`; при отсутствии URL/ключа — fallback на Cache API, предупреждение в консоль, не бросать ошибку при старте
+- **Миграции**: 16 файлов в `supabase/migrations/`
 
 ### Telegram Bot (Edge Function)
 
-`supabase/functions/telegram-location-bot/index.ts` — Deno runtime. Receives Telegram webhook `POST`, extracts location + user, saves to `telegram_locations`, fetches and caches avatar in `telegram_profiles` + Storage. Avatar URLs are sanitized (bot tokens stripped before storage).
+`supabase/functions/telegram-location-bot/index.ts` — Deno runtime. Принимает webhook `POST`, валидирует secret-токен, сохраняет геопозицию в `telegram_locations`, кеширует аватар в `telegram_profiles` + Storage. URL аватара санируется (bot-токен вырезается перед записью).
+
+### Admin Section (`/admin`)
+
+Lazy-loaded, доступ — Supabase Auth + запись в `map_admin_users`. Структура:
+- **adminApi**: `listPoints/getPoint/createPoint/updatePoint/togglePointDisabled/deletePoint`, аналогично для routes; `listSubmissions/approveSubmission/rejectSubmission`; `getAdminGeoData`; `uploadPhoto/deletePhoto`
+- **route-editor**: геометрия и валидация вершин маршрута
+- Undo/redo координат: `useCoordinateHistory` + `useUndoRedoHotkeys`
+- Кнопка «Открыть на сайте» в edit-страницах: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}`
 
 ### Deployment
 
-- **GitHub Pages** at `map.euc.kz` — static SPA
-- **CI/CD**: `.github/workflows/deploy.yml` on push to `main`; build with `GITHUB_PAGES=true` (sets Vite `base` to `/map.euc/`)
-- Telegram notification on deploy success/failure
-- Локальный тест: Valet proxy на `map.euc.test` → `127.0.0.1:5173`
+- **GitHub Pages** (`map.euc.kz`) — static SPA; `GITHUB_PAGES=true` → Vite `base = /map.euc/`
+- **CI/CD**: `.github/workflows/deploy.yml` — Supabase migrate → build → deploy → Telegram notification
+- **Локально**: Valet proxy `map.euc.test` → `localhost:5173`
 
 ### PWA
 
-- Service worker at `public/sw.js` — app shell + static asset caching, stale-while-revalidate for Supabase API calls, offline fallback
-- `PwaPrompts.tsx` handles install prompts
-- Icons/splash screens generated via `npm run generate:pwa-icons`
+- Service worker `public/sw.js` — app shell cache + stale-while-revalidate для Supabase API, offline fallback
+- Иконки/сплэши: `npm run generate:pwa-icons` / `npm run generate:pwa-startup`
 
 ## Workflow
 
-- При правках слоёв/источников/цветов использовать константы из `src/constants`, не дублировать строковые ID.
-- Для публичных методов/функций (хуки, utils, API-слой, edge functions) добавлять краткий JSDoc с назначением и ключевыми эффектами.
+- Слои/источники/цвета — только через константы из `src/constants/index.ts`.
+- Для публичных функций/хуков/утилит/edge functions — краткий JSDoc с назначением и ключевыми эффектами.
+- Vitest-конфиг встроен в `vite.config.ts` (environment: jsdom, globals: true, setupFiles: `src/test/setup.ts`).
