@@ -168,11 +168,7 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
         filter: ['==', ['geometry-type'], 'LineString'],
         paint: {
           'line-width': stateHighlight.lineWidth(3.6, 5, 4.4),
-          'line-opacity': [
-            '*',
-            stateHighlight.opacity(),
-            ['interpolate', ['linear'], ['get', 'ageMinutes'], 0, 1, 10, 0.6],
-          ],
+          'line-opacity': stateHighlight.opacity(),
           'line-width-transition': { duration: 200 },
           'line-gradient': [
             'interpolate',

@@ -74,12 +74,12 @@ export function useMapData() {
     const refreshTelegramUsers = useCallback(async () => {
         const requestSeq = ++telegramRefreshSeqRef.current;
         try {
+            // Фаза 1: обновляем только маркеры радара — карту не трогаем, чтобы треки не мигали
             const latestRows = await fetchLatestTelegramLocations();
             if (requestSeq !== telegramRefreshSeqRef.current) return;
-            const latestGeo = telegramLocationsToUsersFeatureCollection(latestRows);
-            setTelegramLatestGeo(latestGeo);
-            setTelegramUsersGeo(latestGeo);
+            setTelegramLatestGeo(telegramLocationsToUsersFeatureCollection(latestRows));
 
+            // Фаза 2: обновляем карту сразу с маркерами + треками
             const allRows = await fetchTelegramLocations();
             if (requestSeq !== telegramRefreshSeqRef.current) return;
             setTelegramUsersGeo(buildUsersAndTracksGeo(latestRows, allRows));
