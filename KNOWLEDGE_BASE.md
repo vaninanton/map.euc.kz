@@ -1,6 +1,6 @@
 # map.euc.kz — Comprehensive Knowledge Base
 
-**Last Updated:** 2026-05-15  
+**Last Updated:** 2026-06-12  
 **Repository:** https://github.com/tonybantry/map.euc  
 **Live Site:** https://map.euc.kz  
 **Status:** Production, actively maintained
@@ -41,7 +41,7 @@ An interactive PWA (Progressive Web App) serving the EUC (Electric Unicycle) com
         ┌────────▼──────────┐
         │    Supabase       │
         │  ┌──────────────┐ │
-        │  │ PostgreSQL   │ │  ◄─ 8 tables (map_points, routes, etc.)
+        │  │ PostgreSQL   │ │  ◄─ 7 tables (map_points, routes, etc.)
         │  │ + RLS        │ │
         │  └──────────────┘ │
         │  ┌──────────────┐ │
@@ -125,7 +125,7 @@ EucMap mounts
 
 User clicks feature
     ├─ useMapClick() → feature-state set to selected
-    ├─ useMapSelectionSync() → URL hash updated (#point-123)
+    ├─ useMapSelectionSync() → URL path updated (/m/point/123)
     ├─ useMapFeatureSelection() → fetch feature from index
     └─ UI rerenders with FeatureSidebar showing details
 
@@ -187,7 +187,7 @@ When **EucMap** mounts:
 3. **useLayers()** — reads visibility state from localStorage
 4. **useMapClick()** — attaches click listener to Mapbox
 5. **useMapHover()** — attaches mousemove listener to Mapbox
-6. **useMapSelectionSync()** — syncs URL hash ↔ selected feature
+6. **useMapSelectionSync()** — syncs URL path `/m/{type}/{id}` ↔ selected feature
 7. **useTelegramRealtime()** — subscribes to Supabase Realtime
 8. **useSelectedFeatureState()** — manages feature-state (hover/selected)
 9. **useGeolocateControl()** — adds browser geolocation control
@@ -531,7 +531,7 @@ Frontend receives Realtime broadcast
 const mapInstance = new mapboxgl.Map({
   container: containerRef.current,
   style: MAPBOX_STYLES[baseStyle], // 'streets' or 'satellite'
-  center: MAP_CENTER, // [76.9385, 43.2375] (Almaty)
+  center: MAP_CENTER, // [76.904848, 43.226807] (Almaty)
   zoom: MAP_ZOOM_DEFAULT, // ~11
   logoPosition: 'bottom-right',
   attributionControl: false, // custom attribution added
@@ -758,11 +758,11 @@ Update feature state for paint expressions.
 
 ## STATE MANAGEMENT
 
-### Zustand Store: useLayerVisibilityStore
+### React State: useLayerVisibilityStore
 
 **File:** `hooks/useLayerVisibilityStore.ts`
 
-**State:**
+**State:** plain `useState` + `useCallback` (без Zustand)
 
 ```typescript
 {
@@ -781,7 +781,7 @@ Update feature state for paint expressions.
 - `toggleLayer(layerKey: LayerKey)` — toggle on/off
 - `setLayerVisibility(layerKey, visible: boolean)`
 
-**Persistence:** localStorage key `layer-visibility`
+**Persistence:** localStorage key `map-euc-layer-visibility`
 
 **Subscribers:** `useLayers()` hook depends on this, triggers `applyVisibility()` when changed.
 
@@ -971,6 +971,8 @@ npm run build
 # Result: dist/ with index.html, assets/, 404.html
 ```
 
+**Pre-commit hook** (Husky, `.husky/pre-commit`): `lint → tsc --noEmit → test → build` — запускается автоматически перед каждым коммитом.
+
 **Optimization:**
 - Code splitting: `mapbox-gl` in separate chunk (600KB limit)
 - Tree-shaking: ESM modules
@@ -1098,7 +1100,7 @@ Analyzed:
 
 - **src/main.tsx** — App bootstrap, service worker registration
 - **src/App.tsx** — Router configuration
-- **src/app/MapShell.tsx** — Map page (lazy-loaded)
+- **src/MapShell.tsx** — Map page (lazy-loaded)
 - **src/admin/AdminShell.tsx** — Admin dashboard
 - **index.html** — HTML template with OG meta tags, PWA manifest link
 
@@ -1110,10 +1112,10 @@ Analyzed:
 - **src/hooks/useTelegramRealtime.ts** — Realtime subscriptions
 - **src/hooks/useMapClick.ts** — Click event handling
 - **src/hooks/useMapHover.ts** — Hover effects
-- **src/hooks/useMapSelectionSync.ts** — URL hash ↔ selected feature
+- **src/hooks/useMapSelectionSync.ts** — URL path `/m/{type}/{id}` ↔ selected feature
 - **src/hooks/useDraftPointFlow.ts** — Point submission flow
-- **src/hooks/useLayerVisibilityStore.ts** — Visibility state (Zustand)
-- **src/hooks/useAdminAuth.ts** — Auth status for admin panel
+- **src/hooks/useLayerVisibilityStore.ts** — Visibility state (localStorage + useState)
+- **src/admin/hooks/useAdminAuth.ts** — Auth status for admin panel
 
 ### Libraries & Utilities
 
@@ -1122,7 +1124,7 @@ Analyzed:
 - **src/lib/env.ts** — Environment variable readers with defaults
 - **src/utils/supabaseToGeojson.ts** — Row → GeoJSON normalization
 - **src/utils/mapFeatureGuards.ts** — Type discriminators
-- **src/utils/hashNav.ts** — URL hash parsing
+- **src/utils/hashNav.ts** — URL deep link parsing и построение путей `/m/{type}/{id}`
 - **src/utils/geoMath.ts** — Haversine, bearing, etc.
 - **src/utils/shareLinks.ts** — Generate share URLs
 
@@ -1135,7 +1137,8 @@ Analyzed:
 
 ### Constants
 
-- **src/constants/mapLayerRegistry.ts** — Layer IDs, source IDs, colors
+- **src/constants/index.ts** — Layer IDs, source IDs, colors, MAP_CENTER (единственный источник)
+- **src/constants/mapLayerRegistry.ts** — `LAYER_KEY_TO_MAP_LAYER_IDS`, `applyVisibilityToMapLayers`
 - **src/constants/layerVisibility.ts** — Initial visibility state
 
 ### Admin Pages
@@ -1150,7 +1153,7 @@ Analyzed:
 - **supabase/migrations/** — Database schema migrations
 - **supabase/functions/telegram-location-bot/index.ts** — Telegram webhook handler
 - **supabase/schema.sql** — Full schema export
-- **supabase/seed.sql** — Demo data (if any)
+- **supabase/schema.sql** — Full schema export (seed.sql отсутствует)
 
 ### Config
 
@@ -1241,7 +1244,7 @@ EucMap.useMapClick listener fires
     │   ├─ Set feature-state selected=true
     │   ├─ flyToBounds (zoom to feature)
     │   └─ displaySelectedFeature = true
-    ├─ useMapSelectionSync updates URL hash (#point-123)
+    ├─ useMapSelectionSync updates URL path (/m/point/123)
     ├─ FeatureSidebar renders
     └─ Mapbox paint expressions update (selected dim = 0.7)
 ```
@@ -1665,7 +1668,7 @@ curl -X POST http://localhost:54321/functions/v1/telegram-location-bot \
 
 **Examples:**
 - `utils/geoMath.test.ts` — Haversine distance, bearing
-- `utils/hashNav.test.ts` — URL hash parsing
+- `utils/hashNav.test.ts` — URL deep link parsing
 - `utils/supabaseToGeojson.test.ts` — Data normalization
 - `constants/mapLayerRegistry.test.ts` — Layer registry
 
@@ -1717,7 +1720,7 @@ npx tsc --watch
 - [ ] Clicking point shows sidebar with photos
 - [ ] Adding point flow works (validation, submission)
 - [ ] Radar mode shows Telegram tracks
-- [ ] Deep link works (#point-123)
+- [ ] Deep link works (/m/point/123)
 - [ ] Offline mode (DevTools → Offline)
   - [ ] App shell loads
   - [ ] Cached data visible
@@ -1822,7 +1825,7 @@ Think of **map.euc** as a **real-time collaborative map** with two main data fee
 7. **supabase/functions/telegram-location-bot/index.ts** — Webhook handler; security-critical
 8. **.github/workflows/deploy.yml** — CI/CD pipeline; controls deployments
 9. **src/hooks/useLayerVisibilityStore.ts** — User preferences; localStorage sync
-10. **src/constants/mapLayerRegistry.ts** — Layer metadata; adding a new layer requires changes here
+10. **src/constants/index.ts** — All layer/source IDs, colors, MAP_CENTER; adding a new layer requires changes here
 
 ---
 
@@ -1834,7 +1837,7 @@ Think of **map.euc** as a **real-time collaborative map** with two main data fee
 2. **Supabase (not Firebase, not custom)** — PostgreSQL + RLS + Realtime + Storage bundled
    - **Trade-off:** Vendor lock, but simpler than managing separate services
 
-3. **React Hooks (not Redux, not Jotai)** — Context + local useState for component state
+3. **React Hooks (not Redux, not Zustand, not Jotai)** — plain useState + useCallback для хранения состояния
    - **Trade-off:** Prop drilling, but fewer abstractions
 
 4. **Feature-state for interactivity (not DOM updates)** — Mapbox paint expressions reflect feature state
@@ -1846,8 +1849,8 @@ Think of **map.euc** as a **real-time collaborative map** with two main data fee
 6. **Service Worker caching (not server-side)** — Browser manages all cache logic
    - **Trade-off:** Cache invalidation complexity, but works offline
 
-7. **Zustand for visibility (not useReducer)** — Small, observable state for layer toggles
-   - **Trade-off:** Another dependency, but simpler than Context Provider
+7. **useState + localStorage для visibility (not Zustand, not useReducer)** — минимальный стейт без внешних зависимостей
+   - **Trade-off:** Нет реактивности между компонентами, но достаточно для одного подписчика
 
 8. **GitHub Pages (not Netlify, not Vercel)** — Static hosting with custom domain via CNAME
    - **Trade-off:** No serverless functions on frontend (use Edge Functions instead), but free
@@ -1909,7 +1912,7 @@ Think of **map.euc** as a **real-time collaborative map** with two main data fee
 **Safety:**
 
 - Always clear old feature-state before setting new one
-- Test deep links (#point-123) load with correct selection
+- Test deep links (/m/point/123) load with correct selection
 - Check map.setFeatureState is called AFTER source created
 
 ### 6. URL Hash Sync (useMapSelectionSync + hashNav)
