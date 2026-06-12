@@ -17,6 +17,9 @@ dist-ssr
 !supabase/seed.sql
 !supabase/migrations/*.sql
 
+# Supabase DB backups (may contain personal data)
+supabase/backups/
+
 # Test coverage
 coverage
 playwright-report
