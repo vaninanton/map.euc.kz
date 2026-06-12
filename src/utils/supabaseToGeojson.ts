@@ -2,6 +2,7 @@ import type { Feature, FeatureCollection, PointFeature, RouteFeature } from '@/t
 import type { MapPointRow, MapRouteRow, TelegramLocationRow } from '@/types/supabase';
 import { getTelegramGeoTtlMinutes, getTelegramTrackTailMinutes } from '@/lib/env';
 import { haversineKm } from '@/utils/geoMath';
+import { AVATAR_PREFIX } from '@/hooks/useTelegramAvatars';
 
 const TELEGRAM_SPEED_SAMPLE_POINTS = 5;
 
@@ -179,6 +180,7 @@ export function telegramLocationsToUsersFeatureCollection(rows: TelegramLocation
         updatedAt: row.created_at,
         ageMinutes: Math.max(0, (nowTs - Date.parse(row.created_at)) / 60000),
         avatarUrl: buildTelegramAvatarUrl(row),
+        avatarImageId: row.avatar_url ? `${AVATAR_PREFIX}${String(row.telegram_user_id)}` : null,
         avgSpeedKmh: avgSpeedByUser.get(row.telegram_user_id) ?? null,
         avgSpeedWindowPoints: TELEGRAM_SPEED_SAMPLE_POINTS,
       },

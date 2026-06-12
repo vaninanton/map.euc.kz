@@ -66,6 +66,8 @@ export interface TelegramUserProperties extends BaseFeatureProperties {
   updatedAt: string;
   ageMinutes?: number;
   avatarUrl?: string | null;
+  /** Id иконки в Mapbox image registry (формат tg-avatar-<telegramUserId>), null если нет аватара. */
+  avatarImageId?: string | null;
   avgSpeedKmh?: number | null;
   avgSpeedWindowPoints?: number;
 }

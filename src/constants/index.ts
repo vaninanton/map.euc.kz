@@ -16,6 +16,7 @@ export const LAYER_IDS = {
   bikeLanes: 'euc-bike-lanes',
   telegramUsers: 'euc-telegram-users',
   telegramTracks: 'euc-telegram-tracks',
+  telegramAvatars: 'euc-telegram-avatars',
 } as const;
 
 /** Слои, по которым обрабатываются клик и ховер. */
@@ -37,6 +38,7 @@ export const LAYER_ID_TO_KEY = {
   [LAYER_IDS.bikeLanes]: 'bikeLanes',
   [LAYER_IDS.telegramUsers]: 'telegramUsers',
   [LAYER_IDS.telegramTracks]: 'telegramUsers',
+  [LAYER_IDS.telegramAvatars]: 'telegramUsers',
 } as const satisfies Record<(typeof LAYER_IDS)[keyof typeof LAYER_IDS], LayerKey>;
 
 export const SOURCE_IDS = {
@@ -55,6 +57,7 @@ export const LAYER_ID_TO_SOURCE: Record<(typeof LAYER_IDS)[keyof typeof LAYER_ID
   [LAYER_IDS.bikeLanes]: SOURCE_IDS.bikeLanes,
   [LAYER_IDS.telegramUsers]: SOURCE_IDS.telegramUsers,
   [LAYER_IDS.telegramTracks]: SOURCE_IDS.telegramUsers,
+  [LAYER_IDS.telegramAvatars]: SOURCE_IDS.telegramUsers,
 };
 
 export const COLORS = {

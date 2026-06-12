@@ -214,6 +214,26 @@ export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void 
     } else {
       map.setLayoutProperty(LAYER_IDS.telegramUsers, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
     }
+    // Symbol-слой с аватарками поверх circle — показывается только если иконка зарегистрирована
+    if (!map.getLayer(LAYER_IDS.telegramAvatars)) {
+      const avatarLayer: SymbolLayerSpecification = {
+        id: LAYER_IDS.telegramAvatars,
+        type: 'symbol',
+        source: SOURCE_IDS.telegramUsers,
+        filter: ['==', ['geometry-type'], 'Point'],
+        layout: {
+          visibility: visibility.telegramUsers ? 'visible' : 'none',
+          'icon-image': ['coalesce', ['get', 'avatarImageId'], ''],
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-anchor': 'center',
+        },
+      };
+      map.addLayer(avatarLayer);
+    } else {
+      map.setLayoutProperty(LAYER_IDS.telegramAvatars, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
+    }
     if (map.getLayer(LAYER_IDS.telegramTracks)) {
       map.setLayoutProperty(LAYER_IDS.telegramTracks, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
     }

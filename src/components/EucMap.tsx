@@ -21,6 +21,7 @@ import { RouteListSidebar } from '@/components/RouteListSidebar';
 import { PointListSidebar } from '@/components/PointListSidebar';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
 import { RadarModal } from '@/components/RadarModal';
+import { useTelegramAvatars } from '@/hooks/useTelegramAvatars';
 
 export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,11 +60,13 @@ export function EucMap() {
     pointsGeo,
     routesGeo,
     bikeLanesGeo,
+    telegramLatestGeo,
     telegramUsersGeo,
     errorMessage,
     emptyMessage,
     loading,
   } = useLayers();
+  useTelegramAvatars(map, telegramLatestGeo);
 
   const {
     selectedFeature,
@@ -389,7 +392,7 @@ export function EucMap() {
         onClose={() => {
           void navigate('/', { replace: true });
         }}
-        telegramUsersGeo={telegramUsersGeo}
+        telegramUsersGeo={telegramLatestGeo}
         pointsGeo={pointsGeo}
         onSelectRider={(telegramUserId) => {
           const feature = getFeatureById('telegramUsers', `telegram-user-${String(telegramUserId)}`);

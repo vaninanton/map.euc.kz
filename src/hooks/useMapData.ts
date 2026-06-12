@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { Feature, FeatureCollection, BikeLaneFeature } from '@/types/geojson';
+import type { TelegramLocationRow } from '@/types/supabase';
 import type { VelojolSegment } from '@/types/velojol';
-import { fetchMapPoints, fetchMapRoutes, fetchTelegramLocations, supabase } from '@/lib/supabase';
+import { fetchMapPoints, fetchMapRoutes, fetchTelegramLocations, fetchLatestTelegramLocations, supabase } from '@/lib/supabase';
 import {
     mapPointsToFeatureCollection,
     mapRoutesToFeatureCollection,
@@ -34,13 +35,31 @@ function velojolToFeatureCollection(segments: VelojolSegment[]): FeatureCollecti
     return { type: 'FeatureCollection', features };
 }
 
+function buildUsersAndTracksGeo(latestRows: TelegramLocationRow[], allRows: TelegramLocationRow[]): FeatureCollection {
+    const usersGeo = telegramLocationsToUsersFeatureCollection(latestRows);
+    const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(allRows);
+    return {
+        type: 'FeatureCollection',
+        features: [...tracksGeo.features, ...usersGeo.features],
+    };
+}
+
 /**
  * Загрузка и индексация GeoJSON слоёв карты (без видимости и без привязки к Mapbox).
+ *
+ * Двухфазная загрузка Telegram:
+ * 1. fetchLatestTelegramLocations() — одна точка на пользователя + профиль (быстро).
+ *    Результат → telegramLatestGeo (маркеры) и сразу же telegramUsersGeo (карта).
+ * 2. fetchTelegramLocations() — все точки за TTL (для треков).
+ *    Результат → telegramUsersGeo обновляется с треками.
  */
 export function useMapData() {
     const [pointsGeo, setPointsGeo] = useState<FeatureCollection | null>(null);
     const [routesGeo, setRoutesGeo] = useState<FeatureCollection | null>(null);
     const [bikeLanesGeo, setBikeLanesGeo] = useState<FeatureCollection | null>(null);
+    /** Только последние точки пользователей (без треков) — используется радаром. */
+    const [telegramLatestGeo, setTelegramLatestGeo] = useState<FeatureCollection | null>(null);
+    /** Маркеры + треки — используется картой. */
     const [telegramUsersGeo, setTelegramUsersGeo] = useState<FeatureCollection | null>(null);
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -50,18 +69,20 @@ export function useMapData() {
 
     /**
      * Перезагружает Telegram-слой и защищается от гонки запросов через seq-id.
+     * Realtime-обновление: сначала latest (быстро), потом all (треки).
      */
     const refreshTelegramUsers = useCallback(async () => {
         const requestSeq = ++telegramRefreshSeqRef.current;
         try {
-            const rows = await fetchTelegramLocations();
+            const latestRows = await fetchLatestTelegramLocations();
             if (requestSeq !== telegramRefreshSeqRef.current) return;
-            const pointsGeoFc = telegramLocationsToUsersFeatureCollection(rows);
-            const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(rows);
-            setTelegramUsersGeo({
-                type: 'FeatureCollection',
-                features: [...tracksGeo.features, ...pointsGeoFc.features],
-            });
+            const latestGeo = telegramLocationsToUsersFeatureCollection(latestRows);
+            setTelegramLatestGeo(latestGeo);
+            setTelegramUsersGeo(latestGeo);
+
+            const allRows = await fetchTelegramLocations();
+            if (requestSeq !== telegramRefreshSeqRef.current) return;
+            setTelegramUsersGeo(buildUsersAndTracksGeo(latestRows, allRows));
         } catch (error) {
             console.error('Realtime refresh telegram users failed:', error);
         }
@@ -75,10 +96,10 @@ export function useMapData() {
             setErrorMessage(null);
             setEmptyMessage(null);
             void (async () => {
-                const [pointsResult, routesResult, telegramLocationsResult, bikeLanesModule] = await Promise.allSettled([
+                const [pointsResult, routesResult, latestTelegramResult, bikeLanesModule] = await Promise.allSettled([
                     fetchMapPoints(),
                     fetchMapRoutes(),
-                    fetchTelegramLocations(),
+                    fetchLatestTelegramLocations(),
                     import('@/data/almaty.json'),
                 ]);
                 if (abort.aborted) return;
@@ -95,14 +116,14 @@ export function useMapData() {
                     setRoutesGeo(null);
                 }
 
-                if (telegramLocationsResult.status === 'fulfilled') {
-                    const pointsGeoFc = telegramLocationsToUsersFeatureCollection(telegramLocationsResult.value);
-                    const tracksGeo = telegramLocationsToRecentTracksFeatureCollection(telegramLocationsResult.value);
-                    setTelegramUsersGeo({
-                        type: 'FeatureCollection',
-                        features: [...tracksGeo.features, ...pointsGeoFc.features],
-                    });
+                // Фаза 1: только последние точки — маркеры и радар готовы
+                if (latestTelegramResult.status === 'fulfilled') {
+                    const latestRows = latestTelegramResult.value;
+                    const latestGeo = telegramLocationsToUsersFeatureCollection(latestRows);
+                    setTelegramLatestGeo(latestGeo);
+                    setTelegramUsersGeo(latestGeo);
                 } else {
+                    setTelegramLatestGeo(null);
                     setTelegramUsersGeo(null);
                 }
 
@@ -128,10 +149,10 @@ export function useMapData() {
                         routesResult.reason instanceof Error ? routesResult.reason.message : 'Не удалось загрузить маршруты.';
                     errors.push(msg);
                 }
-                if (telegramLocationsResult.status === 'rejected') {
+                if (latestTelegramResult.status === 'rejected') {
                     const msg =
-                        telegramLocationsResult.reason instanceof Error
-                            ? telegramLocationsResult.reason.message
+                        latestTelegramResult.reason instanceof Error
+                            ? latestTelegramResult.reason.message
                             : 'Не удалось загрузить Telegram-участников.';
                     errors.push(msg);
                 }
@@ -139,12 +160,23 @@ export function useMapData() {
 
                 const pointsCount = pointsResult.status === 'fulfilled' ? pointsResult.value.length : 0;
                 const routesCount = routesResult.status === 'fulfilled' ? routesResult.value.length : 0;
-                const telegramPointsCount =
-                    telegramLocationsResult.status === 'fulfilled' ? telegramLocationsResult.value.length : 0;
-                if (pointsCount + routesCount + telegramPointsCount === 0) {
+                const telegramCount = latestTelegramResult.status === 'fulfilled' ? latestTelegramResult.value.length : 0;
+                if (pointsCount + routesCount + telegramCount === 0) {
                     setEmptyMessage('Пока нет опубликованных точек, маршрутов и Telegram-локаций.');
                 }
                 setLoading(false);
+
+                // Фаза 2: все точки за TTL → треки (не блокирует UI)
+                const latestRows = latestTelegramResult.status === 'fulfilled' ? latestTelegramResult.value : null;
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- abort.aborted может стать true асинхронно
+                if (latestRows !== null && !abort.aborted) {
+                    fetchTelegramLocations().then((allRows) => {
+                        if (abort.aborted) return;
+                        setTelegramUsersGeo(buildUsersAndTracksGeo(latestRows, allRows));
+                    }).catch((err: unknown) => {
+                        console.error('fetchTelegramLocations (tracks phase):', err);
+                    });
+                }
             })();
         });
         return () => {
@@ -199,6 +231,7 @@ export function useMapData() {
         pointsGeo,
         routesGeo,
         bikeLanesGeo,
+        telegramLatestGeo,
         telegramUsersGeo,
         loading,
         errorMessage,

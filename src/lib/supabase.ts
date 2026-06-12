@@ -418,6 +418,40 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
   return rows;
 }
 
+/**
+ * Быстрый запрос: последняя точка каждого пользователя за TTL, с профилем (аватар, имя).
+ * Использует RPC get_latest_telegram_locations — один запрос вместо двух.
+ * Подходит для первого рендера маркеров и радара.
+ */
+export async function fetchLatestTelegramLocations(): Promise<TelegramLocationRow[]> {
+  if (!supabase) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
+  }
+
+  const ttlMinutes = getTelegramGeoTtlMinutes();
+  const maxAccuracyMeters = getTelegramMaxAccuracyMeters();
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- rpc возвращает any, нормализуем вручную
+  const { data, error } = await withTimeoutAndRetry('fetchLatestTelegramLocations', () =>
+    supabase.rpc('get_latest_telegram_locations', {
+      ttl_minutes: ttlMinutes,
+      max_accuracy_meters: maxAccuracyMeters,
+    })
+  );
+
+  if (error) {
+    console.error('fetchLatestTelegramLocations:', error);
+    throw new Error('Не удалось загрузить последние Telegram-локации.');
+  }
+
+  const rows: TelegramLocationRow[] = [];
+  for (const row of Array.isArray(data) ? (data as unknown[]) : []) {
+    const normalized = normalizeTelegramLocationRow(row);
+    if (normalized) rows.push(normalized);
+  }
+  return rows;
+}
+
 export async function createMapPointDraft(input: MapPointDraftInput): Promise<void> {
   if (!supabase) {
     throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
