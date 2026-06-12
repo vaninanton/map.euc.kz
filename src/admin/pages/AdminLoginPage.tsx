@@ -7,7 +7,6 @@ export function AdminLoginPage() {
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
-    const [oauthLoading, setOauthLoading] = useState(false)
 
     const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -27,25 +26,6 @@ export function AdminLoginPage() {
         }
     }
 
-    const handleTelegramSignIn = async () => {
-        setError(null)
-        setOauthLoading(true)
-        try {
-            const client = requireSupabase()
-            const { error: oauthError } = await client.auth.signInWithOAuth({
-                provider: 'custom:telegram',
-                options: {
-                    redirectTo: `${window.location.origin}/admin`,
-                },
-            })
-            if (oauthError) throw oauthError
-        } catch (err) {
-            setError(err instanceof Error ? err.message : String(err))
-        } finally {
-            setOauthLoading(false)
-        }
-    }
-
     return (
         <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-neutral-50 p-6">
             <div className="w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
@@ -55,14 +35,28 @@ export function AdminLoginPage() {
                     <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">map_admin_users</code>.
                 </p>
 
-                <button
-                    type="button"
-                    onClick={() => void handleTelegramSignIn()}
-                    disabled={oauthLoading || loading}
-                    className="mt-4 w-full rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:bg-sky-300"
-                >
-                    {oauthLoading ? 'Переход в Telegram…' : 'Войти через Telegram'}
-                </button>
+                <div className="mt-4">
+                    <button
+                        type="button"
+                        disabled
+                        title="Временно недоступно — ожидаем фикс от Supabase"
+                        className="w-full cursor-not-allowed rounded-lg bg-sky-200 px-4 py-2 text-sm font-semibold text-sky-400"
+                    >
+                        Войти через Telegram
+                    </button>
+                    <p className="mt-1.5 text-xs text-neutral-400">
+                        Временно недоступно — баг в Supabase Auth.{' '}
+                        <a
+                            href="https://github.com/supabase/auth/pull/2548"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:text-neutral-600"
+                        >
+                            Ожидаем фикс
+                        </a>
+                        .
+                    </p>
+                </div>
 
                 <div className="mt-3 flex items-center gap-3 text-xs text-neutral-400">
                     <span className="h-px flex-1 bg-neutral-200" />
