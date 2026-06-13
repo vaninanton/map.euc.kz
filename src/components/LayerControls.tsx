@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSliders } from '@fortawesome/free-solid-svg-icons'
@@ -34,10 +34,6 @@ export function LayerControls({
 }: LayerControlsProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isClosing, setIsClosing] = useState(false)
-    const [mounted, setMounted] = useState(false)
-
-    // Ждём монтирования, чтобы createPortal не кидал ошибку при SSR
-    useEffect(() => { setMounted(true) }, [])
 
     const handleClose = useCallback(() => { setIsClosing(true) }, [])
 
@@ -56,8 +52,6 @@ export function LayerControls({
             setIsClosing(false)
         }
     }, [isClosing])
-
-    if (!mounted) return null
 
     return createPortal(
         <div className="layer-controls-root">
