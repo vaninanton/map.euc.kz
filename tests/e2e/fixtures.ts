@@ -152,6 +152,10 @@ export async function mockExternalServices(page: Page, requests: SupabaseRequest
             await fulfillJson(route, 200, telegramLocationRows)
             return
         }
+        if (method === 'POST' && table === 'get_latest_telegram_locations') {
+            await fulfillJson(route, 200, telegramLocationRows)
+            return
+        }
         if (method === 'GET' && table === 'telegram_profiles') {
             await fulfillJson(route, 200, telegramProfileRows)
             return

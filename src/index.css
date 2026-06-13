@@ -123,12 +123,22 @@
 }
 
 .mapboxgl-ctrl-bottom-right {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
     padding-right: max(0.5rem, env(safe-area-inset-right)) !important;
 }
 
+/* На мобильных BottomTabBar (~60px) перекрывает нижние контролы карты — добавляем отступ */
+@media (max-width: 767px) {
+    .mapboxgl-ctrl-bottom-right {
+        padding-bottom: calc(60px + max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
+    }
+    .mapboxgl-ctrl-bottom-left {
+        padding-bottom: calc(60px + max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
+    }
+}
+
 .mapboxgl-ctrl-bottom-left {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
     padding-left: max(0.5rem, env(safe-area-inset-left)) !important;
 }
 
@@ -193,4 +203,100 @@
 
 .control-inset-left {
     left: max(0.5rem, env(safe-area-inset-left));
+}
+
+/* ─── Фильтры слоёв (LayerControls) ───────────────────────────────────────────
+   Позиция вычислена по реальным значениям mapbox-gl.css:
+     - кнопка геолокации: 32×32px
+     - .mapboxgl-ctrl в bottom-right: margin 0 10px 10px 0
+     - наш .mapboxgl-ctrl-bottom-right: padding-bottom = max(0.5rem, safe-area) + 16px
+                                        padding-right  = max(0.5rem, safe-area)
+   Итого bottom геолокации = padding-bottom + margin-bottom(10px)
+         bottom фильтра    = bottom геолокации + 32px(высота) + 8px(gap)
+   ──────────────────────────────────────────────────────────────────────────── */
+.layer-controls-root {
+    position: fixed;
+    /* left совпадает с левым краем геолокации: padding-left + margin-left(10px) */
+    left: calc(max(0.5rem, env(safe-area-inset-left)) + 10px);
+    /* desktop: над геолокацией = padding(8+16) + ctrl-margin(10) + btn(32) + gap(8) */
+    bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 16px + 10px + 32px + 8px);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+@media (max-width: 767px) {
+    /* mobile: добавляем высоту BottomTabBar (60px) */
+    .layer-controls-root {
+        bottom: calc(60px + max(0.5rem, env(safe-area-inset-bottom)) + 16px + 10px + 32px + 8px);
+    }
+}
+
+/* Враппер кнопки: визуально повторяет .mapboxgl-ctrl-group без использования
+   самого класса (чтобы избежать transform:translateZ(0) от Mapbox CSS) */
+.layer-controls-trigger {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #fff;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Кнопка внутри враппера */
+.layer-controls-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: #333;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.layer-controls-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.layer-controls-btn--active {
+    color: #f25824;
+}
+
+/* Панель фильтров: появляется над кнопкой с анимацией открытия */
+.layer-panel-popup {
+    transform-origin: bottom left;
+    animation: layer-panel-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Анимация закрытия: обратная */
+.layer-panel-popup--closing {
+    animation: layer-panel-out 0.2s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes layer-panel-in {
+    from {
+        opacity: 0;
+        transform: scale(0.85) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes layer-panel-out {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.85) translateY(8px);
+    }
 }

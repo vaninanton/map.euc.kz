@@ -28,12 +28,11 @@ test.describe('радар — с геолокацией', () => {
         await attachScreenshot(testInfo, 'radar-direct-open', page)
     })
 
-    test('открывается кнопкой «Открыть радар» в панели слоёв', async ({ page }, testInfo) => {
+    test('открывается кнопкой «Радар» в таб-баре', async ({ page }, testInfo) => {
         await mockExternalServices(page)
         await page.goto('/')
 
-        await page.getByLabel('Развернуть панель слоев').click()
-        await page.getByLabel('Открыть радар').click()
+        await page.getByLabel('Радар').click()
 
         await expect(page.getByRole('heading', { name: /РАДАР/i })).toBeVisible()
         await attachScreenshot(testInfo, 'radar-open-via-controls', page)

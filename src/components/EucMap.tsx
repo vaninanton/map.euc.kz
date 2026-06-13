@@ -329,9 +329,7 @@ export function EucMap() {
         onCloseLocationError={clearLocationError}
       />
       {(!selectedFeature || isDesktop) && (
-        <LayerControls
-          map={map}
-          isMapReady={isMapReady}
+      <LayerControls
           visibility={visibility}
           onToggle={toggleLayer}
           baseStyle={baseStyle}
