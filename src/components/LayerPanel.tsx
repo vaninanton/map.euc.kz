@@ -39,7 +39,7 @@ export function LayerPanel({
     <div
       role="group"
       aria-label="Слои карты"
-      className="relative min-w-45 p-6"
+      className="relative min-w-45 rounded-xl border border-neutral-200 bg-white p-6 shadow-lg"
     >
       <button
         type="button"
