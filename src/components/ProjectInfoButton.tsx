@@ -12,6 +12,7 @@ export function ProjectInfoButton({ onClick }: ProjectInfoButtonProps) {
             onClick={onClick}
             aria-label="Открыть информацию"
             title="О проекте"
+            className="cursor-pointer"
         >
             <FontAwesomeIcon icon={faQuestion} aria-hidden />
         </button>

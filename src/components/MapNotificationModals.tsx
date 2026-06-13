@@ -35,7 +35,7 @@ export function MapNotificationModals({
                             type="button"
                             onClick={onResetCacheAndReload}
                             disabled={isResettingCache}
-                            className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                            className="shrink-0 cursor-pointer rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
                         >
                             Обновить страницу
                         </button>

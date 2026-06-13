@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { resetAppCache } from '@/utils/resetAppCache';
 
 type Props = {
   children: ReactNode;
@@ -6,12 +7,13 @@ type Props = {
 
 type State = {
   hasError: boolean;
+  isResetting: boolean;
 };
 
 export class AppErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  state: State = { hasError: false, isResetting: false };
 
-  static getDerivedStateFromError(): State {
+  static getDerivedStateFromError(): Partial<State> {
     return { hasError: true };
   }
 
@@ -21,6 +23,12 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   private handleReload = () => {
     window.location.reload();
+  };
+
+  private handleResetCache = () => {
+    if (this.state.isResetting) return;
+    this.setState({ isResetting: true });
+    void resetAppCache();
   };
 
   render() {
@@ -35,10 +43,20 @@ export class AppErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={this.handleReload}
-              className="mt-4 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800"
+              className="mt-4 cursor-pointer rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800"
             >
               Перезагрузить
             </button>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={this.handleResetCache}
+                disabled={this.state.isResetting}
+                className="cursor-pointer text-xs text-neutral-400 transition hover:text-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {this.state.isResetting ? 'Очищаем кеш…' : 'Очистить кеш и перезагрузить'}
+              </button>
+            </div>
           </div>
         </div>
       );

@@ -69,7 +69,7 @@ export function PwaPrompts() {
           <button
             type="button"
             onClick={updateApp}
-            className="shrink-0 rounded bg-white/15 px-2 py-1 text-white hover:bg-white/25"
+            className="shrink-0 cursor-pointer rounded bg-white/15 px-2 py-1 text-white hover:bg-white/25"
           >
             Обновить
           </button>

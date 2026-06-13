@@ -14,6 +14,7 @@ import type { HashFeatureType } from '@/utils/hashNav';
 import { Marker } from 'mapbox-gl';
 import { applySelectionOpacityById, type SelectedFeatureState } from '@/utils/selectionOpacity';
 import { LayerControls } from '@/components/LayerControls';
+import { BottomTabBar } from '@/components/BottomTabBar';
 import { AddPointPanel } from '@/components/AddPointPanel';
 import { ProjectInfoModal } from '@/components/ProjectInfoModal';
 import { MapFeatureInfoModal } from '@/components/MapFeatureInfoModal';
@@ -21,13 +22,16 @@ import { RouteListSidebar } from '@/components/RouteListSidebar';
 import { PointListSidebar } from '@/components/PointListSidebar';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
 import { RadarModal } from '@/components/RadarModal';
+import { LiveActivityBar } from '@/components/LiveActivityBar';
+import { getActiveRiders } from '@/utils/telegramRiders';
+import { haversineKm } from '@/utils/geoMath';
 import { useTelegramAvatars } from '@/hooks/useTelegramAvatars';
 import { useMapPadding } from '@/hooks/useMapPadding';
+import { resetAppCache } from '@/utils/resetAppCache';
 
 export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResettingCache, setIsResettingCache] = useState(false);
-  const [isProjectInfoOpen, setIsProjectInfoOpen] = useState(false);
   const [isRouteListOpen, setIsRouteListOpen] = useState(false);
   const [isPointListOpen, setIsPointListOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
@@ -38,6 +42,7 @@ export function EucMap() {
   const navigate = useNavigate();
   const location = useLocation();
   const isRadarOpen = location.pathname === '/radar';
+  const isHelpOpen = location.pathname === '/help';
   const clearMapSelectionUrl = useCallback(() => {
     void navigate('/', { replace: true });
   }, [navigate]);
@@ -104,6 +109,35 @@ export function EucMap() {
     void navigate(isRadarOpen ? '/' : '/radar');
   }, [navigate, isRadarOpen]);
 
+  const CLUSTER_MAX_KM = 2;
+
+  const handleLiveActivityPress = useCallback(() => {
+    const riders = getActiveRiders(telegramLatestGeo);
+    if (riders.length === 0) return;
+
+    if (riders.length === 1) {
+      const feature = getFeatureById('telegramUsers', `telegram-user-${String(riders[0].telegramUserId)}`);
+      if (feature) openFeature(feature, 'telegramUsers');
+      return;
+    }
+
+    // Считаем bbox по всем активным райдерам
+    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    for (const r of riders) {
+      if (r.lon < minLon) minLon = r.lon;
+      if (r.lon > maxLon) maxLon = r.lon;
+      if (r.lat < minLat) minLat = r.lat;
+      if (r.lat > maxLat) maxLat = r.lat;
+    }
+
+    const diagonalKm = haversineKm(minLat, minLon, maxLat, maxLon);
+    if (diagonalKm <= CLUSTER_MAX_KM) {
+      flyToBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, maxZoom: 15 });
+    } else {
+      void navigate('/radar');
+    }
+  }, [telegramLatestGeo, getFeatureById, openFeature, flyToBounds, navigate]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mediaQuery = window.matchMedia('(min-width: 768px)');
@@ -134,27 +168,10 @@ export function EucMap() {
     };
   }, [selectedFeature, isRouteListOpen, isPointListOpen, handleSidebarClose]);
 
-  const handleResetCacheAndReload = useCallback(async () => {
+  const handleResetCacheAndReload = useCallback(() => {
     if (isResettingCache) return;
     setIsResettingCache(true);
-
-    try {
-      localStorage.clear();
-
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-      }
-
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map((registration) => registration.unregister()));
-      }
-    } catch (error) {
-      console.error('Не удалось полностью очистить кеш:', error);
-    } finally {
-      window.location.reload();
-    }
+    void resetAppCache();
   }, [isResettingCache]);
 
   const addLayersRef = useRef(addLayersToMap);
@@ -297,6 +314,10 @@ export function EucMap() {
           Задайте VITE_MAPBOX_TOKEN в .env
         </div>
       )}
+      <LiveActivityBar
+        telegramLatestGeo={telegramLatestGeo}
+        onPress={handleLiveActivityPress}
+      />
       <MapNotificationModals
         errorMessage={errorMessage}
         emptyMessage={emptyMessage}
@@ -304,9 +325,7 @@ export function EucMap() {
         draftSubmitSuccess={draftSubmitSuccess}
         locationErrorMessage={locationErrorMessage}
         isResettingCache={isResettingCache}
-        onResetCacheAndReload={() => {
-          void handleResetCacheAndReload();
-        }}
+        onResetCacheAndReload={handleResetCacheAndReload}
         onCloseLocationError={clearLocationError}
       />
       {(!selectedFeature || isDesktop) && (
@@ -317,34 +336,34 @@ export function EucMap() {
           onToggle={toggleLayer}
           baseStyle={baseStyle}
           onToggleBaseStyle={() => { setBaseMapStyle(baseStyle === 'satellite' ? 'streets' : 'satellite') }}
+        />
+      )}
+      {(!selectedFeature || isDesktop) && !isAddingPoint && (
+        <BottomTabBar
           isAddingPoint={isAddingPoint}
           onToggleAddPoint={() => {
             handleToggleAddPoint();
-            if (!isAddingPoint) {
-              setIsRouteListOpen(false);
-              setIsPointListOpen(false);
-            }
+            setIsRouteListOpen(false);
+            setIsPointListOpen(false);
           }}
           isRadarOpen={isRadarOpen}
           onToggleRadar={handleToggleRadar}
           onOpenProjectInfo={() => {
-            setIsProjectInfoOpen(true);
+            void navigate('/help');
           }}
           isRouteListOpen={isRouteListOpen}
           onToggleRouteList={() => {
-            setIsRouteListOpen((prev) => !prev);
-            if (!isRouteListOpen) {
-              setIsPointListOpen(false);
-              if (isAddingPoint) handleCancelAddPoint();
-            }
+            setIsRouteListOpen((prev) => {
+              if (!prev) setIsPointListOpen(false);
+              return !prev;
+            });
           }}
           isPointListOpen={isPointListOpen}
           onTogglePointList={() => {
-            setIsPointListOpen((prev) => !prev);
-            if (!isPointListOpen) {
-              setIsRouteListOpen(false);
-              if (isAddingPoint) handleCancelAddPoint();
-            }
+            setIsPointListOpen((prev) => {
+              if (!prev) setIsRouteListOpen(false);
+              return !prev;
+            });
           }}
         />
       )}
@@ -355,6 +374,7 @@ export function EucMap() {
           submitError={draftSubmitError}
           onSubmit={handleSubmitDraft}
           onCancel={handleCancelAddPoint}
+          onClearCoordinates={() => { setDraftCoordinates(null); }}
         />
       )}
       <MapFeatureInfoModal feature={displaySelectedFeature} onClose={handleSidebarClose} />
@@ -387,13 +407,11 @@ export function EucMap() {
         />
       )}
       <ProjectInfoModal
-        isOpen={isProjectInfoOpen}
+        isOpen={isHelpOpen}
         onClose={() => {
-          setIsProjectInfoOpen(false);
+          void navigate('/', { replace: true });
         }}
-        onClearCache={() => {
-          void handleResetCacheAndReload();
-        }}
+        onClearCache={handleResetCacheAndReload}
       />
       <RadarModal
         isOpen={isRadarOpen}

@@ -20,6 +20,7 @@ export default function App() {
             <Routes>
                 <Route path="/" element={<MapShell />} />
                 <Route path="radar" element={<MapShell />} />
+                <Route path="help" element={<MapShell />} />
                 <Route path="m/:mapFeatureType/:mapFeatureId" element={<MapShell />} />
                 <Route path="/admin" element={<AdminShell />}>
                     <Route index element={<Navigate to="submissions" replace />} />

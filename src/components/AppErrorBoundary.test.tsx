@@ -30,10 +30,12 @@ describe('AppErrorBoundary', () => {
             </AppErrorBoundary>,
         )
         expect(screen.getByText('Ошибка интерфейса')).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /перезагрузить/i })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Перезагрузить' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Очистить кеш и перезагрузить' })).toBeInTheDocument()
     })
 
     it('кнопка "Перезагрузить" вызывает window.location.reload', async () => {
+        const user = userEvent.setup({ delay: null })
         const reloadMock = vi.fn()
         Object.defineProperty(window, 'location', {
             value: { reload: reloadMock },
@@ -45,8 +47,43 @@ describe('AppErrorBoundary', () => {
                 <ThrowingChild shouldThrow />
             </AppErrorBoundary>,
         )
-        await userEvent.click(screen.getByRole('button', { name: /перезагрузить/i }))
+        await user.click(screen.getByRole('button', { name: 'Перезагрузить' }))
         expect(reloadMock).toHaveBeenCalledOnce()
+    })
+
+    it('кнопка "Очистить кеш и перезагрузить" вызывает resetAppCache', async () => {
+        const user = userEvent.setup({ delay: null })
+        const reloadMock = vi.fn()
+        Object.defineProperty(window, 'location', {
+            value: { reload: reloadMock },
+            writable: true,
+            configurable: true,
+        })
+        render(
+            <AppErrorBoundary>
+                <ThrowingChild shouldThrow />
+            </AppErrorBoundary>,
+        )
+        const btn = screen.getByRole('button', { name: 'Очистить кеш и перезагрузить' })
+        await user.click(btn)
+        expect(reloadMock).toHaveBeenCalledOnce()
+    })
+
+    it('кнопка очистки блокируется после нажатия', async () => {
+        const user = userEvent.setup({ delay: null })
+        Object.defineProperty(window, 'location', {
+            value: { reload: vi.fn() },
+            writable: true,
+            configurable: true,
+        })
+        render(
+            <AppErrorBoundary>
+                <ThrowingChild shouldThrow />
+            </AppErrorBoundary>,
+        )
+        const btn = screen.getByRole('button', { name: 'Очистить кеш и перезагрузить' })
+        await user.click(btn)
+        expect(btn).toBeDisabled()
     })
 
     it('fallback не рендерится если ошибки нет', () => {
