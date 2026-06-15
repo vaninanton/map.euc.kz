@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
 import type { MapPointType } from '@/types'
 import type { MapPointInput } from '@/admin/lib/adminApi'
 import { AdminPointLocationMap } from '@/admin/components/AdminPointLocationMap'
@@ -13,6 +13,7 @@ interface PointFormProps {
     submitLabel: string
     onSubmit: (value: PointFormValue) => Promise<void>
     onCancel?: () => void
+    children?: ReactNode
 }
 
 const TYPE_OPTIONS: Array<{ value: MapPointType; label: string }> = [
@@ -27,7 +28,7 @@ function parseCoordInput(raw: string, fallback: number): number {
 
 type CoordTuple = [number, number]
 
-export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFormProps) {
+export function PointForm({ initial, submitLabel, onSubmit, onCancel, children }: PointFormProps) {
     const [type, setType] = useState<MapPointType>(initial.type)
     const [title, setTitle] = useState(initial.title)
     const [description, setDescription] = useState(initial.description ?? '')
@@ -288,6 +289,7 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel }: PointFor
                     </button>
                 )}
             </div>
+            {children}
         </form>
 
             <div className="flex min-h-[280px] min-w-0 flex-col gap-2 lg:min-h-0">

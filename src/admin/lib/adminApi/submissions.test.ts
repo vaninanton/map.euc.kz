@@ -48,6 +48,7 @@ describe('adminApi submissions', () => {
             flag_has_socket: true,
             flag_erlan: false,
             flag_disabled: false,
+            photo_count: 0,
         } satisfies AdminMapPoint)
     })
 

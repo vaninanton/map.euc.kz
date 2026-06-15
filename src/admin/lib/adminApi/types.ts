@@ -11,6 +11,7 @@ export interface AdminMapPoint {
     flag_has_socket: boolean
     flag_erlan: boolean
     flag_disabled: boolean
+    photo_count: number
 }
 
 export interface AdminMapRoute {

@@ -17,6 +17,40 @@ describe('adminApi parsers', () => {
         })
         expect(row.id).toBe(1)
         expect(row.coordinates).toEqual([76.9, 43.2])
+        expect(row.photo_count).toBe(0)
+    })
+
+    it('parseAdminMapPoint читает photo_count из map_point_photos(count)', () => {
+        const row = parseAdminMapPoint({
+            id: 2,
+            created_at: '2025-01-01T00:00:00Z',
+            type: 'point',
+            title: 'With photos',
+            description: null,
+            coordinates: [76.9, 43.2],
+            flag_is_meeting: false,
+            flag_has_socket: false,
+            flag_erlan: false,
+            flag_disabled: false,
+            map_point_photos: [{ count: 3 }],
+        })
+        expect(row.photo_count).toBe(3)
+    })
+
+    it('parseAdminMapPoint возвращает photo_count=0 если map_point_photos отсутствует', () => {
+        const row = parseAdminMapPoint({
+            id: 3,
+            created_at: '2025-01-01T00:00:00Z',
+            type: 'socket',
+            title: 'No photos',
+            description: null,
+            coordinates: [76.9, 43.2],
+            flag_is_meeting: false,
+            flag_has_socket: true,
+            flag_erlan: false,
+            flag_disabled: false,
+        })
+        expect(row.photo_count).toBe(0)
     })
 
     it('parseAdminMapRoute парсит координаты с высотой', () => {
