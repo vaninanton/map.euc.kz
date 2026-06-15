@@ -226,8 +226,14 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
         setError(null)
         setFillingElevations(true)
         try {
-            const next = await fillMissingRouteElevations(value.coordinates)
-            commitRouteCoordinates(next)
+            const result = await fillMissingRouteElevations(value.coordinates)
+            commitRouteCoordinates(result.coordinates)
+            if (result.remaining > 0) {
+                setError(
+                    `Заполнено ${String(result.filled)} из ${String(result.filled + result.remaining)} точек. ` +
+                        `Сохраните и нажмите ещё раз для продолжения.`,
+                )
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
         } finally {
