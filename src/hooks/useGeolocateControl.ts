@@ -53,7 +53,7 @@ export function useGeolocateControl(map: MapboxMap | null, isMapReady: boolean) 
     geolocate.on('error', onError);
     geolocate.on('outofmaxbounds', onOutOfMaxBounds);
 
-    map.addControl(geolocate, 'bottom-left');
+    map.addControl(geolocate, 'right');
 
     return () => {
       geolocate.off('geolocate', onGeolocate);

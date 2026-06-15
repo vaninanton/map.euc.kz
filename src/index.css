@@ -125,6 +125,25 @@
 .mapboxgl-ctrl-bottom-right {
     padding-bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
     padding-right: max(0.5rem, env(safe-area-inset-right)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+}
+
+/* Attribution снизу, логотип выше */
+.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-attrib {
+    order: 1;
+    float: none !important;
+}
+.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl:has(.mapboxgl-ctrl-logo) {
+    order: 2;
+    float: none !important;
+    margin-bottom: 4px;
+}
+
+.mapboxgl-ctrl-bottom-left {
+    padding-bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
+    padding-left: max(0.5rem, env(safe-area-inset-left)) !important;
 }
 
 /* На мобильных BottomTabBar (~60px) перекрывает нижние контролы карты — добавляем отступ */
@@ -135,11 +154,6 @@
     .mapboxgl-ctrl-bottom-left {
         padding-bottom: calc(60px + max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
     }
-}
-
-.mapboxgl-ctrl-bottom-left {
-    padding-bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 16px) !important;
-    padding-left: max(0.5rem, env(safe-area-inset-left)) !important;
 }
 
 /* Safe-area для попапов Mapbox (контейнер позиционируется у краёв экрана) */
@@ -257,7 +271,9 @@
     padding: 0;
     cursor: pointer;
     color: #333;
-    transition: color 0.15s ease, background-color 0.15s ease;
+    transition:
+        color 0.15s ease,
+        background-color 0.15s ease;
 }
 
 .layer-controls-btn:hover {
