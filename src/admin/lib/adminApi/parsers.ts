@@ -57,6 +57,7 @@ function asRouteCoordinates(value: unknown): AdminMapRoute['coordinates'] {
 
 /**
  * Валидирует и нормализует строку `map_points` в доменную модель админки.
+ * Поле `map_point_photos` опционально: присутствует только в `listPoints` (select с count).
  */
 export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     if (!isRecord(raw)) throw new Error('не объект')
@@ -70,6 +71,7 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     const flag_has_socket = raw.flag_has_socket
     const flag_erlan = raw.flag_erlan
     const flag_disabled = raw.flag_disabled
+    const photoCountRaw = raw.map_point_photos
 
     if (typeof id !== 'number' || !Number.isFinite(id)) throw new Error('id')
     if (typeof created_at !== 'string') throw new Error('created_at')
@@ -86,6 +88,13 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     const descriptionNorm: string | null =
         description === undefined || description === null ? null : description
 
+    // Supabase возвращает [{count: N}] при select('map_point_photos(count)')
+    let photo_count = 0
+    if (Array.isArray(photoCountRaw) && photoCountRaw.length > 0 && isRecord(photoCountRaw[0])) {
+        const n = Number(photoCountRaw[0].count)
+        if (Number.isFinite(n)) photo_count = n
+    }
+
     return {
         id,
         created_at,
@@ -97,6 +106,7 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
         flag_has_socket,
         flag_erlan,
         flag_disabled,
+        photo_count,
     }
 }
 

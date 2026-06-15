@@ -137,15 +137,11 @@ export function PointEditPage({ mode }: PointEditPageProps) {
                     onCancel={() => {
                         void navigate('/admin/point')
                     }}
-                />
+                >
+                    {mode === 'edit' && pointId !== null && <PhotoManager pointId={pointId} />}
+                </PointForm>
             ) : (
                 <p className="text-sm text-neutral-500">Загрузка…</p>
-            )}
-
-            {mode === 'edit' && pointId !== null && (
-                <div className="mt-6">
-                    <PhotoManager pointId={pointId} />
-                </div>
             )}
 
             <ConfirmDialog

@@ -4,11 +4,11 @@ import { db, runManyParsed, runOneParsed } from '@/admin/lib/adminApi/query'
 import { parseAdminMapPoint } from '@/admin/lib/adminApi/parsers'
 import { listPhotos } from '@/admin/lib/adminApi/photos'
 
-/** Возвращает список точек/розеток для админки в алфавитном порядке. */
+/** Возвращает список точек/розеток для админки в алфавитном порядке с числом фото. */
 export async function listPoints(): Promise<AdminMapPoint[]> {
     return runManyParsed(
         'listPoints',
-        db().from('map_points').select('*').order('title', { ascending: true }),
+        db().from('map_points').select('*, map_point_photos(count)').order('title', { ascending: true }),
         (raw) => parseAdminMapPoint(raw),
     )
 }

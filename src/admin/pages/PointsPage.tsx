@@ -66,6 +66,7 @@ export function PointsPage() {
                             <th className="px-3 py-2 font-medium">Тип</th>
                             <th className="px-3 py-2 font-medium">Название</th>
                             <th className="px-3 py-2 font-medium">Координаты</th>
+                            <th className="px-3 py-2 font-medium">Фото</th>
                             <th className="px-3 py-2 font-medium">Создано</th>
                             <th className="px-3 py-2 font-medium">Видна</th>
                         </tr>
@@ -73,14 +74,14 @@ export function PointsPage() {
                     <tbody className="divide-y divide-neutral-200">
                         {loading && (
                             <tr>
-                                <td colSpan={6} className="px-3 py-6 text-center text-neutral-500">
+                                <td colSpan={7} className="px-3 py-6 text-center text-neutral-500">
                                     Загрузка…
                                 </td>
                             </tr>
                         )}
                         {!loading && items.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-3 py-6 text-center text-neutral-500">
+                                <td colSpan={7} className="px-3 py-6 text-center text-neutral-500">
                                     Точек пока нет.
                                 </td>
                             </tr>
@@ -102,6 +103,9 @@ export function PointsPage() {
                                 <td className="px-3 py-2 font-medium">{point.title}</td>
                                 <td className="px-3 py-2 font-mono text-xs text-neutral-600">
                                     {point.coordinates[0].toFixed(5)}, {point.coordinates[1].toFixed(5)}
+                                </td>
+                                <td className="px-3 py-2 text-neutral-600">
+                                    {point.photo_count > 0 ? point.photo_count : <span className="text-neutral-300">—</span>}
                                 </td>
                                 <td className="px-3 py-2 text-neutral-600">{formatAdminDate(point.created_at)}</td>
                                 <td className="px-3 py-2">
