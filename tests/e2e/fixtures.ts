@@ -1,5 +1,13 @@
 import type { Page, Route } from '@playwright/test'
 
+const SIDEBAR_TIMEOUT = 15_000
+
+/** Ждёт появления сайдбара с информацией об объекте.
+ * Данные загружаются асинхронно — при параллельных воркерах нужен запас сверх дефолтного expect.timeout. */
+export async function waitForSidebar(page: Page) {
+    return page.getByRole('dialog', { name: 'Информация об объекте' }).waitFor({ state: 'visible', timeout: SIDEBAR_TIMEOUT })
+}
+
 export interface SupabaseRequest {
     method: string
     table: string

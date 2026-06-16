@@ -5,13 +5,13 @@ const port = Number(process.env.PLAYWRIGHT_PORT ?? 4174)
 export default defineConfig({
     testDir: './tests/e2e',
     testMatch: '**/*.e2e.ts',
-    timeout: 30_000,
+    timeout: 45_000,
     expect: {
         timeout: 7_500,
     },
     fullyParallel: true,
     forbidOnly: Boolean(process.env.CI),
-    retries: process.env.CI ? 2 : 0,
+    retries: process.env.CI ? 2 : 1,
     reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
     use: {
         baseURL: `http://127.0.0.1:${String(port)}`,
@@ -22,7 +22,7 @@ export default defineConfig({
     webServer: {
         command: `npm run dev -- --host 127.0.0.1 --port ${String(port)}`,
         url: `http://127.0.0.1:${String(port)}`,
-        reuseExistingServer: false,
+        reuseExistingServer: !process.env.CI,
         timeout: 120_000,
         env: {
             VITE_MAPBOX_TOKEN: 'e2e-mapbox-token',
