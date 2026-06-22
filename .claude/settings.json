@@ -2,6 +2,7 @@
   "enabledPlugins": {
     "supabase@claude-plugins-official": true,
     "github@claude-plugins-official": true,
-    "mapbox@claude-plugins-official": true
+    "mapbox@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true
   }
 }
