@@ -167,6 +167,37 @@ npm run lint
 | `VITE_TELEGRAM_TRACK_TAIL_MINUTES`  | Длина «хвоста» трека по времени.                            |
 | `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Максимально допустимая погрешность координат, м.            |
 
+### Локальная разработка бэкенда (Supabase)
+
+Для разработки и правки **логики бота, миграций и RLS** работайте с локальным стеком — это быстро, бесплатно и оффлайн, без облачных preview-веток (они требуют платного плана). Локальный стек поднимает полный Supabase в Docker: Postgres, Auth, Storage, Realtime, Studio и Edge Runtime.
+
+```bash
+supabase start        # поднять весь стек (Docker)
+supabase status       # URL'ы и ключи (anon/service_role) для .env.local
+supabase stop         # остановить
+```
+
+Порты заданы в [supabase/config.toml](supabase/config.toml): API `54321`, DB `54322`, Studio `54323`.
+
+**Миграции и RLS** — правьте файлы в `supabase/migrations/`, затем пересоздайте локальную БД (применит миграции + `seed.sql`):
+
+```bash
+supabase db reset
+```
+
+> На удалённый проект миграции применяются через `supabase db push` или CI — **не** через MCP `apply_migration`, иначе история миграций разойдётся.
+
+**Edge Function (Telegram-бот)** — запуск локально с hot-reload:
+
+```bash
+supabase functions serve telegram-location-bot
+# доступна по http://127.0.0.1:54321/functions/v1/telegram-location-bot
+```
+
+Функция задекларирована в [supabase/config.toml](supabase/config.toml) секцией `[functions.telegram-location-bot]` с `verify_jwt = false` — вебхук Telegram приходит без Supabase JWT, аутентификация идёт по secret-токену внутри функции. Эта же декларация нужна, чтобы функция автоматически деплоилась в облачные branch-окружения.
+
+Telegram-вебхуку нужен публичный HTTPS-URL, поэтому для теста реального вебхука пробросьте локальную функцию наружу туннелем (`ngrok` / `cloudflared`) либо используйте облачную preview-ветку (Pro-план).
+
 ## Админка карты
 
 Маршрут `/admin` (на проде: `https://map.euc.kz/admin`): модерация заявок, CRUD точек и маршрутов, фото, просмотр live Telegram-трекинга.
