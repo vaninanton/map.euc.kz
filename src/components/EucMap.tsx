@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMapbox } from '@/hooks/useMapbox';
 import { useLayers } from '@/hooks/useLayers';
@@ -22,12 +22,16 @@ import { RouteListSidebar } from '@/components/RouteListSidebar';
 import { PointListSidebar } from '@/components/PointListSidebar';
 import { MapNotificationModals } from '@/components/MapNotificationModals';
 import { RadarModal } from '@/components/RadarModal';
+import { EventsScreen } from '@/components/EventsScreen';
+import { useEvents } from '@/hooks/useEvents';
 import { LiveActivityBar } from '@/components/LiveActivityBar';
 import { getActiveRiders } from '@/utils/telegramRiders';
 import { haversineKm } from '@/utils/geoMath';
 import { useTelegramAvatars } from '@/hooks/useTelegramAvatars';
 import { useMapPadding } from '@/hooks/useMapPadding';
 import { resetAppCache } from '@/utils/resetAppCache';
+import { eventsForPoint } from '@/utils/eventsForPoint';
+import { MAP_ZOOM_FOCUS } from '@/constants';
 
 export function EucMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +47,7 @@ export function EucMap() {
   const location = useLocation();
   const isRadarOpen = location.pathname === '/radar';
   const isHelpOpen = location.pathname === '/help';
+  const isEventsOpen = location.pathname === '/events';
   const clearMapSelectionUrl = useCallback(() => {
     void navigate('/', { replace: true });
   }, [navigate]);
@@ -73,6 +78,14 @@ export function EucMap() {
     loading,
   } = useLayers();
   useTelegramAvatars(map, telegramLatestGeo);
+
+  const {
+    events,
+    loading: eventsLoading,
+    error: eventsError,
+    unreadCount: unreadEventsCount,
+    markAsRead: markEventsAsRead,
+  } = useEvents();
 
   const {
     selectedFeature,
@@ -108,6 +121,25 @@ export function EucMap() {
   const handleToggleRadar = useCallback(() => {
     void navigate(isRadarOpen ? '/' : '/radar');
   }, [navigate, isRadarOpen]);
+
+  const handleToggleEvents = useCallback(() => {
+    void navigate(isEventsOpen ? '/' : '/events');
+  }, [navigate, isEventsOpen]);
+
+  // События, для которых выбранная точка — старт или финиш.
+  const relatedEventsForSelected = useMemo(() => {
+    const f = displaySelectedFeature;
+    if (!f || (f.properties.type !== 'point' && f.properties.type !== 'socket')) return [];
+    return eventsForPoint(events, f.properties.id);
+  }, [displaySelectedFeature, events]);
+
+  const handleShowEventOnMap = useCallback(
+    (coordinates: [number, number]) => {
+      void navigate('/');
+      flyTo(coordinates, MAP_ZOOM_FOCUS);
+    },
+    [navigate, flyTo],
+  );
 
   const CLUSTER_MAX_KM = 2;
 
@@ -346,6 +378,9 @@ export function EucMap() {
           }}
           isRadarOpen={isRadarOpen}
           onToggleRadar={handleToggleRadar}
+          isEventsOpen={isEventsOpen}
+          onToggleEvents={handleToggleEvents}
+          unreadEventsCount={unreadEventsCount}
           onOpenProjectInfo={() => {
             void navigate('/help');
           }}
@@ -375,7 +410,14 @@ export function EucMap() {
           onClearCoordinates={() => { setDraftCoordinates(null); }}
         />
       )}
-      <MapFeatureInfoModal feature={displaySelectedFeature} onClose={handleSidebarClose} />
+      <MapFeatureInfoModal
+        feature={displaySelectedFeature}
+        onClose={handleSidebarClose}
+        relatedEvents={relatedEventsForSelected}
+        onOpenEvents={() => {
+          void navigate('/events');
+        }}
+      />
       {isRouteListOpen && (
         <RouteListSidebar
           isOpen={isRouteListOpen}
@@ -411,6 +453,18 @@ export function EucMap() {
         }}
         onClearCache={handleResetCacheAndReload}
       />
+      {isEventsOpen && (
+        <EventsScreen
+          events={events}
+          loading={eventsLoading}
+          error={eventsError}
+          onMarkAsRead={markEventsAsRead}
+          onClose={() => {
+            void navigate('/', { replace: true });
+          }}
+          onShowOnMap={handleShowEventOnMap}
+        />
+      )}
       <RadarModal
         isOpen={isRadarOpen}
         onClose={() => {

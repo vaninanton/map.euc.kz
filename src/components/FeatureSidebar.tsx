@@ -1,12 +1,15 @@
 import type { Feature } from '@/types/geojson';
+import type { EventRow } from '@/types';
 import { PopupContent } from '@/components/PopupContent';
 
 interface FeatureSidebarProps {
   feature: Feature;
   onClose: () => void;
+  relatedEvents?: EventRow[];
+  onOpenEvents?: () => void;
 }
 
-export function FeatureSidebar({ feature, onClose }: FeatureSidebarProps) {
+export function FeatureSidebar({ feature, onClose, relatedEvents, onOpenEvents }: FeatureSidebarProps) {
   return (
     <aside
       className="fixed z-20 flex flex-col bg-white shadow-lg border-neutral-200/80 overflow-hidden
@@ -33,7 +36,7 @@ export function FeatureSidebar({ feature, onClose }: FeatureSidebarProps) {
         </button>
       </div>
       <div className="overflow-y-auto min-h-0 flex-1 px-4 py-3">
-        <PopupContent feature={feature} />
+        <PopupContent feature={feature} relatedEvents={relatedEvents} onOpenEvents={onOpenEvents} />
       </div>
     </aside>
   );

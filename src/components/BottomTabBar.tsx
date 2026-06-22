@@ -1,6 +1,14 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
-import { faMapPin, faRoute, faLocationCrosshairs, faPlus, faXmark, faQuestion } from '@fortawesome/free-solid-svg-icons'
+import {
+    faMapPin,
+    faRoute,
+    faLocationCrosshairs,
+    faPlus,
+    faXmark,
+    faQuestion,
+    faCalendarDays,
+} from '@fortawesome/free-solid-svg-icons'
 
 interface BottomTabBarProps {
     isPointListOpen: boolean
@@ -9,6 +17,9 @@ interface BottomTabBarProps {
     onToggleRouteList: () => void
     isRadarOpen: boolean
     onToggleRadar: () => void
+    isEventsOpen: boolean
+    onToggleEvents: () => void
+    unreadEventsCount: number
     isAddingPoint: boolean
     onToggleAddPoint: () => void
     onOpenProjectInfo: () => void
@@ -20,6 +31,8 @@ interface TabItem {
     icon: IconDefinition
     active: boolean
     onClick: () => void
+    /** Бейдж с числом (например, непрочитанные события). */
+    badge?: number
 }
 
 /**
@@ -34,6 +47,9 @@ export function BottomTabBar({
     onToggleRouteList,
     isRadarOpen,
     onToggleRadar,
+    isEventsOpen,
+    onToggleEvents,
+    unreadEventsCount,
     isAddingPoint,
     onToggleAddPoint,
     onOpenProjectInfo,
@@ -47,6 +63,14 @@ export function BottomTabBar({
             icon: isAddingPoint ? faXmark : faPlus,
             active: isAddingPoint,
             onClick: onToggleAddPoint,
+        },
+        {
+            key: 'events',
+            label: 'События',
+            icon: faCalendarDays,
+            active: isEventsOpen,
+            onClick: onToggleEvents,
+            badge: unreadEventsCount,
         },
         { key: 'radar', label: 'Радар', icon: faLocationCrosshairs, active: isRadarOpen, onClick: onToggleRadar },
         { key: 'info', label: 'Помощь', icon: faQuestion, active: false, onClick: onOpenProjectInfo },
@@ -70,13 +94,27 @@ export function BottomTabBar({
                     key={item.key}
                     type="button"
                     onClick={item.onClick}
-                    aria-label={item.label}
+                    aria-label={
+                        item.badge && item.badge > 0
+                            ? `${item.label}, непрочитанных: ${String(item.badge)}`
+                            : item.label
+                    }
                     aria-pressed={item.active}
                     className={`flex flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors ${
                         item.active ? 'text-[#f25824]' : 'text-neutral-600 hover:text-neutral-900'
                     }`}
                 >
-                    <FontAwesomeIcon icon={item.icon} className="text-lg" aria-hidden />
+                    <span className="relative inline-flex">
+                        <FontAwesomeIcon icon={item.icon} className="text-lg" aria-hidden />
+                        {item.badge !== undefined && item.badge > 0 && (
+                            <span
+                                className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#f25824] px-1 text-[10px] font-bold leading-none text-white"
+                                aria-hidden
+                            >
+                                {item.badge > 99 ? '99+' : item.badge}
+                            </span>
+                        )}
+                    </span>
                     <span>{item.label}</span>
                 </button>
             ))}
