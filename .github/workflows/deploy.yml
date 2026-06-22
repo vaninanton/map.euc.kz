@@ -46,6 +46,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    # Прокидываем URL страницы наружу, чтобы job notify мог вставить его в сообщение.
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -76,8 +79,18 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  notify:
+    name: Уведомление в Telegram
+    needs: [supabase, deploy]
+    # always(): джоб выполнится, даже если supabase или deploy упали или были пропущены —
+    # иначе при падении в job supabase (например db push) deploy пропускается и уведомление не уходит.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
       - name: Notify Telegram on success
-        if: success()
+        # Успех только если ОБА предыдущих джоба завершились успешно.
+        if: ${{ needs.supabase.result == 'success' && needs.deploy.result == 'success' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -86,9 +99,10 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d parse_mode="HTML" \
             -d disable_web_page_preview="true" \
-            -d text="✅ <b>map.euc.kz</b>%0AДеплой в GitHub Pages завершен успешно.%0A🔗 ${{ steps.deployment.outputs.page_url }}"
+            -d text="✅ <b>map.euc.kz</b>%0AДеплой map.euc.kz завершен успешно.%0A🔗 ${{ needs.deploy.outputs.page_url }}"
       - name: Notify Telegram on failure
-        if: failure()
+        # Любой исход кроме общего успеха: падение или отмена в supabase/deploy.
+        if: ${{ needs.supabase.result != 'success' || needs.deploy.result != 'success' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -97,4 +111,4 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d parse_mode="HTML" \
             -d disable_web_page_preview="true" \
-            -d text="❌ <b>map.euc.kz</b>%0AДеплой в GitHub Pages завершился ошибкой.%0A🧾 Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -d text="❌ <b>map.euc.kz</b>%0AДеплой map.euc.kz завершился ошибкой.%0ASupabase: ${{ needs.supabase.result }} · Pages: ${{ needs.deploy.result }}%0A🧾 Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
