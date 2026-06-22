@@ -30,3 +30,13 @@ export const AdminGeoPage = lazy(async () => {
     const m = await import('@/admin/pages/GeoPage')
     return { default: m.GeoPage }
 })
+
+export const AdminEventsPage = lazy(async () => {
+    const m = await import('@/admin/pages/EventsPage')
+    return { default: m.EventsPage }
+})
+
+export const AdminEventEditPage = lazy(async () => {
+    const m = await import('@/admin/pages/EventEditPage')
+    return { default: m.EventEditPage }
+})

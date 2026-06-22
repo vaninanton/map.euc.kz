@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { parseAdminMapPoint, parseAdminMapRoute } from '@/admin/lib/adminApi/parsers'
+import {
+    parseAdminEvent,
+    parseAdminEventDate,
+    parseAdminMapPoint,
+    parseAdminMapRoute,
+} from '@/admin/lib/adminApi/parsers'
 
 describe('adminApi parsers', () => {
     it('parseAdminMapPoint принимает валидную строку', () => {
@@ -105,5 +110,122 @@ describe('adminApi parsers', () => {
                 flag_disabled: false,
             }),
         ).toThrow()
+    })
+})
+
+describe('parseAdminEvent', () => {
+    function validRow(overrides: Record<string, unknown> = {}) {
+        return {
+            id: 5,
+            created_at: '2026-06-01T00:00:00Z',
+            type: 'group_ride',
+            title: 'Покатушка',
+            description: 'Описание',
+            photo_path: 'events/5/photo.jpg',
+            duration_minutes: 90,
+            location_text: 'Парк',
+            start_coordinates: [76.9, 43.2],
+            finish_coordinates: [76.95, 43.25],
+            start_point_id: 11,
+            finish_point_id: 12,
+            flag_disabled: false,
+            ...overrides,
+        }
+    }
+
+    it('принимает валидную строку и нормализует поля', () => {
+        const event = parseAdminEvent(validRow())
+        expect(event).toEqual({
+            id: 5,
+            created_at: '2026-06-01T00:00:00Z',
+            type: 'group_ride',
+            title: 'Покатушка',
+            description: 'Описание',
+            photo_path: 'events/5/photo.jpg',
+            duration_minutes: 90,
+            location_text: 'Парк',
+            start_coordinates: [76.9, 43.2],
+            finish_coordinates: [76.95, 43.25],
+            start_point_id: 11,
+            finish_point_id: 12,
+            flag_disabled: false,
+        })
+    })
+
+    it('нормализует пустые/невалидные опциональные поля в null', () => {
+        const event = parseAdminEvent(
+            validRow({
+                description: null,
+                photo_path: null,
+                duration_minutes: null,
+                location_text: null,
+                start_coordinates: null,
+                finish_coordinates: null,
+                start_point_id: null,
+                finish_point_id: null,
+            }),
+        )
+        expect(event.description).toBeNull()
+        expect(event.photo_path).toBeNull()
+        expect(event.duration_minutes).toBeNull()
+        expect(event.start_coordinates).toBeNull()
+        expect(event.finish_point_id).toBeNull()
+    })
+
+    it('отклоняет нечисловой id', () => {
+        expect(() => parseAdminEvent(validRow({ id: 'x' }))).toThrow()
+    })
+
+    it('отклоняет неизвестный type', () => {
+        expect(() => parseAdminEvent(validRow({ type: 'party' }))).toThrow()
+    })
+
+    it('отклоняет нестроковый title', () => {
+        expect(() => parseAdminEvent(validRow({ title: 42 }))).toThrow()
+    })
+
+    it('отклоняет не-boolean flag_disabled', () => {
+        expect(() => parseAdminEvent(validRow({ flag_disabled: 'no' }))).toThrow()
+    })
+
+    it('отклоняет не-объект', () => {
+        expect(() => parseAdminEvent(null)).toThrow()
+        expect(() => parseAdminEvent('строка')).toThrow()
+    })
+})
+
+describe('parseAdminEventDate', () => {
+    it('принимает валидную дату', () => {
+        const date = parseAdminEventDate({
+            id: 'date-1',
+            starts_at: '2026-07-01T16:00:00Z',
+            note: 'Сбор у фонтана',
+            cancelled: false,
+        })
+        expect(date).toEqual({
+            id: 'date-1',
+            starts_at: '2026-07-01T16:00:00Z',
+            note: 'Сбор у фонтана',
+            cancelled: false,
+        })
+    })
+
+    it('нормализует отсутствующий note в null и трактует non-true cancelled как false', () => {
+        const date = parseAdminEventDate({
+            id: 'date-2',
+            starts_at: '2026-07-02T16:00:00Z',
+        })
+        expect(date.note).toBeNull()
+        expect(date.cancelled).toBe(false)
+    })
+
+    it('распознаёт cancelled только при строгом true', () => {
+        expect(parseAdminEventDate({ id: 'd', starts_at: 'x', cancelled: true }).cancelled).toBe(true)
+        expect(parseAdminEventDate({ id: 'd', starts_at: 'x', cancelled: 1 }).cancelled).toBe(false)
+    })
+
+    it('отклоняет нестроковый id и starts_at', () => {
+        expect(() => parseAdminEventDate({ id: 5, starts_at: 'x' })).toThrow()
+        expect(() => parseAdminEventDate({ id: 'd', starts_at: 5 })).toThrow()
     })
 })

@@ -80,6 +80,67 @@ const telegramLocationRows = [
     },
 ]
 
+/** Смещение от «сейчас» в днях с фиксированным временем 19:00 локально. */
+function eventDateAt(daysFromNow: number, hour = 19): string {
+    const d = new Date()
+    d.setDate(d.getDate() + daysFromNow)
+    d.setHours(hour, 0, 0, 0)
+    return d.toISOString()
+}
+
+// Сырые строки из БД (формат до нормализации в normalizeEventRow): map_event_dates,
+// photo_bucket/photo_path, start_point/finish_point как вложенные объекты.
+const eventRows = [
+    {
+        id: 'evt-ride',
+        created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        type: 'group_ride',
+        title: 'Вечерняя покатушка',
+        description: 'Сбор у фонтана',
+        photo_bucket: null,
+        photo_path: null,
+        duration_minutes: 90,
+        location_text: 'Парк Первого Президента',
+        start_coordinates: [76.95, 43.21],
+        finish_coordinates: null,
+        start_point: null,
+        finish_point: null,
+        map_event_dates: [{ id: 'd1', starts_at: eventDateAt(2), note: null, cancelled: false }],
+    },
+    {
+        id: 'evt-training',
+        created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
+        type: 'training',
+        title: 'Обучение новичков',
+        description: null,
+        photo_bucket: null,
+        photo_path: null,
+        duration_minutes: 60,
+        location_text: 'Площадь Республики',
+        start_coordinates: null,
+        finish_coordinates: null,
+        start_point: { id: 1, title: 'Парк Горького', coordinates: [76.955, 43.252] },
+        finish_point: null,
+        map_event_dates: [{ id: 'd2', starts_at: eventDateAt(5), note: null, cancelled: false }],
+    },
+    {
+        id: 'evt-meeting',
+        created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        type: 'event',
+        title: 'Большая встреча райдеров',
+        description: 'Ежегодный слёт сообщества',
+        photo_bucket: null,
+        photo_path: null,
+        duration_minutes: null,
+        location_text: null,
+        start_coordinates: null,
+        finish_coordinates: null,
+        start_point: null,
+        finish_point: null,
+        map_event_dates: [{ id: 'd3', starts_at: eventDateAt(10), note: null, cancelled: false }],
+    },
+]
+
 const telegramProfileRows = [
     {
         telegram_user_id: 777,
@@ -154,6 +215,10 @@ export async function mockExternalServices(page: Page, requests: SupabaseRequest
         }
         if (method === 'GET' && table === 'map_routes') {
             await fulfillJson(route, 200, routeRows)
+            return
+        }
+        if (method === 'GET' && table === 'map_events') {
+            await fulfillJson(route, 200, eventRows)
             return
         }
         if (method === 'GET' && table === 'telegram_locations') {

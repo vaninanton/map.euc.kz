@@ -6,6 +6,7 @@ const NAV_ITEMS = [
     { to: 'submissions', label: 'Заявки' },
     { to: 'point', label: 'Точки' },
     { to: 'route', label: 'Маршруты' },
+    { to: 'event', label: 'События' },
     { to: 'geo', label: 'Гео' },
 ] as const
 

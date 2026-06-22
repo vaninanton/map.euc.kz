@@ -1,4 +1,4 @@
-import type { MapPointType } from '@/types'
+import type { MapPointType, EventType } from '@/types'
 
 export interface AdminMapPoint {
     id: number
@@ -68,4 +68,51 @@ export interface MapRouteInput {
     via_coordinates: Array<[number, number]>
     flag_erlan: boolean
     flag_disabled: boolean
+}
+
+export interface AdminEventDate {
+    id: string
+    starts_at: string
+    note: string | null
+    cancelled: boolean
+}
+
+export interface AdminEvent {
+    id: number
+    created_at: string
+    type: EventType
+    title: string
+    description: string | null
+    photo_path: string | null
+    duration_minutes: number | null
+    location_text: string | null
+    start_coordinates: [number, number] | null
+    finish_coordinates: [number, number] | null
+    start_point_id: number | null
+    finish_point_id: number | null
+    flag_disabled: boolean
+}
+
+export interface EventInput {
+    type: EventType
+    title: string
+    description: string | null
+    duration_minutes: number | null
+    location_text: string | null
+    start_coordinates: [number, number] | null
+    finish_coordinates: [number, number] | null
+    start_point_id: number | null
+    finish_point_id: number | null
+    flag_disabled: boolean
+}
+
+export interface EventDateInput {
+    starts_at: string
+    note: string | null
+}
+
+export interface EventDatePatch {
+    starts_at?: string
+    note?: string | null
+    cancelled?: boolean
 }

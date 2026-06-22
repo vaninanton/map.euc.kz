@@ -6,6 +6,10 @@ import type {
   MapPointPhotoRow,
   TelegramLocationRow,
   TelegramProfileRow,
+  EventRow,
+  EventDateRow,
+  EventLinkedPoint,
+  EventType,
 } from '@/types';
 import { getTelegramGeoTtlMinutes, getTelegramMaxAccuracyMeters, getTelegramTrackTailMinutes, getViteSupabaseConfig } from '@/lib/env';
 import { isRecord } from '@/utils/mapFeatureGuards';
@@ -284,6 +288,93 @@ function normalizeTelegramProfileRow(row: unknown): TelegramProfileRow | null {
   };
 }
 
+const EVENT_TYPES: readonly EventType[] = ['group_ride', 'event', 'training'];
+
+function publicStorageUrl(bucket: string, path: string): string {
+  if (supabase) return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  if (typeof url !== 'string') return '';
+  const encodedPath = path
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/');
+  return `${url}/storage/v1/object/public/${encodeURIComponent(bucket)}/${encodedPath}`;
+}
+
+function normalizeEventDates(value: unknown): EventDateRow[] {
+  if (!Array.isArray(value)) return [];
+  const items: EventDateRow[] = [];
+  for (const row of value) {
+    if (!isRecord(row)) continue;
+    const id = row.id;
+    const startsAt = row.starts_at;
+    const note = row.note;
+    if ((typeof id !== 'string' && typeof id !== 'number') || typeof startsAt !== 'string') continue;
+    items.push({
+      id: String(id),
+      starts_at: startsAt,
+      note: typeof note === 'string' ? note : null,
+      cancelled: row.cancelled === true,
+    });
+  }
+  return items;
+}
+
+/** Нормализует вложенную точку-старт/финиш из join'а map_points. */
+function normalizeEventLinkedPoint(value: unknown): EventLinkedPoint | null {
+  // Supabase для to-one join может вернуть объект или массив из одного элемента.
+  const record: unknown = Array.isArray(value) ? (value as unknown[])[0] : value;
+  if (!isRecord(record)) return null;
+  const id = record.id;
+  const title = record.title;
+  const coordinates = asPointCoordinates(record.coordinates);
+  if ((typeof id !== 'string' && typeof id !== 'number') || typeof title !== 'string' || !coordinates) {
+    return null;
+  }
+  return { id: String(id), title, coordinates };
+}
+
+function normalizeEventRow(row: unknown): EventRow | null {
+  if (!isRecord(row)) return null;
+  const id = row.id;
+  const createdAt = row.created_at;
+  const type = row.type;
+  const title = row.title;
+  if (
+    (typeof id !== 'string' && typeof id !== 'number') ||
+    typeof createdAt !== 'string' ||
+    typeof title !== 'string' ||
+    !EVENT_TYPES.includes(type as EventType)
+  ) {
+    return null;
+  }
+
+  const description = row.description;
+  const durationMinutes = row.duration_minutes;
+  const locationText = row.location_text;
+  const photoBucket = row.photo_bucket;
+  const photoPath = row.photo_path;
+  const photoUrl =
+    typeof photoBucket === 'string' && typeof photoPath === 'string' && photoPath.length > 0
+      ? publicStorageUrl(photoBucket, photoPath)
+      : null;
+
+  return {
+    id: String(id),
+    created_at: createdAt,
+    type: type as EventType,
+    title,
+    description: typeof description === 'string' ? description : null,
+    photo_url: photoUrl,
+    duration_minutes: typeof durationMinutes === 'number' && Number.isFinite(durationMinutes) ? durationMinutes : null,
+    location_text: typeof locationText === 'string' ? locationText : null,
+    start_coordinates: asPointCoordinates(row.start_coordinates),
+    finish_coordinates: asPointCoordinates(row.finish_coordinates),
+    start_point: normalizeEventLinkedPoint(row.start_point),
+    finish_point: normalizeEventLinkedPoint(row.finish_point),
+    dates: normalizeEventDates(row.map_event_dates),
+  };
+}
+
 function sanitizeTelegramAvatarUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   // Не допускаем утечки токена Telegram из URL вида /file/bot<TOKEN>/...
@@ -336,6 +427,33 @@ export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
   const rows: MapRouteRow[] = [];
   for (const row of data) {
     const normalized = normalizeMapRouteRow(row);
+    if (normalized) rows.push(normalized);
+  }
+  return rows;
+}
+
+export async function fetchEvents(): Promise<EventRow[]> {
+  if (!supabase) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
+  }
+
+  const { data, error } = await withTimeoutAndRetry('fetchEvents', () =>
+    supabase
+      .from('map_events')
+      .select(
+        'id, created_at, type, title, description, photo_bucket, photo_path, duration_minutes, location_text, start_coordinates, finish_coordinates, start_point:map_points!start_point_id(id, title, coordinates), finish_point:map_points!finish_point_id(id, title, coordinates), map_event_dates(id, starts_at, note, cancelled)'
+      )
+      .eq('flag_disabled', false)
+  );
+
+  if (error) {
+    console.error('fetchEvents:', error);
+    throw new Error('Не удалось загрузить события');
+  }
+
+  const rows: EventRow[] = [];
+  for (const row of data) {
+    const normalized = normalizeEventRow(row);
     if (normalized) rows.push(normalized);
   }
   return rows;

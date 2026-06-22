@@ -11,6 +11,8 @@ import {
     AdminRoutesListPage,
     AdminSubmissionsPage,
     AdminGeoPage,
+    AdminEventsPage,
+    AdminEventEditPage,
 } from '@/admin/lazyAdminPages'
 
 export default function App() {
@@ -20,6 +22,7 @@ export default function App() {
             <Routes>
                 <Route path="/" element={<MapShell />} />
                 <Route path="radar" element={<MapShell />} />
+                <Route path="events" element={<MapShell />} />
                 <Route path="help" element={<MapShell />} />
                 <Route path="m/:mapFeatureType/:mapFeatureId" element={<MapShell />} />
                 <Route path="/admin" element={<AdminShell />}>
@@ -31,6 +34,9 @@ export default function App() {
                     <Route path="route" element={<AdminRoutesListPage />} />
                     <Route path="route/new" element={<AdminRouteEditPage mode="create" />} />
                     <Route path="route/:id" element={<AdminRouteEditPage mode="edit" />} />
+                    <Route path="event" element={<AdminEventsPage />} />
+                    <Route path="event/new" element={<AdminEventEditPage mode="create" />} />
+                    <Route path="event/:id" element={<AdminEventEditPage mode="edit" />} />
                     <Route path="geo" element={<AdminGeoPage />} />
                     <Route path="*" element={<Navigate to="/admin/submissions" replace />} />
                 </Route>

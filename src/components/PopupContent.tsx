@@ -3,7 +3,9 @@ import Typograf from 'typograf';
 import { FEATURE_TYPE_LABELS, POINT_FLAG_LABELS, COLORS } from '@/constants';
 import { computeRouteStats } from '@/utils/routeStats';
 import type { Feature } from '@/types/geojson';
+import type { EventRow } from '@/types';
 import { ShareBlock } from '@/components/ShareBlock';
+import { PointEventsBlock } from '@/components/PointEventsBlock';
 import { isRouteFeature } from '@/utils/mapFeatureGuards';
 
 const typograf = new Typograf({ locale: ['ru', 'en-US'] });
@@ -11,9 +13,13 @@ const typograf = new Typograf({ locale: ['ru', 'en-US'] });
 interface PopupContentProps {
   feature: Feature;
   onCopied?: () => void;
+  /** События, для которых эта точка — старт или финиш (показываем на карточке точки). */
+  relatedEvents?: EventRow[];
+  /** Открыть раздел «События». */
+  onOpenEvents?: () => void;
 }
 
-export function PopupContent({ feature, onCopied }: PopupContentProps) {
+export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }: PopupContentProps) {
   const { type, name, description } = feature.properties;
   const photos = feature.properties.type === 'point' || feature.properties.type === 'socket'
     ? feature.properties.photos ?? []
@@ -188,6 +194,9 @@ export function PopupContent({ feature, onCopied }: PopupContentProps) {
               {Math.round(stats.descentM)} м
             </span>
           </div>
+        )}
+        {relatedEvents && relatedEvents.length > 0 && (
+          <PointEventsBlock events={relatedEvents} onOpenEvents={onOpenEvents} />
         )}
       </div>
       <ShareBlock feature={feature} onCopied={onCopied} />

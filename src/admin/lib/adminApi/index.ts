@@ -3,8 +3,13 @@ export type {
     AdminMapRoute,
     AdminPhoto,
     AdminSubmission,
+    AdminEvent,
+    AdminEventDate,
     MapPointInput,
     MapRouteInput,
+    EventInput,
+    EventDateInput,
+    EventDatePatch,
     SubmissionStatus,
 } from '@/admin/lib/adminApi/types'
 
@@ -29,3 +34,19 @@ export {
 export { listSubmissions, approveSubmission, rejectSubmission } from '@/admin/lib/adminApi/submissions'
 
 export { listPhotos, uploadPhoto, updatePhoto, deletePhoto } from '@/admin/lib/adminApi/photos'
+
+export {
+    listEvents,
+    getEvent,
+    createEvent,
+    updateEvent,
+    toggleEventDisabled,
+    deleteEvent,
+    setEventPhoto,
+    deleteEventPhoto,
+    eventPhotoUrl,
+    listEventDates,
+    addEventDate,
+    updateEventDate,
+    deleteEventDate,
+} from '@/admin/lib/adminApi/events'

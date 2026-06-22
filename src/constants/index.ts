@@ -81,3 +81,10 @@ export const FEATURE_TYPE_LABELS: Record<string, string> = {
 export const POINT_FLAG_LABELS: Record<string, string> = {
   meeting: 'Место встречи',
 };
+
+/** Русские подписи типов событий. */
+export const EVENT_TYPE_LABELS: Record<string, string> = {
+  group_ride: 'Покатушка',
+  event: 'Мероприятие',
+  training: 'Обучение',
+};

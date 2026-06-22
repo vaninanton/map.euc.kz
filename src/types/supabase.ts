@@ -67,3 +67,44 @@ export interface TelegramProfileRow {
   avatar_url: string | null;
   updated_at: string;
 }
+
+export type EventType = 'group_ride' | 'event' | 'training';
+
+/** Одна дата проведения события. */
+export interface EventDateRow {
+  id: string;
+  /** Дата-время вхождения, ISO. */
+  starts_at: string;
+  note: string | null;
+  /** Дата разово отменена. */
+  cancelled: boolean;
+}
+
+export interface EventRow {
+  id: string;
+  created_at: string;
+  type: EventType;
+  title: string;
+  description: string | null;
+  /** Публичный URL фотографии (вычисляется при нормализации). */
+  photo_url: string | null;
+  duration_minutes: number | null;
+  location_text: string | null;
+  /** Ручные координаты старта (если точка не привязана). */
+  start_coordinates: [number, number] | null;
+  /** Ручные координаты финиша (если точка не привязана). */
+  finish_coordinates: [number, number] | null;
+  /** Привязанная точка-старт (приоритетнее ручных координат). */
+  start_point: EventLinkedPoint | null;
+  /** Привязанная точка-финиш (приоритетнее ручных координат). */
+  finish_point: EventLinkedPoint | null;
+  /** Даты проведения (одна — разовое, несколько — повторяющееся). */
+  dates: EventDateRow[];
+}
+
+/** Точка, привязанная к событию как старт или финиш. */
+export interface EventLinkedPoint {
+  id: string;
+  title: string;
+  coordinates: [number, number];
+}

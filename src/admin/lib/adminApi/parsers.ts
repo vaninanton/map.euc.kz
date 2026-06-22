@@ -1,9 +1,35 @@
-import type { MapPointType } from '@/types'
+import type { MapPointType, EventType } from '@/types'
 import { isRecord } from '@/utils/mapFeatureGuards'
-import type { AdminMapPoint, AdminMapRoute, AdminSubmission, SubmissionStatus } from '@/admin/lib/adminApi/types'
+import type {
+    AdminEvent,
+    AdminEventDate,
+    AdminMapPoint,
+    AdminMapRoute,
+    AdminSubmission,
+    SubmissionStatus,
+} from '@/admin/lib/adminApi/types'
 
 function isMapPointType(value: unknown): value is MapPointType {
     return value === 'point' || value === 'socket'
+}
+
+function isEventType(value: unknown): value is EventType {
+    return value === 'group_ride' || value === 'event' || value === 'training'
+}
+
+function asOptionalCoordinatePair(value: unknown): [number, number] | null {
+    if (value === undefined || value === null) return null
+    return asCoordinatePair(value)
+}
+
+function asNullableNumber(value: unknown): number | null {
+    if (value === undefined || value === null) return null
+    const n = Number(value)
+    return Number.isFinite(n) ? n : null
+}
+
+function asNullableString(value: unknown): string | null {
+    return typeof value === 'string' ? value : null
 }
 
 function isSubmissionStatus(value: unknown): value is SubmissionStatus {
@@ -187,6 +213,57 @@ export function parseAdminSubmission(raw: unknown): AdminSubmission {
         coordinates: asCoordinatePair(coordinates),
         flag_is_meeting,
         status,
+    }
+}
+
+/** Валидирует строку `map_event_dates`. */
+export function parseAdminEventDate(raw: unknown): AdminEventDate {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const id = raw.id
+    const starts_at = raw.starts_at
+    const note = raw.note
+
+    if (typeof id !== 'string') throw new Error('id')
+    if (typeof starts_at !== 'string') throw new Error('starts_at')
+    if (note !== undefined && note !== null && typeof note !== 'string') throw new Error('note')
+
+    return {
+        id,
+        starts_at,
+        note: asNullableString(note),
+        cancelled: raw.cancelled === true,
+    }
+}
+
+/** Валидирует и нормализует строку `map_events` в доменную модель админки. */
+export function parseAdminEvent(raw: unknown): AdminEvent {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const id = raw.id
+    const created_at = raw.created_at
+    const type = raw.type
+    const title = raw.title
+    const flag_disabled = raw.flag_disabled
+
+    if (typeof id !== 'number' || !Number.isFinite(id)) throw new Error('id')
+    if (typeof created_at !== 'string') throw new Error('created_at')
+    if (!isEventType(type)) throw new Error('type')
+    if (typeof title !== 'string') throw new Error('title')
+    if (typeof flag_disabled !== 'boolean') throw new Error('flag_disabled')
+
+    return {
+        id,
+        created_at,
+        type,
+        title,
+        description: asNullableString(raw.description),
+        photo_path: asNullableString(raw.photo_path),
+        duration_minutes: asNullableNumber(raw.duration_minutes),
+        location_text: asNullableString(raw.location_text),
+        start_coordinates: asOptionalCoordinatePair(raw.start_coordinates),
+        finish_coordinates: asOptionalCoordinatePair(raw.finish_coordinates),
+        start_point_id: asNullableNumber(raw.start_point_id),
+        finish_point_id: asNullableNumber(raw.finish_point_id),
+        flag_disabled,
     }
 }
 
