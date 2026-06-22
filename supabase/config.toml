@@ -378,6 +378,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Webhook-обработчик геопозиций из Telegram. verify_jwt = false — запрос приходит
+# без Supabase JWT, аутентификация идёт по secret-токену внутри функции.
+[functions.telegram-location-bot]
+enabled = true
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
