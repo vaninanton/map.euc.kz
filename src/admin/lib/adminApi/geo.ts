@@ -32,8 +32,7 @@ const LOCATIONS_SELECT =
     'id, created_at, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters'
 
 export async function fetchTelegramLocations(periodMinutes: number | null): Promise<TelegramLocationRow[]> {
-    const since =
-        periodMinutes !== null ? new Date(Date.now() - periodMinutes * 60 * 1000).toISOString() : null
+    const since = periodMinutes !== null ? new Date(Date.now() - periodMinutes * 60 * 1000).toISOString() : null
 
     const PAGE_SIZE = 1000
     const result: TelegramLocationRow[] = []

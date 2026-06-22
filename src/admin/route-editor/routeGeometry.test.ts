@@ -9,7 +9,12 @@ import {
 
 describe('routeGeometry', () => {
     it('toLineStringCoords отбрасывает высоту', () => {
-        expect(toLineStringCoords([[1, 2, 100], [3, 4, 200]])).toEqual([
+        expect(
+            toLineStringCoords([
+                [1, 2, 100],
+                [3, 4, 200],
+            ]),
+        ).toEqual([
             [1, 2],
             [3, 4],
         ])

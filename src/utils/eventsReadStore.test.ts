@@ -44,8 +44,14 @@ describe('countUnreadEvents', () => {
 
     it('не считает завершившиеся события', () => {
         const events = [
-            makeEvent({ id: '1', dates: [{ id: 'd1', starts_at: '2026-07-10T19:00:00', note: null, cancelled: false }] }),
-            makeEvent({ id: '2', dates: [{ id: 'd2', starts_at: '2026-06-01T19:00:00', note: null, cancelled: false }] }),
+            makeEvent({
+                id: '1',
+                dates: [{ id: 'd1', starts_at: '2026-07-10T19:00:00', note: null, cancelled: false }],
+            }),
+            makeEvent({
+                id: '2',
+                dates: [{ id: 'd2', starts_at: '2026-06-01T19:00:00', note: null, cancelled: false }],
+            }),
         ]
         expect(countUnreadEvents(events, null, now)).toBe(1)
     })

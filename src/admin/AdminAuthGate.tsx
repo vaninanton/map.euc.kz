@@ -36,8 +36,7 @@ export function AdminAuthGate({ children }: AdminAuthGateProps) {
                 <p className="max-w-md text-center text-neutral-800">
                     Вы вошли как <span className="font-medium">{auth.user.email || 'без email'}</span> (id:{' '}
                     <span className="font-medium">{auth.user.id}</span>), но у этого аккаунта нет прав администратора.
-                    Добавьте{' '}
-                    <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">user_id</code> в таблицу{' '}
+                    Добавьте <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">user_id</code> в таблицу{' '}
                     <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">map_admin_users</code> в Supabase SQL
                     Editor.
                 </p>

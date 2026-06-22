@@ -26,7 +26,13 @@ function makePointFeature(overrides: Record<string, unknown> = {}): Feature {
 function makeRouteFeature(): Feature {
     return {
         type: 'Feature',
-        geometry: { type: 'LineString', coordinates: [[76.9, 43.2], [76.95, 43.25]] },
+        geometry: {
+            type: 'LineString',
+            coordinates: [
+                [76.9, 43.2],
+                [76.95, 43.25],
+            ],
+        },
         properties: { id: 'r1', type: 'route', name: 'Маршрут' },
     }
 }
@@ -57,7 +63,9 @@ describe('ShareBlock', () => {
         const onCopied = vi.fn()
         render(<ShareBlock feature={makePointFeature()} onCopied={onCopied} />)
         await userEvent.click(screen.getByTitle(/копировать ссылку/i))
-        await waitFor(() => { expect(onCopied).toHaveBeenCalledOnce() })
+        await waitFor(() => {
+            expect(onCopied).toHaveBeenCalledOnce()
+        })
     })
 
     it('не показывает тост если copyOrShare вернул false', async () => {
@@ -87,7 +95,13 @@ describe('ShareBlock', () => {
     it('для bikeLane не показывает ссылки на карты', () => {
         const bikeLane: Feature = {
             type: 'Feature',
-            geometry: { type: 'LineString', coordinates: [[76.9, 43.2], [76.95, 43.25]] },
+            geometry: {
+                type: 'LineString',
+                coordinates: [
+                    [76.9, 43.2],
+                    [76.95, 43.25],
+                ],
+            },
             properties: { id: 'bl1', type: 'bikeLane', name: 'Велодорожка' },
         }
         render(<ShareBlock feature={bikeLane} />)

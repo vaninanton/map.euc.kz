@@ -41,8 +41,12 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel, children }
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const { reset: resetCoordHistory, prepareCommit, undo: undoCoordStep, redo: redoCoordStep } =
-        useCoordinateHistory<CoordTuple>()
+    const {
+        reset: resetCoordHistory,
+        prepareCommit,
+        undo: undoCoordStep,
+        redo: redoCoordStep,
+    } = useCoordinateHistory<CoordTuple>()
     const shortcuts = useMemo(() => getUndoRedoShortcuts(), [])
     const lastCommittedCoords = useRef<CoordTuple>([initial.coordinates[0], initial.coordinates[1]])
 
@@ -136,161 +140,158 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel, children }
                 }}
             >
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Тип</label>
-                    <select
-                        value={type}
-                        onChange={(event) => {
-                            const next = event.target.value as MapPointType
-                            setType(next)
-                            if (next === 'socket') {
-                                setFlagIsMeeting(false)
-                                setFlagHasSocket(true)
-                            }
-                        }}
-                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
-                    >
-                        {TYPE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-neutral-700">Тип</label>
+                        <select
+                            value={type}
+                            onChange={(event) => {
+                                const next = event.target.value as MapPointType
+                                setType(next)
+                                if (next === 'socket') {
+                                    setFlagIsMeeting(false)
+                                    setFlagHasSocket(true)
+                                }
+                            }}
+                            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                        >
+                            {TYPE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-neutral-700">Название</label>
+                        <input
+                            value={title}
+                            onChange={(event) => {
+                                setTitle(event.target.value)
+                            }}
+                            maxLength={99}
+                            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                        />
+                    </div>
                 </div>
 
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Название</label>
-                    <input
-                        value={title}
+                    <label className="mb-1 block text-xs font-medium text-neutral-700">Описание</label>
+                    <textarea
+                        value={description}
                         onChange={(event) => {
-                            setTitle(event.target.value)
+                            setDescription(event.target.value)
                         }}
-                        maxLength={99}
-                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                        rows={3}
+                        className="w-full resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                     />
                 </div>
-            </div>
 
-            <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-700">Описание</label>
-                <textarea
-                    value={description}
-                    onChange={(event) => {
-                        setDescription(event.target.value)
-                    }}
-                    rows={3}
-                    className="w-full resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
-                />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Долгота (lng)</label>
-                    <input
-                        value={lng}
-                        onChange={(event) => {
-                            setLng(event.target.value)
-                        }}
-                        onBlur={() => {
-                            tryCommitCoordsFromInputs()
-                        }}
-                        inputMode="decimal"
-                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-neutral-700">Долгота (lng)</label>
+                        <input
+                            value={lng}
+                            onChange={(event) => {
+                                setLng(event.target.value)
+                            }}
+                            onBlur={() => {
+                                tryCommitCoordsFromInputs()
+                            }}
+                            inputMode="decimal"
+                            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-neutral-700">Широта (lat)</label>
+                        <input
+                            value={lat}
+                            onChange={(event) => {
+                                setLat(event.target.value)
+                            }}
+                            onBlur={() => {
+                                tryCommitCoordsFromInputs()
+                            }}
+                            inputMode="decimal"
+                            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
+                        />
+                    </div>
                 </div>
-                <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Широта (lat)</label>
-                    <input
-                        value={lat}
-                        onChange={(event) => {
-                            setLat(event.target.value)
-                        }}
-                        onBlur={() => {
-                            tryCommitCoordsFromInputs()
-                        }}
-                        inputMode="decimal"
-                        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
-                    />
-                </div>
-            </div>
 
-            <div className="flex flex-wrap gap-4">
-                {type === 'point' && (
-                    <label className="flex items-center gap-2 text-sm text-neutral-700">
+                <div className="flex flex-wrap gap-4">
+                    {type === 'point' && (
+                        <label className="flex items-center gap-2 text-sm text-neutral-700">
+                            <input
+                                type="checkbox"
+                                checked={flagIsMeeting}
+                                onChange={(event) => {
+                                    setFlagIsMeeting(event.target.checked)
+                                }}
+                                className="h-4 w-4 rounded border-neutral-300 text-blue-600"
+                            />
+                            Место встречи
+                        </label>
+                    )}
+                    {type === 'point' && (
+                        <label className="flex items-center gap-2 text-sm text-neutral-700">
+                            <input
+                                type="checkbox"
+                                checked={flagHasSocket}
+                                onChange={(event) => {
+                                    setFlagHasSocket(event.target.checked)
+                                }}
+                                className="h-4 w-4 rounded border-neutral-300 text-blue-600"
+                            />
+                            Есть розетка
+                        </label>
+                    )}
+                    <label className="flex items-center gap-2 text-sm text-neutral-700" title="проезжает только Ерлан">
                         <input
                             type="checkbox"
-                            checked={flagIsMeeting}
+                            checked={flagErlan}
                             onChange={(event) => {
-                                setFlagIsMeeting(event.target.checked)
+                                setFlagErlan(event.target.checked)
                             }}
                             className="h-4 w-4 rounded border-neutral-300 text-blue-600"
                         />
-                        Место встречи
+                        Ерландия
                     </label>
-                )}
-                {type === 'point' && (
                     <label className="flex items-center gap-2 text-sm text-neutral-700">
                         <input
                             type="checkbox"
-                            checked={flagHasSocket}
+                            checked={flagDisabled}
                             onChange={(event) => {
-                                setFlagHasSocket(event.target.checked)
+                                setFlagDisabled(event.target.checked)
                             }}
                             className="h-4 w-4 rounded border-neutral-300 text-blue-600"
                         />
-                        Есть розетка
+                        Скрыть с карты
                     </label>
-                )}
-                <label
-                    className="flex items-center gap-2 text-sm text-neutral-700"
-                    title="проезжает только Ерлан"
-                >
-                    <input
-                        type="checkbox"
-                        checked={flagErlan}
-                        onChange={(event) => {
-                            setFlagErlan(event.target.checked)
-                        }}
-                        className="h-4 w-4 rounded border-neutral-300 text-blue-600"
-                    />
-                    Ерландия
-                </label>
-                <label className="flex items-center gap-2 text-sm text-neutral-700">
-                    <input
-                        type="checkbox"
-                        checked={flagDisabled}
-                        onChange={(event) => {
-                            setFlagDisabled(event.target.checked)
-                        }}
-                        className="h-4 w-4 rounded border-neutral-300 text-blue-600"
-                    />
-                    Скрыть с карты
-                </label>
-            </div>
+                </div>
 
-            {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+                {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-            <div className="flex gap-2">
-                <button
-                    type="submit"
-                    disabled={submitting}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
-                >
-                    {submitting ? 'Сохранение…' : submitLabel}
-                </button>
-                {onCancel && (
+                <div className="flex gap-2">
                     <button
-                        type="button"
-                        onClick={onCancel}
+                        type="submit"
                         disabled={submitting}
-                        className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-60"
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
                     >
-                        Отмена
+                        {submitting ? 'Сохранение…' : submitLabel}
                     </button>
-                )}
-            </div>
-            {children}
-        </form>
+                    {onCancel && (
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            disabled={submitting}
+                            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-60"
+                        >
+                            Отмена
+                        </button>
+                    )}
+                </div>
+                {children}
+            </form>
 
             <div className="flex min-h-[280px] min-w-0 flex-col gap-2 lg:min-h-0">
                 <div className="shrink-0">

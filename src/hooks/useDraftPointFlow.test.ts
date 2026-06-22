@@ -36,22 +36,34 @@ describe('useDraftPointFlow', () => {
 
     it('handleToggleAddPoint включает режим добавления', () => {
         const { result } = renderHook(() => useDraftPointFlow())
-        act(() => { result.current.handleToggleAddPoint() })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
         expect(result.current.isAddingPoint).toBe(true)
     })
 
     it('handleToggleAddPoint второй раз выключает режим', () => {
         const { result } = renderHook(() => useDraftPointFlow())
-        act(() => { result.current.handleToggleAddPoint() })
-        act(() => { result.current.handleToggleAddPoint() })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
         expect(result.current.isAddingPoint).toBe(false)
     })
 
     it('handleCancelAddPoint сбрасывает состояние', () => {
         const { result } = renderHook(() => useDraftPointFlow())
-        act(() => { result.current.handleToggleAddPoint() })
-        act(() => { result.current.setDraftCoordinates([76.9, 43.2]) })
-        act(() => { result.current.handleCancelAddPoint() })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
+        act(() => {
+            result.current.setDraftCoordinates([76.9, 43.2])
+        })
+        act(() => {
+            result.current.handleCancelAddPoint()
+        })
         expect(result.current.isAddingPoint).toBe(false)
         expect(result.current.draftCoordinates).toBeNull()
     })
@@ -59,9 +71,13 @@ describe('useDraftPointFlow', () => {
     it('handleSubmitDraft успешный кейс: isAddingPoint=false, success msg', async () => {
         mockCreate.mockResolvedValueOnce(undefined)
         const { result } = renderHook(() => useDraftPointFlow())
-        act(() => { result.current.handleToggleAddPoint() })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
 
-        await act(async () => { await result.current.handleSubmitDraft(DRAFT_INPUT) })
+        await act(async () => {
+            await result.current.handleSubmitDraft(DRAFT_INPUT)
+        })
 
         expect(result.current.isAddingPoint).toBe(false)
         expect(result.current.draftSubmitSuccess).toMatch(/модерацию/)
@@ -71,9 +87,13 @@ describe('useDraftPointFlow', () => {
     it('handleSubmitDraft при ошибке: устанавливает draftSubmitError', async () => {
         mockCreate.mockRejectedValueOnce(new Error('Сервер недоступен'))
         const { result } = renderHook(() => useDraftPointFlow())
-        act(() => { result.current.handleToggleAddPoint() })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
 
-        await act(async () => { await result.current.handleSubmitDraft(DRAFT_INPUT) })
+        await act(async () => {
+            await result.current.handleSubmitDraft(DRAFT_INPUT)
+        })
 
         expect(result.current.draftSubmitError).toMatch(/Сервер недоступен/)
         expect(result.current.isAddingPoint).toBe(true)
@@ -82,22 +102,30 @@ describe('useDraftPointFlow', () => {
     it('clearDraftSubmitError очищает ошибку', async () => {
         mockCreate.mockRejectedValueOnce(new Error('err'))
         const { result } = renderHook(() => useDraftPointFlow())
-        await act(async () => { await result.current.handleSubmitDraft(DRAFT_INPUT) })
-        act(() => { result.current.clearDraftSubmitError() })
+        await act(async () => {
+            await result.current.handleSubmitDraft(DRAFT_INPUT)
+        })
+        act(() => {
+            result.current.clearDraftSubmitError()
+        })
         expect(result.current.draftSubmitError).toBeNull()
     })
 
     it('вызывает onStartAdding при переключении', () => {
         const onStartAdding = vi.fn()
         const { result } = renderHook(() => useDraftPointFlow(onStartAdding))
-        act(() => { result.current.handleToggleAddPoint() })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
         expect(onStartAdding).toHaveBeenCalledOnce()
     })
 
     it('вызывает clearMapSelectionUrl при переключении если передан', () => {
         const clearUrl = vi.fn()
         const { result } = renderHook(() => useDraftPointFlow(undefined, clearUrl))
-        act(() => { result.current.handleToggleAddPoint() })
+        act(() => {
+            result.current.handleToggleAddPoint()
+        })
         expect(clearUrl).toHaveBeenCalledOnce()
     })
 })

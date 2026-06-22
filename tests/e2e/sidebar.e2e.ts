@@ -53,7 +53,10 @@ test.describe('FeatureSidebar — закрытие', () => {
         await page.goto('/m/point/1')
         await waitForSidebar(page)
 
-        await page.getByRole('dialog', { name: 'Информация об объекте' }).getByRole('button', { name: 'Закрыть' }).click()
+        await page
+            .getByRole('dialog', { name: 'Информация об объекте' })
+            .getByRole('button', { name: 'Закрыть' })
+            .click()
 
         await expect(page).toHaveURL('/')
     })

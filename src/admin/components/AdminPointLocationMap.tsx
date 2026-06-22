@@ -40,9 +40,7 @@ export function AdminPointLocationMap({ coordinates, onChange }: AdminPointLocat
     useEffect(() => {
         if (!map || !isMapReady) return
 
-        const marker = new Marker({ color: COLORS.point, draggable: true })
-            .setLngLat(coordinatesRef.current)
-            .addTo(map)
+        const marker = new Marker({ color: COLORS.point, draggable: true }).setLngLat(coordinatesRef.current).addTo(map)
 
         marker.on('dragend', () => {
             const ll = marker.getLngLat()

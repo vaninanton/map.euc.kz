@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import {
-    deletePhoto,
-    listPhotos,
-    updatePhoto,
-    uploadPhoto,
-    type AdminPhoto,
-} from '@/admin/lib/adminApi'
+import { deletePhoto, listPhotos, updatePhoto, uploadPhoto, type AdminPhoto } from '@/admin/lib/adminApi'
 import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
 
@@ -31,19 +25,22 @@ interface LightboxProps {
 function Lightbox({ photo, total, position, onClose, onPrev, onNext }: LightboxProps) {
     useEffect(() => {
         const onKey = (event: globalThis.KeyboardEvent) => {
-            if (event.key === 'Escape') { onClose() }
-            else if (event.key === 'ArrowRight') { onNext() }
-            else if (event.key === 'ArrowLeft') { onPrev() }
+            if (event.key === 'Escape') {
+                onClose()
+            } else if (event.key === 'ArrowRight') {
+                onNext()
+            } else if (event.key === 'ArrowLeft') {
+                onPrev()
+            }
         }
         document.addEventListener('keydown', onKey)
-        return () => { document.removeEventListener('keydown', onKey) }
+        return () => {
+            document.removeEventListener('keydown', onKey)
+        }
     }, [onClose, onNext, onPrev])
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-            onClick={onClose}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={onClose}>
             <button
                 type="button"
                 aria-label="Закрыть"
@@ -59,7 +56,10 @@ function Lightbox({ photo, total, position, onClose, onPrev, onNext }: LightboxP
                         type="button"
                         aria-label="Предыдущее фото"
                         className="absolute left-4 cursor-pointer rounded-full bg-black/40 px-3 py-2 text-xl text-white hover:bg-black/70"
-                        onClick={(e) => { e.stopPropagation(); onPrev() }}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onPrev()
+                        }}
                     >
                         ‹
                     </button>
@@ -67,7 +67,10 @@ function Lightbox({ photo, total, position, onClose, onPrev, onNext }: LightboxP
                         type="button"
                         aria-label="Следующее фото"
                         className="absolute right-4 cursor-pointer rounded-full bg-black/40 px-3 py-2 text-xl text-white hover:bg-black/70"
-                        onClick={(e) => { e.stopPropagation(); onNext() }}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onNext()
+                        }}
                     >
                         ›
                     </button>
@@ -78,7 +81,9 @@ function Lightbox({ photo, total, position, onClose, onPrev, onNext }: LightboxP
                 src={photo.public_url}
                 alt={photo.alt_text ?? ''}
                 className="max-h-[90dvh] max-w-[90dvw] rounded-lg object-contain shadow-2xl"
-                onClick={(e) => { e.stopPropagation() }}
+                onClick={(e) => {
+                    e.stopPropagation()
+                }}
             />
 
             {total > 1 && (
@@ -98,8 +103,7 @@ export function PhotoManager({ pointId }: PhotoManagerProps) {
     const dragCounterRef = useRef(0)
 
     const load = useCallback(() => listPhotos(pointId), [pointId])
-    const { items: photos, setItems: setPhotos, loading, error, setError, reload } =
-        useAdminListLoader(load)
+    const { items: photos, setItems: setPhotos, loading, error, setError, reload } = useAdminListLoader(load)
 
     const uploadFiles = useCallback(
         async (files: File[]) => {
@@ -169,7 +173,9 @@ export function PhotoManager({ pointId }: PhotoManagerProps) {
             }
         }
         document.addEventListener('paste', onPaste)
-        return () => { document.removeEventListener('paste', onPaste); }
+        return () => {
+            document.removeEventListener('paste', onPaste)
+        }
     }, [uploadFiles])
 
     const handleAltChange = async (photo: AdminPhoto, altText: string) => {
@@ -209,15 +215,15 @@ export function PhotoManager({ pointId }: PhotoManagerProps) {
         }
     }
 
-    const closeLightbox = useCallback(() => { setLightboxIndex(null) }, [])
-    const prevPhoto = useCallback(
-        () => { setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null)) },
-        [photos.length],
-    )
-    const nextPhoto = useCallback(
-        () => { setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null)) },
-        [photos.length],
-    )
+    const closeLightbox = useCallback(() => {
+        setLightboxIndex(null)
+    }, [])
+    const prevPhoto = useCallback(() => {
+        setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null))
+    }, [photos.length])
+    const nextPhoto = useCallback(() => {
+        setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null))
+    }, [photos.length])
 
     return (
         <section className="rounded-xl border border-neutral-200 bg-white p-4">
@@ -266,7 +272,9 @@ export function PhotoManager({ pointId }: PhotoManagerProps) {
                                         type="button"
                                         aria-label="Открыть фото"
                                         className="h-20 w-28 shrink-0 cursor-zoom-in overflow-hidden rounded-md"
-                                        onClick={() => { setLightboxIndex(i); }}
+                                        onClick={() => {
+                                            setLightboxIndex(i)
+                                        }}
                                     >
                                         <img
                                             src={photo.public_url}
@@ -302,7 +310,9 @@ export function PhotoManager({ pointId }: PhotoManagerProps) {
                                         <div className="mt-auto flex justify-end">
                                             <button
                                                 type="button"
-                                                onClick={() => { setConfirmTarget(photo); }}
+                                                onClick={() => {
+                                                    setConfirmTarget(photo)
+                                                }}
                                                 className="cursor-pointer rounded-md border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
                                             >
                                                 Удалить
@@ -312,16 +322,13 @@ export function PhotoManager({ pointId }: PhotoManagerProps) {
                                 </li>
                             ))}
                         </ul>
-                        {dragOver && (
-                            <p className="mt-3 text-center text-sm text-blue-500">Отпустите для загрузки</p>
-                        )}
+                        {dragOver && <p className="mt-3 text-center text-sm text-blue-500">Отпустите для загрузки</p>}
                     </>
                 )}
             </div>
 
             {lightboxIndex !== null && (
                 <Lightbox
-                     
                     photo={photos[lightboxIndex]}
                     total={photos.length}
                     position={lightboxIndex + 1}
@@ -337,8 +344,12 @@ export function PhotoManager({ pointId }: PhotoManagerProps) {
                 description="Файл будет удалён из Supabase Storage и из таблицы. Действие необратимо."
                 confirmLabel="Удалить"
                 danger
-                onCancel={() => { setConfirmTarget(null); }}
-                onConfirm={() => { void handleDelete() }}
+                onCancel={() => {
+                    setConfirmTarget(null)
+                }}
+                onConfirm={() => {
+                    void handleDelete()
+                }}
             />
         </section>
     )

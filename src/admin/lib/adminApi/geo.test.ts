@@ -68,7 +68,9 @@ describe('buildRiderTracks', () => {
     })
 
     it('displayName = "ID N" если нет имени и username', () => {
-        const [track] = buildRiderTracks([makeRow({ first_name: null, last_name: null, username: null, telegram_user_id: 99 })])
+        const [track] = buildRiderTracks([
+            makeRow({ first_name: null, last_name: null, username: null, telegram_user_id: 99 }),
+        ])
         expect(track.displayName).toBe('ID 99')
     })
 

@@ -11,7 +11,6 @@ async function attachScreenshot(testInfo: TestInfo, name: string, page: Page) {
     })
 }
 
-
 test.describe('радар — с геолокацией', () => {
     test.use({
         geolocation: USER_GEOLOCATION,

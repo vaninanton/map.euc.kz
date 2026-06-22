@@ -51,19 +51,13 @@ describe('getUpcomingOccurrences', () => {
     })
 
     it('отсекает прошедшие даты', () => {
-        const event = makeEvent([
-            date('a', '2026-06-01T21:00:00'),
-            date('b', '2026-07-10T21:00:00'),
-        ])
+        const event = makeEvent([date('a', '2026-06-01T21:00:00'), date('b', '2026-07-10T21:00:00')])
         const occ = getUpcomingOccurrences(event, new Date('2026-07-01T00:00:00'))
         expect(occ.map((o) => o.date)).toEqual(['2026-07-10'])
     })
 
     it('у каждой даты своё время', () => {
-        const event = makeEvent([
-            date('a', '2026-07-10T21:30:00'),
-            date('b', '2026-07-12T21:00:00'),
-        ])
+        const event = makeEvent([date('a', '2026-07-10T21:30:00'), date('b', '2026-07-12T21:00:00')])
         const occ = getUpcomingOccurrences(event, new Date('2026-07-01T00:00:00'))
         expect(occ[0].start.getHours()).toBe(21)
         expect(occ[0].start.getMinutes()).toBe(30)
@@ -84,10 +78,7 @@ describe('getUpcomingOccurrences', () => {
     })
 
     it('исключает отменённые даты', () => {
-        const event = makeEvent([
-            date('a', '2026-07-10T21:00:00', null, true),
-            date('b', '2026-07-12T21:00:00'),
-        ])
+        const event = makeEvent([date('a', '2026-07-10T21:00:00', null, true), date('b', '2026-07-12T21:00:00')])
         const occ = getUpcomingOccurrences(event, new Date('2026-07-01T00:00:00'))
         expect(occ.map((o) => o.date)).toEqual(['2026-07-12'])
     })
@@ -125,10 +116,7 @@ describe('summarizeEvent', () => {
     })
 
     it('длительность — расписание показывает интервал', () => {
-        const summary = summarizeEvent(
-            makeEvent([date('a', '2026-07-10T21:00:00')], { duration_minutes: 90 }),
-            from,
-        )
+        const summary = summarizeEvent(makeEvent([date('a', '2026-07-10T21:00:00')], { duration_minutes: 90 }), from)
         expect(summary.schedule).toBe('10 июля, 21:00–22:30')
     })
 
@@ -156,10 +144,9 @@ describe('summarizeEvent', () => {
     })
 
     it('идёт сейчас + есть будущая дата — ongoing и next вместе', () => {
-        const event = makeEvent(
-            [date('a', '2026-07-10T19:00:00'), date('b', '2026-07-17T19:00:00')],
-            { duration_minutes: 90 },
-        )
+        const event = makeEvent([date('a', '2026-07-10T19:00:00'), date('b', '2026-07-17T19:00:00')], {
+            duration_minutes: 90,
+        })
         const summary = summarizeEvent(event, new Date('2026-07-10T19:30:00'))
         expect(summary.ongoing?.date).toBe('2026-07-10')
         expect(summary.next?.date).toBe('2026-07-17')

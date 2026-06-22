@@ -67,7 +67,13 @@ describe('LayerPanel', () => {
     })
 
     it('все слои выключены: все чекбоксы слоёв не checked', () => {
-        const visibility: LayerVisibility = { points: false, sockets: false, routes: false, bikeLanes: false, telegramUsers: false }
+        const visibility: LayerVisibility = {
+            points: false,
+            sockets: false,
+            routes: false,
+            bikeLanes: false,
+            telegramUsers: false,
+        }
         render(<LayerPanel {...DEFAULT_PROPS} visibility={visibility} />)
         const checkboxes = screen.getAllByRole('checkbox')
         for (const cb of checkboxes.slice(0, 5)) expect(cb).not.toBeChecked()

@@ -18,7 +18,10 @@ test.describe('Лента событий — открытие', () => {
         await mockExternalServices(page)
         await page.goto('/')
 
-        await page.getByRole('navigation', { name: 'Основная навигация' }).getByRole('button', { name: /^События/ }).click()
+        await page
+            .getByRole('navigation', { name: 'Основная навигация' })
+            .getByRole('button', { name: /^События/ })
+            .click()
 
         await expect(eventsScreen(page)).toBeVisible()
         await expect(page).toHaveURL('/events')

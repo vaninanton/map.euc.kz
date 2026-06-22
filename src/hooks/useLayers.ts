@@ -1,13 +1,13 @@
-import { useCallback } from 'react';
-import type { Map as MapboxMap } from 'mapbox-gl';
-import { addLayersToMap as addLayersToMapImpl } from '@/lib/mapLayers';
-import { applyVisibilityToMapLayers } from '@/constants/mapLayerRegistry';
-import type { LayerVisibility } from '@/constants/layerVisibility';
-import { useLayerVisibilityStore } from '@/hooks/useLayerVisibilityStore';
-import { useMapData } from '@/hooks/useMapData';
+import { useCallback } from 'react'
+import type { Map as MapboxMap } from 'mapbox-gl'
+import { addLayersToMap as addLayersToMapImpl } from '@/lib/mapLayers'
+import { applyVisibilityToMapLayers } from '@/constants/mapLayerRegistry'
+import type { LayerVisibility } from '@/constants/layerVisibility'
+import { useLayerVisibilityStore } from '@/hooks/useLayerVisibilityStore'
+import { useMapData } from '@/hooks/useMapData'
 
-export type { LayerKey } from '@/constants';
-export type { LayerVisibility };
+export type { LayerKey } from '@/constants'
+export type { LayerVisibility }
 
 /**
  * Тонкий фасад для карты:
@@ -24,9 +24,9 @@ export function useLayers() {
         errorMessage,
         emptyMessage,
         getFeatureById,
-    } = useMapData();
+    } = useMapData()
 
-    const { visibility, toggleLayer, setLayerVisibility } = useLayerVisibilityStore();
+    const { visibility, toggleLayer, setLayerVisibility } = useLayerVisibilityStore()
 
     /** Добавляет/обновляет источники и слои в экземпляре Mapbox. */
     const addLayersToMap = useCallback(
@@ -37,19 +37,19 @@ export function useLayers() {
                 bikeLanesGeo,
                 telegramUsersGeo,
                 visibility,
-            });
+            })
         },
-        [pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility]
-    );
+        [pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility],
+    )
 
     /** Применяет текущую видимость UI к слоям Mapbox. */
     const applyVisibility = useCallback(
         (map: MapboxMap | null) => {
-            if (!map) return;
-            applyVisibilityToMapLayers(map, visibility);
+            if (!map) return
+            applyVisibilityToMapLayers(map, visibility)
         },
-        [visibility]
-    );
+        [visibility],
+    )
 
     return {
         pointsGeo,
@@ -66,5 +66,5 @@ export function useLayers() {
         addLayersToMap,
         applyVisibility,
         getFeatureById,
-    };
+    }
 }

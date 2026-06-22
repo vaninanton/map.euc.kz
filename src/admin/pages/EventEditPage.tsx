@@ -103,7 +103,9 @@ export function EventEditPage({ mode }: EventEditPageProps) {
                         <button
                             type="button"
                             disabled={deleting}
-                            onClick={() => { setConfirmDelete(true); }}
+                            onClick={() => {
+                                setConfirmDelete(true)
+                            }}
                             className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
                             Удалить событие

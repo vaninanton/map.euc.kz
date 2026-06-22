@@ -158,7 +158,9 @@ export function RouteVertexEditorList({
     const isSameLngLat = (a: [number, number], b: [number, number]) => a[0] === b[0] && a[1] === b[1]
 
     const sortViaByRouteOrder = (nextVia: Array<[number, number]>): Array<[number, number]> => {
-        const middleVertices = coordinates.slice(1, coordinates.length - 1).map((coord) => [coord[0], coord[1]] as [number, number])
+        const middleVertices = coordinates
+            .slice(1, coordinates.length - 1)
+            .map((coord) => [coord[0], coord[1]] as [number, number])
         return middleVertices.filter((vertex) => nextVia.some((via) => isSameLngLat(via, vertex)))
     }
 

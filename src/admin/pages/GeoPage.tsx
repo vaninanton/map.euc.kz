@@ -107,9 +107,7 @@ export function GeoPage() {
                 {loading && <span className="text-sm text-neutral-400">Загрузка…</span>}
             </header>
 
-            {error && (
-                <div className="shrink-0 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-            )}
+            {error && <div className="shrink-0 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
             <div className="flex min-h-0 flex-1 gap-4">
                 {/* Боковая панель с райдерами */}

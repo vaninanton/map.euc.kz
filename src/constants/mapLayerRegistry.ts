@@ -1,6 +1,6 @@
-import type { Map as MapboxMap } from 'mapbox-gl';
-import { LAYER_IDS, type LayerKey } from '@/constants';
-import type { LayerVisibility } from '@/constants/layerVisibility';
+import type { Map as MapboxMap } from 'mapbox-gl'
+import { LAYER_IDS, type LayerKey } from '@/constants'
+import type { LayerVisibility } from '@/constants/layerVisibility'
 
 /**
  * Слои Mapbox, для которых выставляется visibility по ключу UI.
@@ -12,19 +12,19 @@ export const LAYER_KEY_TO_MAP_LAYER_IDS: Record<LayerKey, readonly string[]> = {
     routes: [LAYER_IDS.routes],
     bikeLanes: [LAYER_IDS.bikeLanes],
     telegramUsers: [LAYER_IDS.telegramUsers, LAYER_IDS.telegramTracks],
-};
+}
 
 /**
  * Проставляет `layout.visibility` для всех слоёв, связанных с ключами UI.
  * Безопасно пропускает отсутствующие в текущем style слои.
  */
 export function applyVisibilityToMapLayers(map: MapboxMap, visibility: LayerVisibility): void {
-    (Object.keys(LAYER_KEY_TO_MAP_LAYER_IDS) as LayerKey[]).forEach((key) => {
-        const visible = visibility[key];
+    ;(Object.keys(LAYER_KEY_TO_MAP_LAYER_IDS) as LayerKey[]).forEach((key) => {
+        const visible = visibility[key]
         for (const layerId of LAYER_KEY_TO_MAP_LAYER_IDS[key]) {
             if (map.getLayer(layerId)) {
-                map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+                map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none')
             }
         }
-    });
+    })
 }

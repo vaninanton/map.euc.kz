@@ -76,7 +76,9 @@ function EndpointPicker({
                     <button
                         key={value}
                         type="button"
-                        onClick={() => { setMode(value); }}
+                        onClick={() => {
+                            setMode(value)
+                        }}
                         className={`cursor-pointer rounded-lg px-3 py-1 text-sm font-medium transition-colors ${
                             mode === value
                                 ? 'bg-blue-600 text-white'
@@ -97,7 +99,9 @@ function EndpointPicker({
                     ) : (
                         <select
                             value={pointId ?? ''}
-                            onChange={(e) => { onChangePointId(Number(e.target.value)); }}
+                            onChange={(e) => {
+                                onChangePointId(Number(e.target.value))
+                            }}
                             className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                         >
                             {points.map((p) => (
@@ -139,7 +143,12 @@ function EndpointPicker({
                         </div>
                     </div>
                     <div className="flex h-72 flex-col">
-                        <AdminPointLocationMap coordinates={coords} onChange={(next) => { onChangeCoordinates(next); }} />
+                        <AdminPointLocationMap
+                            coordinates={coords}
+                            onChange={(next) => {
+                                onChangeCoordinates(next)
+                            }}
+                        />
                     </div>
                 </div>
             )}
@@ -151,7 +160,9 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
     const [type, setType] = useState<EventType>(initial.type)
     const [title, setTitle] = useState(initial.title)
     const [description, setDescription] = useState(initial.description ?? '')
-    const [durationMinutes, setDurationMinutes] = useState(initial.duration_minutes ? String(initial.duration_minutes) : '')
+    const [durationMinutes, setDurationMinutes] = useState(
+        initial.duration_minutes ? String(initial.duration_minutes) : '',
+    )
     const [locationText, setLocationText] = useState(initial.location_text ?? '')
     const [startCoordinates, setStartCoordinates] = useState<[number, number] | null>(initial.start_coordinates)
     const [finishCoordinates, setFinishCoordinates] = useState<[number, number] | null>(initial.finish_coordinates)
@@ -229,7 +240,9 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                     <label className="mb-1 block text-xs font-medium text-neutral-700">Тип</label>
                     <select
                         value={type}
-                        onChange={(e) => { setType(e.target.value as EventType); }}
+                        onChange={(e) => {
+                            setType(e.target.value as EventType)
+                        }}
                         className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                     >
                         {TYPE_OPTIONS.map((o) => (
@@ -243,7 +256,9 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                     <label className="mb-1 block text-xs font-medium text-neutral-700">Название</label>
                     <input
                         value={title}
-                        onChange={(e) => { setTitle(e.target.value); }}
+                        onChange={(e) => {
+                            setTitle(e.target.value)
+                        }}
                         maxLength={99}
                         className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                     />
@@ -254,7 +269,9 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                 <label className="mb-1 block text-xs font-medium text-neutral-700">Описание</label>
                 <textarea
                     value={description}
-                    onChange={(e) => { setDescription(e.target.value); }}
+                    onChange={(e) => {
+                        setDescription(e.target.value)
+                    }}
                     rows={3}
                     className="w-full resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                 />
@@ -269,7 +286,9 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                         type="number"
                         min={1}
                         value={durationMinutes}
-                        onChange={(e) => { setDurationMinutes(e.target.value); }}
+                        onChange={(e) => {
+                            setDurationMinutes(e.target.value)
+                        }}
                         className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                     />
                 </div>
@@ -277,7 +296,9 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                     <label className="mb-1 block text-xs font-medium text-neutral-700">Место (текстом)</label>
                     <input
                         value={locationText}
-                        onChange={(e) => { setLocationText(e.target.value); }}
+                        onChange={(e) => {
+                            setLocationText(e.target.value)
+                        }}
                         placeholder="Например, Сайран"
                         className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                     />
@@ -310,7 +331,9 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                 <input
                     type="checkbox"
                     checked={flagDisabled}
-                    onChange={(e) => { setFlagDisabled(e.target.checked); }}
+                    onChange={(e) => {
+                        setFlagDisabled(e.target.checked)
+                    }}
                     className="h-4 w-4 rounded border-neutral-300 text-blue-600"
                 />
                 Скрыть с сайта

@@ -75,34 +75,34 @@ External APIs (Mapbox GL, Supabase, Telegram)
 ### Component Composition
 
 1. **EucMap** (orchestrator)
-   - Houses map container ref
-   - Composes 10+ hooks
-   - Manages selection, draft point flow, radar mode
-   - Renders UI panels (controls, sidebar, modals)
+    - Houses map container ref
+    - Composes 10+ hooks
+    - Manages selection, draft point flow, radar mode
+    - Renders UI panels (controls, sidebar, modals)
 
 2. **useLayers** (data + visibility coordinator)
-   - Fetches GeoJSON from database
-   - Manages layer visibility state (localStorage)
-   - Provides `addLayersToMap()` and `applyVisibility()` callbacks
+    - Fetches GeoJSON from database
+    - Manages layer visibility state (localStorage)
+    - Provides `addLayersToMap()` and `applyVisibility()` callbacks
 
 3. **useMapbox** (Mapbox instance)
-   - Creates and manages Map instance
-   - Handles style switching (streets ↔ satellite)
-   - Configures controls (attribution, geolocation)
+    - Creates and manages Map instance
+    - Handles style switching (streets ↔ satellite)
+    - Configures controls (attribution, geolocation)
 
 4. **useMapData** (data orchestration)
-   - Parallel fetches via `Promise.allSettled` (resilient)
-   - Normalizes Supabase rows to GeoJSON
-   - Realtime subscription to Telegram locations
-   - Feature indexing for fast lookups
+    - Parallel fetches via `Promise.allSettled` (resilient)
+    - Normalizes Supabase rows to GeoJSON
+    - Realtime subscription to Telegram locations
+    - Feature indexing for fast lookups
 
 5. **useMapClick / useMapHover** (interaction)
-   - Feature selection via click
-   - Feature state updates (hover, selected)
+    - Feature selection via click
+    - Feature state updates (hover, selected)
 
 6. **useTelegramRealtime** (Supabase Realtime listener)
-   - Listens to changes on `telegram_locations` and `telegram_profiles`
-   - Triggers refresh on insert/update/delete
+    - Listens to changes on `telegram_locations` and `telegram_profiles`
+    - Triggers refresh on insert/update/delete
 
 ### Data Flow Diagram
 
@@ -244,6 +244,7 @@ App
 **Role:** Orchestrator, hosts the Mapbox container, manages state.
 
 **Responsibilities:**
+
 - Mount point for Mapbox (`containerRef`)
 - Composition of hooks
 - Selection & draft point flow
@@ -254,6 +255,7 @@ App
 **Props:** None (uses router hooks for deep links)
 
 **Key State:**
+
 - `isResettingCache` — clearing IndexedDB, Service Worker caches
 - `isProjectInfoOpen` — about dialog
 - `isDesktop` — media query (min-width: 768px)
@@ -264,6 +266,7 @@ App
 **Role:** Toggle layer visibility in sidebar.
 
 **Responsibilities:**
+
 - Display layer checkboxes (points, sockets, routes, bikeLanes, telegram)
 - Persist to localStorage via `useLayerVisibilityStore`
 - Visual indicator of layer count/types
@@ -273,6 +276,7 @@ App
 **Role:** Display details of selected feature (point, route, Telegram user).
 
 **Responsibilities:**
+
 - Show title, description, coordinates
 - Photo gallery (with Supabase Storage URLs)
 - For Telegram users: avatar, speed, last update
@@ -283,6 +287,7 @@ App
 **Role:** Form to submit new points/sockets.
 
 **Responsibilities:**
+
 - Click-to-place coordinates on map
 - Type selection (point vs. socket)
 - Title, description, meeting flag
@@ -294,6 +299,7 @@ App
 **Role:** Detect and prompt PWA installation.
 
 **Responsibilities:**
+
 - Android: beforeinstallprompt event
 - iOS: show banner (can't directly prompt)
 - Display Add to Home Screen instructions for iOS
@@ -312,106 +318,106 @@ App
 
 #### map_points
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | bigint (PK) | Auto-generated |
-| created_at | timestamptz | Default: now() |
-| title | text | Required; 3–99 chars |
-| coordinates | double precision[2] | [lon, lat]; validated |
-| type | point_types enum | 'point' \| 'socket' |
-| description | text | Optional |
-| flag_is_meeting | boolean | "Meeting spot" |
-| flag_has_socket | boolean | "Charging available" |
-| flag_erlan | boolean | "Erlandia only" (internal joke) |
-| flag_disabled | boolean | Hidden from public view |
+| Column          | Type                | Notes                           |
+| --------------- | ------------------- | ------------------------------- |
+| id              | bigint (PK)         | Auto-generated                  |
+| created_at      | timestamptz         | Default: now()                  |
+| title           | text                | Required; 3–99 chars            |
+| coordinates     | double precision[2] | [lon, lat]; validated           |
+| type            | point_types enum    | 'point' \| 'socket'             |
+| description     | text                | Optional                        |
+| flag_is_meeting | boolean             | "Meeting spot"                  |
+| flag_has_socket | boolean             | "Charging available"            |
+| flag_erlan      | boolean             | "Erlandia only" (internal joke) |
+| flag_disabled   | boolean             | Hidden from public view         |
 
 **RLS:** Readable by anon (where `flag_disabled = false`); writable by service role only.  
 **Indexes:** (flag_disabled, created_at), (coordinates)
 
 #### map_routes
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | bigint (PK) | Auto-generated |
-| created_at | timestamptz | |
-| title | text | Required; 3–99 chars |
-| coordinates | jsonb | Array of [lon, lat] or [lon, lat, elevation] |
-| via_coordinates | jsonb | Intermediate waypoints (default: []) |
-| description | text | Optional |
-| flag_disabled | boolean | Hidden |
-| flag_erlan | boolean | "Erlandia only" |
+| Column          | Type        | Notes                                        |
+| --------------- | ----------- | -------------------------------------------- |
+| id              | bigint (PK) | Auto-generated                               |
+| created_at      | timestamptz |                                              |
+| title           | text        | Required; 3–99 chars                         |
+| coordinates     | jsonb       | Array of [lon, lat] or [lon, lat, elevation] |
+| via_coordinates | jsonb       | Intermediate waypoints (default: [])         |
+| description     | text        | Optional                                     |
+| flag_disabled   | boolean     | Hidden                                       |
+| flag_erlan      | boolean     | "Erlandia only"                              |
 
 **RLS:** Readable by anon (where `flag_disabled = false`); writable by service role.  
 **Relationship:** None to map_points (independent).
 
 #### map_points_submissions
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid (PK) | |
-| created_at | timestamptz | |
-| processed_at | timestamptz | Set when approved/rejected |
-| type | point_types enum | 'point' \| 'socket' |
-| title | text | |
-| description | text | |
-| coordinates | jsonb | [lon, lat] |
-| flag_is_meeting | boolean | |
-| status | submission_status enum | 'pending' \| 'approved' \| 'rejected' |
+| Column          | Type                   | Notes                                 |
+| --------------- | ---------------------- | ------------------------------------- |
+| id              | uuid (PK)              |                                       |
+| created_at      | timestamptz            |                                       |
+| processed_at    | timestamptz            | Set when approved/rejected            |
+| type            | point_types enum       | 'point' \| 'socket'                   |
+| title           | text                   |                                       |
+| description     | text                   |                                       |
+| coordinates     | jsonb                  | [lon, lat]                            |
+| flag_is_meeting | boolean                |                                       |
+| status          | submission_status enum | 'pending' \| 'approved' \| 'rejected' |
 
 **RLS:** Insert by anon or authenticated users; admin can read/update.
 
 #### map_point_photos
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | bigint (PK) | |
+| Column       | Type        | Notes                       |
+| ------------ | ----------- | --------------------------- |
+| id           | bigint (PK) |                             |
 | map_point_id | bigint (FK) | Points can have many photos |
-| bucket_name | text | 'map-point-photos' |
-| storage_path | text | Relative path in bucket |
-| alt_text | text | Accessibility |
-| sort_order | integer | Gallery order |
+| bucket_name  | text        | 'map-point-photos'          |
+| storage_path | text        | Relative path in bucket     |
+| alt_text     | text        | Accessibility               |
+| sort_order   | integer     | Gallery order               |
 
 **RLS:** Readable by anon; writable by admin only.
 
 #### map_admin_users
 
-| Column | Type | Notes |
-|--------|------|-------|
-| user_id | uuid (PK) | Supabase Auth user.id |
-| created_at | timestamptz | |
+| Column     | Type        | Notes                 |
+| ---------- | ----------- | --------------------- |
+| user_id    | uuid (PK)   | Supabase Auth user.id |
+| created_at | timestamptz |                       |
 
 **RLS:** Only admins can read/insert (via policy checking authenticated admin role).
 
 #### telegram_locations
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | bigint (PK) | |
-| created_at | timestamptz | |
-| chat_id | bigint | Telegram chat ID |
-| chat_title | text | Chat name (cached) |
-| telegram_user_id | bigint | Telegram user ID |
-| username | text | From telegram_profiles or message |
-| first_name | text | |
-| last_name | text | |
-| longitude | double precision | |
-| latitude | double precision | |
-| location_accuracy_meters | integer | GPS accuracy; filtered by VITE_TELEGRAM_MAX_ACCURACY |
-| raw_update | jsonb | Full Telegram update (anon: hidden) |
+| Column                   | Type             | Notes                                                |
+| ------------------------ | ---------------- | ---------------------------------------------------- |
+| id                       | bigint (PK)      |                                                      |
+| created_at               | timestamptz      |                                                      |
+| chat_id                  | bigint           | Telegram chat ID                                     |
+| chat_title               | text             | Chat name (cached)                                   |
+| telegram_user_id         | bigint           | Telegram user ID                                     |
+| username                 | text             | From telegram_profiles or message                    |
+| first_name               | text             |                                                      |
+| last_name                | text             |                                                      |
+| longitude                | double precision |                                                      |
+| latitude                 | double precision |                                                      |
+| location_accuracy_meters | integer          | GPS accuracy; filtered by VITE_TELEGRAM_MAX_ACCURACY |
+| raw_update               | jsonb            | Full Telegram update (anon: hidden)                  |
 
 **RLS:** Readable by anon (select only safe columns: no raw_update); insertable only by Edge Function.  
 **TTL:** Filtered in frontend based on `VITE_TELEGRAM_GEO_TTL_MINUTES`.
 
 #### telegram_profiles
 
-| Column | Type | Notes |
-|--------|------|-------|
-| telegram_user_id | bigint (PK) | |
-| username | text | @username or null |
-| first_name | text | |
-| last_name | text | |
-| avatar_url | text | Safe public Storage URL (no bot token) |
-| updated_at | timestamptz | Last refresh |
+| Column           | Type        | Notes                                  |
+| ---------------- | ----------- | -------------------------------------- |
+| telegram_user_id | bigint (PK) |                                        |
+| username         | text        | @username or null                      |
+| first_name       | text        |                                        |
+| last_name        | text        |                                        |
+| avatar_url       | text        | Safe public Storage URL (no bot token) |
+| updated_at       | timestamptz | Last refresh                           |
 
 **RLS:** Readable by anon; updated by Edge Function.
 
@@ -454,18 +460,27 @@ CREATE POLICY "admin_write_map_points" ON public.map_points
 **Channel:** `useTelegramRealtime()` hook subscribes to:
 
 ```javascript
-supabaseClient.channel('telegram-live-points')
-  .on('postgres_changes', {
-    event: '*', // INSERT, UPDATE, DELETE
-    schema: 'public',
-    table: 'telegram_locations'
-  }, scheduleRefresh)
-  .on('postgres_changes', {
-    event: '*',
-    schema: 'public',
-    table: 'telegram_profiles'
-  }, scheduleRefresh)
-  .subscribe()
+supabaseClient
+    .channel('telegram-live-points')
+    .on(
+        'postgres_changes',
+        {
+            event: '*', // INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'telegram_locations',
+        },
+        scheduleRefresh,
+    )
+    .on(
+        'postgres_changes',
+        {
+            event: '*',
+            schema: 'public',
+            table: 'telegram_profiles',
+        },
+        scheduleRefresh,
+    )
+    .subscribe()
 ```
 
 **Triggered Actions:**
@@ -529,20 +544,20 @@ Frontend receives Realtime broadcast
 
 ```typescript
 const mapInstance = new mapboxgl.Map({
-  container: containerRef.current,
-  style: MAPBOX_STYLES[baseStyle], // 'streets' or 'satellite'
-  center: MAP_CENTER, // [76.904848, 43.226807] (Almaty)
-  zoom: MAP_ZOOM_DEFAULT, // ~11
-  logoPosition: 'bottom-right',
-  attributionControl: false, // custom attribution added
-  transformRequest: (url) => {
-    // Block Mapbox telemetry (events.mapbox.com)
-    if (url?.includes('events.mapbox.com')) {
-      return { url: 'data:application/json;base64,e30=' };
-    }
-    return { url };
-  }
-});
+    container: containerRef.current,
+    style: MAPBOX_STYLES[baseStyle], // 'streets' or 'satellite'
+    center: MAP_CENTER, // [76.904848, 43.226807] (Almaty)
+    zoom: MAP_ZOOM_DEFAULT, // ~11
+    logoPosition: 'bottom-right',
+    attributionControl: false, // custom attribution added
+    transformRequest: (url) => {
+        // Block Mapbox telemetry (events.mapbox.com)
+        if (url?.includes('events.mapbox.com')) {
+            return { url: 'data:application/json;base64,e30=' }
+        }
+        return { url }
+    },
+})
 ```
 
 **Custom Attribution:** `'velojol.kz'` added via `mapboxgl.AttributionControl`.
@@ -605,38 +620,38 @@ const mapInstance = new mapboxgl.Map({
 
 ```typescript
 type MapPointRow = {
-  id: string
-  type: 'point' | 'socket'
-  title: string
-  description?: string
-  coordinates: [number, number] // [lon, lat]
-  flag_is_meeting?: boolean
-  flag_has_socket?: boolean
-  flag_erlan?: boolean
-  photos: MapPointPhotoRow[]
+    id: string
+    type: 'point' | 'socket'
+    title: string
+    description?: string
+    coordinates: [number, number] // [lon, lat]
+    flag_is_meeting?: boolean
+    flag_has_socket?: boolean
+    flag_erlan?: boolean
+    photos: MapPointPhotoRow[]
 }
 
 type MapRouteRow = {
-  id: string
-  title: string
-  coordinates: Array<[number, number] | [number, number, number]>
-  via_coordinates: Array<[number, number]>
-  description?: string
-  flag_erlan?: boolean
+    id: string
+    title: string
+    coordinates: Array<[number, number] | [number, number, number]>
+    via_coordinates: Array<[number, number]>
+    description?: string
+    flag_erlan?: boolean
 }
 
 type TelegramLocationRow = {
-  id: string
-  created_at: string
-  chat_id: number
-  telegram_user_id: number
-  username?: string
-  first_name?: string
-  last_name?: string
-  avatar_url?: string
-  longitude: number
-  latitude: number
-  location_accuracy_meters?: number
+    id: string
+    created_at: string
+    chat_id: number
+    telegram_user_id: number
+    username?: string
+    first_name?: string
+    last_name?: string
+    avatar_url?: string
+    longitude: number
+    latitude: number
+    location_accuracy_meters?: number
 }
 ```
 
@@ -644,26 +659,26 @@ type TelegramLocationRow = {
 
 ```typescript
 type PointFeature = Feature<
-  Point,
-  {
-    id: string
-    name: string
-    type: 'point' | 'socket' | 'telegramUser'
-    isMeeting?: boolean
-    hasSocket?: boolean
-    avatarUrl?: string
-    // ... other properties
-  }
+    Point,
+    {
+        id: string
+        name: string
+        type: 'point' | 'socket' | 'telegramUser'
+        isMeeting?: boolean
+        hasSocket?: boolean
+        avatarUrl?: string
+        // ... other properties
+    }
 >
 
 type RouteFeature = Feature<
-  LineString,
-  {
-    id: string
-    name: string
-    type: 'route'
-    // ...
-  }
+    LineString,
+    {
+        id: string
+        name: string
+        type: 'route'
+        // ...
+    }
 >
 ```
 
@@ -694,7 +709,7 @@ All wrapped with `withTimeoutAndRetry` (10s timeout, 2 retries, exponential back
 
 ```typescript
 → Promise<MapPointRow[]>
-SELECT id, type, title, description, coordinates, 
+SELECT id, type, title, description, coordinates,
        flag_is_meeting, flag_has_socket, flag_erlan,
        map_point_photos(...)
 FROM map_points
@@ -721,6 +736,7 @@ WHERE flag_disabled = false
 **Pagination:** Fetches in batches of 1000 (infinite loop until < 1000 returned).
 
 **Filters:**
+
 - `created_at >= now() - ${VITE_TELEGRAM_GEO_TTL_MINUTES} minutes`
 - `location_accuracy_meters <= ${VITE_TELEGRAM_MAX_ACCURACY_METERS}` (or null)
 
@@ -766,13 +782,13 @@ Update feature state for paint expressions.
 
 ```typescript
 {
-  visibility: {
-    points: boolean
-    sockets: boolean
-    routes: boolean
-    bikeLanes: boolean
-    telegramUsers: boolean
-  }
+    visibility: {
+        points: boolean
+        sockets: boolean
+        routes: boolean
+        bikeLanes: boolean
+        telegramUsers: boolean
+    }
 }
 ```
 
@@ -791,13 +807,13 @@ Update feature state for paint expressions.
 
 ```typescript
 {
-  pointsGeo: FeatureCollection | null
-  routesGeo: FeatureCollection | null
-  bikeLanesGeo: FeatureCollection | null
-  telegramUsersGeo: FeatureCollection | null
-  loading: boolean
-  errorMessage: string | null
-  emptyMessage: string | null
+    pointsGeo: FeatureCollection | null
+    routesGeo: FeatureCollection | null
+    bikeLanesGeo: FeatureCollection | null
+    telegramUsersGeo: FeatureCollection | null
+    loading: boolean
+    errorMessage: string | null
+    emptyMessage: string | null
 }
 ```
 
@@ -830,11 +846,11 @@ Update feature state for paint expressions.
 
 ```typescript
 {
-  isAddingPoint: boolean
-  draftCoordinates: [number, number] | null
-  isSubmittingDraft: boolean
-  draftSubmitError: string | null
-  draftSubmitSuccess: boolean
+    isAddingPoint: boolean
+    draftCoordinates: [number, number] | null
+    isSubmittingDraft: boolean
+    draftSubmitError: string | null
+    draftSubmitSuccess: boolean
 }
 ```
 
@@ -919,26 +935,28 @@ const publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUr
 **Jobs:**
 
 1. **supabase** (runs first)
-   - Install Supabase CLI
-   - Link to project via `SUPABASE_PROJECT_REF` env var
-   - Run migrations: `supabase db push`
-   - Deploy Edge Function: `supabase functions deploy telegram-location-bot`
+    - Install Supabase CLI
+    - Link to project via `SUPABASE_PROJECT_REF` env var
+    - Run migrations: `supabase db push`
+    - Deploy Edge Function: `supabase functions deploy telegram-location-bot`
 
 2. **deploy** (depends on supabase)
-   - Install Node, dependencies
-   - Build: `npm run build` (with VITE_* env vars)
-   - Upload `dist/` to GitHub Pages
-   - Send Telegram notification on success/failure
+    - Install Node, dependencies
+    - Build: `npm run build` (with VITE\_\* env vars)
+    - Upload `dist/` to GitHub Pages
+    - Send Telegram notification on success/failure
 
 ### Secrets & Variables
 
 **GitHub Secrets (encrypted):**
+
 - `SUPABASE_ACCESS_TOKEN` — for Supabase CLI auth
 - `SUPABASE_DB_PASSWORD` — PostgreSQL password
 - `TELEGRAM_BOT_TOKEN` — Bot API token (for deploy notifications)
 - `TELEGRAM_CHAT_ID` — Chat to notify
 
 **GitHub Variables (public):**
+
 - `SUPABASE_PROJECT_REF` — e.g., `abcdef123456`
 - `VITE_MAPBOX_TOKEN` — Mapbox public token
 - `VITE_SUPABASE_URL` — Supabase project URL
@@ -974,6 +992,7 @@ npm run build
 **Pre-commit hook** (Husky, `.husky/pre-commit`): `lint → tsc --noEmit → test → build` — запускается автоматически перед каждым коммитом.
 
 **Optimization:**
+
 - Code splitting: `mapbox-gl` in separate chunk (600KB limit)
 - Tree-shaking: ESM modules
 - CSS: TailwindCSS JIT (inline only used classes)
@@ -995,17 +1014,17 @@ npm run build
 **Caches:**
 
 1. **STATIC_ASSET_CACHE** — app shell (index.html, manifest, favicon, CSS, JS)
-   - Cache-first for static assets
-   - Add at install time
+    - Cache-first for static assets
+    - Add at install time
 
 2. **RUNTIME_CACHE** — pages, API responses
-   - Network-first, fallback to cache
-   - Max 120 entries, FIFO eviction
-   - Fallback to home if offline
+    - Network-first, fallback to cache
+    - Max 120 entries, FIFO eviction
+    - Fallback to home if offline
 
 3. **TILE_CACHE** — Mapbox tiles (immutable by URL)
-   - Cache-first
-   - Max 500 entries
+    - Cache-first
+    - Max 500 entries
 
 **Supabase API** — Network-first (let it fail offline, don't cache auth/dynamic data)
 
@@ -1017,31 +1036,31 @@ npm run build
 
 ### Frontend (Vite, .env.local)
 
-| Variable | Type | Default | Purpose |
-|----------|------|---------|---------|
-| VITE_MAPBOX_TOKEN | string | required | Mapbox public token |
-| VITE_SUPABASE_URL | string | required | Supabase project URL |
-| VITE_SUPABASE_PUBLISHABLE_KEY | string | required | Anon key (RLS-protected) |
-| VITE_YANDEX_METRIKA_ID | string | empty | Optional analytics |
-| VITE_TELEGRAM_GEO_TTL_MINUTES | number | 60 | How long to show Telegram locations |
-| VITE_TELEGRAM_TRACK_TAIL_MINUTES | number | 30 | Recent track history window |
-| VITE_TELEGRAM_MAX_ACCURACY_METERS | number | 100 | Filter inaccurate GPS points |
+| Variable                          | Type   | Default  | Purpose                             |
+| --------------------------------- | ------ | -------- | ----------------------------------- |
+| VITE_MAPBOX_TOKEN                 | string | required | Mapbox public token                 |
+| VITE_SUPABASE_URL                 | string | required | Supabase project URL                |
+| VITE_SUPABASE_PUBLISHABLE_KEY     | string | required | Anon key (RLS-protected)            |
+| VITE_YANDEX_METRIKA_ID            | string | empty    | Optional analytics                  |
+| VITE_TELEGRAM_GEO_TTL_MINUTES     | number | 60       | How long to show Telegram locations |
+| VITE_TELEGRAM_TRACK_TAIL_MINUTES  | number | 30       | Recent track history window         |
+| VITE_TELEGRAM_MAX_ACCURACY_METERS | number | 100      | Filter inaccurate GPS points        |
 
 ### Edge Function (Supabase Secrets)
 
-| Secret | Type | Purpose |
-|--------|------|---------|
-| TELEGRAM_BOT_TOKEN | string | Bot API token for avatar fetch |
-| TELEGRAM_WEBHOOK_SECRET | string | Signature validation for webhook |
-| TELEGRAM_BACKFILL_SECRET | string | Protected backfill endpoint |
-| TELEGRAM_BACKFILL_MAX_PROFILES | number | Rate limit per backfill run |
+| Secret                         | Type   | Purpose                          |
+| ------------------------------ | ------ | -------------------------------- |
+| TELEGRAM_BOT_TOKEN             | string | Bot API token for avatar fetch   |
+| TELEGRAM_WEBHOOK_SECRET        | string | Signature validation for webhook |
+| TELEGRAM_BACKFILL_SECRET       | string | Protected backfill endpoint      |
+| TELEGRAM_BACKFILL_MAX_PROFILES | number | Rate limit per backfill run      |
 
 ### Build / Deployment
 
-| Variable | Purpose |
-|----------|---------|
+| Variable     | Purpose                                    |
+| ------------ | ------------------------------------------ |
 | GITHUB_PAGES | Set to 'true' to build with base=/map.euc/ |
-| GITHUB_SHA | Git commit SHA (embedded in app version) |
+| GITHUB_SHA   | Git commit SHA (embedded in app version)   |
 
 ---
 
@@ -1187,46 +1206,46 @@ Analyzed:
 ### Frontend
 
 1. **Browser navigates to `https://map.euc.kz`**
-   - Loads `index.html` (served by GitHub Pages)
-   - HTML links to `src/main.tsx` as ES module
+    - Loads `index.html` (served by GitHub Pages)
+    - HTML links to `src/main.tsx` as ES module
 
 2. **main.tsx**
-   - Registers service worker (version-tagged)
-   - Creates React root
-   - Renders `<App />`
+    - Registers service worker (version-tagged)
+    - Creates React root
+    - Renders `<App />`
 
 3. **App.tsx**
-   - `<BrowserRouter basename={import.meta.env.BASE_URL}>`
-   - Routes `/` → MapShell, `/admin` → AdminShell
-   - Mounts `<YandexMetrika />`, `<PwaPrompts />`
+    - `<BrowserRouter basename={import.meta.env.BASE_URL}>`
+    - Routes `/` → MapShell, `/admin` → AdminShell
+    - Mounts `<YandexMetrika />`, `<PwaPrompts />`
 
 4. **MapShell.tsx**
-   - Lazy loads `EucMap` component
-   - Suspense boundary with loading state
-   - ErrorBoundary wrapper
+    - Lazy loads `EucMap` component
+    - Suspense boundary with loading state
+    - ErrorBoundary wrapper
 
 5. **EucMap.tsx**
-   - Orchestrates hooks
-   - Renders Mapbox container + UI panels
+    - Orchestrates hooks
+    - Renders Mapbox container + UI panels
 
 ### Backend
 
 1. **Telegram bot sends webhook POST**
-   - URL: `https://<project-ref>.supabase.co/functions/v1/telegram-location-bot`
-   - Body: Telegram Update JSON
-   - Header: `X-Telegram-Bot-Api-Secret-Token`
+    - URL: `https://<project-ref>.supabase.co/functions/v1/telegram-location-bot`
+    - Body: Telegram Update JSON
+    - Header: `X-Telegram-Bot-Api-Secret-Token`
 
 2. **Edge Function (Deno runtime)**
-   - Parses update
-   - Validates signature
-   - Fetches avatar (if new user)
-   - INSERTs into `telegram_locations`
-   - Supabase Realtime broadcasts change
+    - Parses update
+    - Validates signature
+    - Fetches avatar (if new user)
+    - INSERTs into `telegram_locations`
+    - Supabase Realtime broadcasts change
 
 3. **Frontend receives Realtime event**
-   - `useTelegramRealtime` callback fires
-   - `refreshTelegramUsers()` executes
-   - GeoJSON updated, Mapbox source refreshed
+    - `useTelegramRealtime` callback fires
+    - `refreshTelegramUsers()` executes
+    - GeoJSON updated, Mapbox source refreshed
 
 ---
 
@@ -1316,93 +1335,93 @@ Telegram user in chat clicks "Share My Location"
 ### Data Risks
 
 1. **Avatar Caching:** Telegram bot token embedded in URLs from Telegram API
-   - **Mitigation:** Function sanitizes before storage, RLS hides raw_update
-   - **Residual Risk:** Old URLs in cache; backfill endpoint available
+    - **Mitigation:** Function sanitizes before storage, RLS hides raw_update
+    - **Residual Risk:** Old URLs in cache; backfill endpoint available
 
 2. **GPS Accuracy:** Inaccurate user locations stored indefinitely
-   - **Mitigation:** Filter on fetch (VITE_TELEGRAM_MAX_ACCURACY_METERS), TTL in frontend
-   - **Residual Risk:** Very old inaccurate points remain in DB
+    - **Mitigation:** Filter on fetch (VITE_TELEGRAM_MAX_ACCURACY_METERS), TTL in frontend
+    - **Residual Risk:** Very old inaccurate points remain in DB
 
 3. **User Privacy:** Telegram location history visible to all site visitors
-   - **Mitigation:** TTL filter (default 60 min), username/name optional display
-   - **Residual Risk:** Malicious admin could expose raw_update column
+    - **Mitigation:** TTL filter (default 60 min), username/name optional display
+    - **Residual Risk:** Malicious admin could expose raw_update column
 
 ### Performance Risks
 
 1. **Large Feature Collections:** >10K Telegram locations
-   - **Symptom:** Slow GeoJSON parsing, Mapbox rendering stalls
-   - **Mitigation:** TTL filter, max accuracy, pagination (1000 per fetch)
-   - **Residual Risk:** No client-side pagination; all features rendered
+    - **Symptom:** Slow GeoJSON parsing, Mapbox rendering stalls
+    - **Mitigation:** TTL filter, max accuracy, pagination (1000 per fetch)
+    - **Residual Risk:** No client-side pagination; all features rendered
 
 2. **Realtime Hammer:** Rapid updates on telegram_locations
-   - **Symptom:** Ref counter race condition, stale data
-   - **Mitigation:** `telegramRefreshSeqRef` counter + early exit
-   - **Residual Risk:** High-frequency updates can batch race
+    - **Symptom:** Ref counter race condition, stale data
+    - **Mitigation:** `telegramRefreshSeqRef` counter + early exit
+    - **Residual Risk:** High-frequency updates can batch race
 
 3. **Map Layer Updates:** useEffect dependency on large GeoJSON triggers recompute
-   - **Symptom:** Jank during Telegram location refresh
-   - **Mitigation:** Memoization of GeoJSON objects (shallow)
-   - **Residual Risk:** No deep memoization; full recompute on every refresh
+    - **Symptom:** Jank during Telegram location refresh
+    - **Mitigation:** Memoization of GeoJSON objects (shallow)
+    - **Residual Risk:** No deep memoization; full recompute on every refresh
 
 ### Security Risks
 
 1. **RLS Misconfiguration:** Anon users could read admin photos before RLS applied
-   - **Status:** Fixed in migrations
-   - **Residual Risk:** New tables without explicit RLS policies
+    - **Status:** Fixed in migrations
+    - **Residual Risk:** New tables without explicit RLS policies
 
 2. **XSS via User Input:** Point titles/descriptions not sanitized
-   - **Mitigation:** React auto-escapes; no dangerouslySetInnerHTML
-   - **Residual Risk:** None identified, safe by default
+    - **Mitigation:** React auto-escapes; no dangerouslySetInnerHTML
+    - **Residual Risk:** None identified, safe by default
 
 3. **Telegram Bot Token Leak:** Edge Function secrets exposed to logs
-   - **Mitigation:** Supabase secrets (not in env vars)
-   - **Residual Risk:** Low; only accessible to service role
+    - **Mitigation:** Supabase secrets (not in env vars)
+    - **Residual Risk:** Low; only accessible to service role
 
 4. **CORS Bypasses:** Mapbox telemetry requests blocked via transformRequest
-   - **Status:** Implemented
-   - **Residual Risk:** Other external requests (e.g., Telegram API) not blocked
+    - **Status:** Implemented
+    - **Residual Risk:** Other external requests (e.g., Telegram API) not blocked
 
 ### Operational Risks
 
 1. **Service Worker Stale Cache:** Users on old app version after deploy
-   - **Mitigation:** Version query string on SW registration, cleanup of old caches
-   - **Residual Risk:** First page load shows old HTML; requires hard refresh
+    - **Mitigation:** Version query string on SW registration, cleanup of old caches
+    - **Residual Risk:** First page load shows old HTML; requires hard refresh
 
 2. **Mapbox Rate Limits:** Tile requests not throttled
-   - **Status:** No observed issue
-   - **Residual Risk:** If user zooms aggressively, could hit limits
+    - **Status:** No observed issue
+    - **Residual Risk:** If user zooms aggressively, could hit limits
 
 3. **Supabase Auth Session:** Long-lived JWT in localStorage
-   - **Mitigation:** Supabase SDK handles refresh tokens
-   - **Residual Risk:** Logout on other tab not reflected immediately
+    - **Mitigation:** Supabase SDK handles refresh tokens
+    - **Residual Risk:** Logout on other tab not reflected immediately
 
 ---
 
 ## TECHNICAL DEBT
 
 1. **Admin API Client Fragmentation:** Multiple admin API modules (`points.ts`, `routes.ts`, `submissions.ts`) with duplicated query logic
-   - **Recommendation:** Consolidate into `adminApi/query.ts` with reusable builders
+    - **Recommendation:** Consolidate into `adminApi/query.ts` with reusable builders
 
 2. **Service Worker Caching Strategy:** Simple FIFO eviction, no LRU
-   - **Recommendation:** Implement LRU for tiles, keep frequently accessed files
+    - **Recommendation:** Implement LRU for tiles, keep frequently accessed files
 
 3. **Telegram Track Segmentation:** Hardcoded 1 km breakpoint for splitting tracks
-   - **Recommendation:** Configurable, time-based or speed-based segmentation
+    - **Recommendation:** Configurable, time-based or speed-based segmentation
 
 4. **Feature Indexing:** useFeatureIndexes rebuilds full Map on every data change
-   - **Recommendation:** Incremental updates (only diff features)
+    - **Recommendation:** Incremental updates (only diff features)
 
 5. **Error Handling:** Generic error messages, minimal debugging context
-   - **Recommendation:** Structured logging with request IDs, replay capability
+    - **Recommendation:** Structured logging with request IDs, replay capability
 
 6. **Supabase Client:** Single global instance, no connection pooling
-   - **Recommendation:** Edge Function to aggregate requests (reduce concurrent connections)
+    - **Recommendation:** Edge Function to aggregate requests (reduce concurrent connections)
 
 7. **Mobile Responsiveness:** Sidebar width hardcoded, no orientation-change handling
-   - **Recommendation:** CSS Grid layout, media queries
+    - **Recommendation:** CSS Grid layout, media queries
 
 8. **Admin Photos:** No image validation (size, MIME type)
-   - **Recommendation:** Client-side validation, server-side enforcement
+    - **Recommendation:** Client-side validation, server-side enforcement
 
 ---
 
@@ -1494,11 +1513,11 @@ Telegram user in chat clicks "Share My Location"
 
 ```javascript
 // In DevTools console:
-map.getStyle()           // Check loaded style
-map.getSources()         // List all sources
-map.getLayers()          // List all layers
-map.querySourceFeatures(sourceId)  // Check source data
-map.getFeatureState({source: sourceId, id: featureId})  // Check feature state
+map.getStyle() // Check loaded style
+map.getSources() // List all sources
+map.getLayers() // List all layers
+map.querySourceFeatures(sourceId) // Check source data
+map.getFeatureState({ source: sourceId, id: featureId }) // Check feature state
 ```
 
 ### Supabase Connection Issues
@@ -1667,6 +1686,7 @@ curl -X POST http://localhost:54321/functions/v1/telegram-location-bot \
 **Location:** `src/**/*.test.ts` (Vitest)
 
 **Examples:**
+
 - `utils/geoMath.test.ts` — Haversine distance, bearing
 - `utils/hashNav.test.ts` — URL deep link parsing
 - `utils/supabaseToGeojson.test.ts` — Data normalization
@@ -1687,6 +1707,7 @@ npm test -- --coverage           # Coverage report
 **Location:** `e2e/` (Playwright)
 
 **Scope:**
+
 - Navigation (routing)
 - Map rendering (Mapbox loads)
 - Layer toggling
@@ -1722,9 +1743,9 @@ npx tsc --watch
 - [ ] Radar mode shows Telegram tracks
 - [ ] Deep link works (/m/point/123)
 - [ ] Offline mode (DevTools → Offline)
-  - [ ] App shell loads
-  - [ ] Cached data visible
-  - [ ] Submission blocked with error message
+    - [ ] App shell loads
+    - [ ] Cached data visible
+    - [ ] Submission blocked with error message
 - [ ] PWA install (Android: Add to Home Screen; iOS: Share → Add to Home Screen)
 - [ ] Admin login/CRUD works
 
@@ -1752,24 +1773,24 @@ npx tsc --watch
 ## OPEN QUESTIONS
 
 1. **Scalability:** How will map perform with 100K+ Telegram locations?
-   - **Investigation:** Vector tiles, clustering, server-side pagination
-   - **Impact:** Major refactor, significant perf gain
+    - **Investigation:** Vector tiles, clustering, server-side pagination
+    - **Impact:** Major refactor, significant perf gain
 
 2. **Analytics:** Is Yandex.Metrika capturing useful metrics (abandoned carts, etc.)?
-   - **Investigation:** Review Metrika dashboard for drop-off funnels
-   - **Impact:** May adjust CTAs, onboarding
+    - **Investigation:** Review Metrika dashboard for drop-off funnels
+    - **Impact:** May adjust CTAs, onboarding
 
 3. **Admin Workflow:** Is moderation queue keeping up with submissions?
-   - **Investigation:** Monitor submissions table growth, response time
-   - **Impact:** Automation, bulk approval, or delegate to community
+    - **Investigation:** Monitor submissions table growth, response time
+    - **Impact:** Automation, bulk approval, or delegate to community
 
 4. **Offline Capabilities:** Should draft submissions persist offline?
-   - **Investigation:** IndexedDB backup, sync on reconnect
-   - **Impact:** Better UX for unreliable networks
+    - **Investigation:** IndexedDB backup, sync on reconnect
+    - **Impact:** Better UX for unreliable networks
 
 5. **Mobile App:** Worth building native iOS/Android app, or PWA sufficient?
-   - **Investigation:** Analyze PWA adoption metrics, user feedback
-   - **Impact:** Resources, platform-specific features (background location)
+    - **Investigation:** Analyze PWA adoption metrics, user feedback
+    - **Impact:** Resources, platform-specific features (background location)
 
 ---
 
@@ -1832,34 +1853,35 @@ Think of **map.euc** as a **real-time collaborative map** with two main data fee
 ## TOP 10 ARCHITECTURAL DECISIONS
 
 1. **Mapbox GL (not Leaflet, not custom)** — Raster tiles + vector layers, industry standard
-   - **Trade-off:** Large bundle (600KB), but mature ecosystem
+    - **Trade-off:** Large bundle (600KB), but mature ecosystem
 
 2. **Supabase (not Firebase, not custom)** — PostgreSQL + RLS + Realtime + Storage bundled
-   - **Trade-off:** Vendor lock, but simpler than managing separate services
+    - **Trade-off:** Vendor lock, but simpler than managing separate services
 
 3. **React Hooks (not Redux, not Zustand, not Jotai)** — plain useState + useCallback для хранения состояния
-   - **Trade-off:** Prop drilling, but fewer abstractions
+    - **Trade-off:** Prop drilling, but fewer abstractions
 
 4. **Feature-state for interactivity (not DOM updates)** — Mapbox paint expressions reflect feature state
-   - **Trade-off:** Mapbox-specific, but zero React re-renders during hover/select
+    - **Trade-off:** Mapbox-specific, but zero React re-renders during hover/select
 
 5. **Realtime-only for Telegram (batch refresh for other data)** — Only telegram_locations live
-   - **Trade-off:** Stale data for 30+ minutes for points/routes, but simpler architecture
+    - **Trade-off:** Stale data for 30+ minutes for points/routes, but simpler architecture
 
 6. **Service Worker caching (not server-side)** — Browser manages all cache logic
-   - **Trade-off:** Cache invalidation complexity, but works offline
+    - **Trade-off:** Cache invalidation complexity, but works offline
 
 7. **useState + localStorage для visibility (not Zustand, not useReducer)** — минимальный стейт без внешних зависимостей
-   - **Trade-off:** Нет реактивности между компонентами, но достаточно для одного подписчика
+    - **Trade-off:** Нет реактивности между компонентами, но достаточно для одного подписчика
 
 8. **GitHub Pages (not Netlify, not Vercel)** — Static hosting with custom domain via CNAME
-   - **Trade-off:** No serverless functions on frontend (use Edge Functions instead), but free
+    - **Trade-off:** No serverless functions on frontend (use Edge Functions instead), but free
 
 9. **Deno Edge Functions (not Node.js)** — Supabase-native, bundled TypeScript
-   - **Trade-off:** Smaller ecosystem, but integrated auth, secrets, Realtime
+    - **Trade-off:** Smaller ecosystem, but integrated auth, secrets, Realtime
 
 10. **Normalize-first data pipeline** — All data normalized to GeoJSON in usableToGeojson before state
-   - **Trade-off:** Extra memory copies, but guarantees type safety at Mapbox boundaries
+
+- **Trade-off:** Extra memory copies, but guarantees type safety at Mapbox boundaries
 
 ---
 
@@ -1951,7 +1973,7 @@ Think of **map.euc** as a **real-time collaborative map** with two main data fee
 
 **Safety:**
 
-- Verify VITE_SUPABASE_* env vars in build logs
+- Verify VITE*SUPABASE*\* env vars in build logs
 - Test anon key in Supabase dashboard SQL editor
 - Check for console warnings about missing config
 

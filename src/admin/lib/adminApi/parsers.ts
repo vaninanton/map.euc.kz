@@ -111,8 +111,7 @@ export function parseAdminMapPoint(raw: unknown): AdminMapPoint {
     if (typeof flag_erlan !== 'boolean') throw new Error('flag_erlan')
     if (typeof flag_disabled !== 'boolean') throw new Error('flag_disabled')
 
-    const descriptionNorm: string | null =
-        description === undefined || description === null ? null : description
+    const descriptionNorm: string | null = description === undefined || description === null ? null : description
 
     // Supabase возвращает [{count: N}] при select('map_point_photos(count)')
     let photo_count = 0
@@ -159,8 +158,7 @@ export function parseAdminMapRoute(raw: unknown): AdminMapRoute {
     if (typeof flag_erlan !== 'boolean') throw new Error('flag_erlan')
     if (typeof flag_disabled !== 'boolean') throw new Error('flag_disabled')
 
-    const descriptionNorm: string | null =
-        description === undefined || description === null ? null : description
+    const descriptionNorm: string | null = description === undefined || description === null ? null : description
 
     return {
         id,
@@ -200,8 +198,7 @@ export function parseAdminSubmission(raw: unknown): AdminSubmission {
     if (typeof flag_is_meeting !== 'boolean') throw new Error('flag_is_meeting')
     if (!isSubmissionStatus(status)) throw new Error('status')
 
-    const descriptionNorm: string | null =
-        description === undefined || description === null ? null : description
+    const descriptionNorm: string | null = description === undefined || description === null ? null : description
 
     return {
         id,

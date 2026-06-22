@@ -123,11 +123,10 @@ describe('setEventPhoto', () => {
 
         const result = await setEventPhoto(7, makeFile('shot.png'), EVENT.photo_path)
 
-        expect(storageUpload).toHaveBeenCalledWith(
-            '7/11111111-2222-3333-4444-555555555555.png',
-            expect.any(File),
-            { contentType: 'image/png', upsert: false },
-        )
+        expect(storageUpload).toHaveBeenCalledWith('7/11111111-2222-3333-4444-555555555555.png', expect.any(File), {
+            contentType: 'image/png',
+            upsert: false,
+        })
         // Старое фото удалено только после успешного обновления.
         expect(storageRemove).toHaveBeenCalledWith(['events/7/old.jpg'])
         expect(result).toEqual({ id: 7, photo_path: 'events/7/new.png' })

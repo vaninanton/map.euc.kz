@@ -68,8 +68,8 @@ export async function setEventPhoto(eventId: number, file: File, previousPath: s
     const safeExt = /^(jpe?g|png|webp)$/.test(ext) ? ext.replace('jpeg', 'jpg') : 'jpg'
     const storagePath = `${String(eventId)}/${crypto.randomUUID()}.${safeExt}`
 
-    const { error: uploadError } = await db().storage
-        .from(EVENT_PHOTOS_BUCKET)
+    const { error: uploadError } = await db()
+        .storage.from(EVENT_PHOTOS_BUCKET)
         .upload(storagePath, file, { contentType: file.type, upsert: false })
     if (uploadError) {
         console.error('setEventPhoto:storage', uploadError)

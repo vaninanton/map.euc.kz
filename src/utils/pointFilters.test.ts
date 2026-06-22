@@ -8,7 +8,7 @@ const createMockPoint = (
     description: string | null,
     isMeeting: boolean = false,
     hasSocket: boolean = false,
-    isErlan: boolean = false
+    isErlan: boolean = false,
 ): PointFeature => {
     return {
         type: 'Feature',
@@ -32,7 +32,7 @@ const createMockSocket = (
     id: string,
     name: string,
     description: string | null,
-    isErlan: boolean = false
+    isErlan: boolean = false,
 ): PointFeature => {
     return {
         type: 'Feature',
@@ -68,7 +68,7 @@ describe('pointFilters', () => {
             onlyErlan: false,
         })
         expect(result1).toHaveLength(2) // p2 ("розеткой"), s2 ("розетка")
-        expect(result1.map(p => p.properties.id)).toEqual(['p2', 's2'])
+        expect(result1.map((p) => p.properties.id)).toEqual(['p2', 's2'])
 
         const result2 = filterPoints(mockPoints, {
             searchQuery: 'Мега',
@@ -90,7 +90,7 @@ describe('pointFilters', () => {
             onlyErlan: false,
         })
         expect(resultPoints).toHaveLength(3)
-        expect(resultPoints.map(p => p.properties.id)).toEqual(['p1', 'p2', 'p3'])
+        expect(resultPoints.map((p) => p.properties.id)).toEqual(['p1', 'p2', 'p3'])
 
         const resultSockets = filterPoints(mockPoints, {
             searchQuery: '',
@@ -100,7 +100,7 @@ describe('pointFilters', () => {
             onlyErlan: false,
         })
         expect(resultSockets).toHaveLength(2)
-        expect(resultSockets.map(p => p.properties.id)).toEqual(['s1', 's2'])
+        expect(resultSockets.map((p) => p.properties.id)).toEqual(['s1', 's2'])
     })
 
     it('should filter by onlyMeeting flag', () => {
@@ -112,7 +112,7 @@ describe('pointFilters', () => {
             onlyErlan: false,
         })
         expect(resultMeeting).toHaveLength(2)
-        expect(resultMeeting.map(p => p.properties.id)).toEqual(['p1', 'p3']) // only p1, p3 have isMeeting=true
+        expect(resultMeeting.map((p) => p.properties.id)).toEqual(['p1', 'p3']) // only p1, p3 have isMeeting=true
     })
 
     it('should filter by onlySocket flag', () => {
@@ -125,7 +125,7 @@ describe('pointFilters', () => {
         })
         expect(resultSocket).toHaveLength(4)
         // Sockets have sockets naturally (s1, s2). Points with hasSocket=true (p2, p3).
-        expect(resultSocket.map(p => p.properties.id)).toEqual(['p2', 'p3', 's1', 's2'])
+        expect(resultSocket.map((p) => p.properties.id)).toEqual(['p2', 'p3', 's1', 's2'])
     })
 
     it('should filter by onlyErlan flag', () => {
@@ -137,7 +137,7 @@ describe('pointFilters', () => {
             onlyErlan: true,
         })
         expect(resultErlan).toHaveLength(2)
-        expect(resultErlan.map(p => p.properties.id)).toEqual(['p3', 's2'])
+        expect(resultErlan.map((p) => p.properties.id)).toEqual(['p3', 's2'])
     })
 
     it('should handle combined filters', () => {

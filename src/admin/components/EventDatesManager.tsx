@@ -60,12 +60,16 @@ function DateRow({ date, busy, nowTs, onSave, onDelete }: DateRowProps) {
                 <input
                     type="datetime-local"
                     value={editAt}
-                    onChange={(e) => { setEditAt(e.target.value); }}
+                    onChange={(e) => {
+                        setEditAt(e.target.value)
+                    }}
                     className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                 />
                 <input
                     value={editNote}
-                    onChange={(e) => { setEditNote(e.target.value); }}
+                    onChange={(e) => {
+                        setEditNote(e.target.value)
+                    }}
                     placeholder="Заметка"
                     className="min-w-32 flex-1 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                 />
@@ -73,7 +77,9 @@ function DateRow({ date, busy, nowTs, onSave, onDelete }: DateRowProps) {
                     <input
                         type="checkbox"
                         checked={editCancelled}
-                        onChange={(e) => { setEditCancelled(e.target.checked); }}
+                        onChange={(e) => {
+                            setEditCancelled(e.target.checked)
+                        }}
                         className="h-4 w-4 rounded border-neutral-300 text-blue-600"
                     />
                     Отменено
@@ -81,7 +87,9 @@ function DateRow({ date, busy, nowTs, onSave, onDelete }: DateRowProps) {
                 <button
                     type="button"
                     disabled={busy}
-                    onClick={() => { void save(); }}
+                    onClick={() => {
+                        void save()
+                    }}
                     className="cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
                 >
                     Сохранить
@@ -89,7 +97,9 @@ function DateRow({ date, busy, nowTs, onSave, onDelete }: DateRowProps) {
                 <button
                     type="button"
                     disabled={busy}
-                    onClick={() => { setEditing(false); }}
+                    onClick={() => {
+                        setEditing(false)
+                    }}
                     className="cursor-pointer rounded-lg border border-neutral-300 px-3 py-2 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50"
                 >
                     Отмена
@@ -123,7 +133,9 @@ function DateRow({ date, busy, nowTs, onSave, onDelete }: DateRowProps) {
                 <button
                     type="button"
                     disabled={busy}
-                    onClick={() => { void onDelete(date.id); }}
+                    onClick={() => {
+                        void onDelete(date.id)
+                    }}
                     className="cursor-pointer rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                 >
                     Удалить
@@ -243,7 +255,9 @@ export function EventDatesManager({ eventId }: EventDatesManagerProps) {
                     <input
                         type="datetime-local"
                         value={newDate}
-                        onChange={(e) => { setNewDate(e.target.value); }}
+                        onChange={(e) => {
+                            setNewDate(e.target.value)
+                        }}
                         onKeyDown={handleAddKeyDown}
                         className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
                     />
@@ -252,7 +266,9 @@ export function EventDatesManager({ eventId }: EventDatesManagerProps) {
                     <label className="mb-1 block text-xs font-medium text-neutral-700">Заметка (необязательно)</label>
                     <input
                         value={newNote}
-                        onChange={(e) => { setNewNote(e.target.value); }}
+                        onChange={(e) => {
+                            setNewNote(e.target.value)
+                        }}
                         onKeyDown={handleAddKeyDown}
                         placeholder="Например, езда спиной вперёд"
                         className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
@@ -261,7 +277,9 @@ export function EventDatesManager({ eventId }: EventDatesManagerProps) {
                 <button
                     type="button"
                     disabled={busy}
-                    onClick={() => { void handleAdd(); }}
+                    onClick={() => {
+                        void handleAdd()
+                    }}
                     className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
                 >
                     Добавить дату

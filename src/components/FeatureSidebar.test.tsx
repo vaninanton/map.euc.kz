@@ -5,9 +5,7 @@ import { FeatureSidebar } from './FeatureSidebar'
 import type { Feature } from '@/types/geojson'
 
 vi.mock('@/components/PopupContent', () => ({
-    PopupContent: ({ feature }: { feature: Feature }) => (
-        <div data-testid="popup-content">{feature.properties.id}</div>
-    ),
+    PopupContent: ({ feature }: { feature: Feature }) => <div data-testid="popup-content">{feature.properties.id}</div>,
 }))
 
 function makeFeature(id = 'p1'): Feature {

@@ -5,12 +5,14 @@ import type { FeatureCollection } from '@/types/geojson'
 const TTL_MINUTES = 60
 const TTL_MS = TTL_MINUTES * 60 * 1000
 
-function makeGeo(riders: Array<{
-    telegramUserId: number
-    lon: number
-    lat: number
-    updatedAt: string
-}>): FeatureCollection {
+function makeGeo(
+    riders: Array<{
+        telegramUserId: number
+        lon: number
+        lat: number
+        updatedAt: string
+    }>,
+): FeatureCollection {
     return {
         type: 'FeatureCollection',
         features: riders.map((r) => ({
@@ -43,7 +45,9 @@ describe('getActiveRiders', () => {
     it('включает свежего райдера', () => {
         vi.stubEnv('VITE_TELEGRAM_GEO_TTL_MINUTES', String(TTL_MINUTES))
         const now = Date.now()
-        const geo = makeGeo([{ telegramUserId: 1, lon: 76.9, lat: 43.2, updatedAt: new Date(now - 1000).toISOString() }])
+        const geo = makeGeo([
+            { telegramUserId: 1, lon: 76.9, lat: 43.2, updatedAt: new Date(now - 1000).toISOString() },
+        ])
         const riders = getActiveRiders(geo)
         expect(riders).toHaveLength(1)
         expect(riders[0]).toMatchObject({ telegramUserId: 1, lon: 76.9, lat: 43.2 })
@@ -52,22 +56,28 @@ describe('getActiveRiders', () => {
     it('исключает просроченного райдера (updatedAt > TTL)', () => {
         vi.stubEnv('VITE_TELEGRAM_GEO_TTL_MINUTES', String(TTL_MINUTES))
         const now = Date.now()
-        const geo = makeGeo([{
-            telegramUserId: 2,
-            lon: 76.9, lat: 43.2,
-            updatedAt: new Date(now - TTL_MS - 1000).toISOString(),
-        }])
+        const geo = makeGeo([
+            {
+                telegramUserId: 2,
+                lon: 76.9,
+                lat: 43.2,
+                updatedAt: new Date(now - TTL_MS - 1000).toISOString(),
+            },
+        ])
         expect(getActiveRiders(geo)).toHaveLength(0)
     })
 
     it('граничный случай: updatedAt ровно на TTL — исключается', () => {
         vi.stubEnv('VITE_TELEGRAM_GEO_TTL_MINUTES', String(TTL_MINUTES))
         const now = Date.now()
-        const geo = makeGeo([{
-            telegramUserId: 3,
-            lon: 76.9, lat: 43.2,
-            updatedAt: new Date(now - TTL_MS).toISOString(),
-        }])
+        const geo = makeGeo([
+            {
+                telegramUserId: 3,
+                lon: 76.9,
+                lat: 43.2,
+                updatedAt: new Date(now - TTL_MS).toISOString(),
+            },
+        ])
         expect(getActiveRiders(geo)).toHaveLength(0)
     })
 
@@ -100,7 +110,9 @@ describe('getActiveRiders', () => {
                     type: 'Feature',
                     geometry: { type: 'Point', coordinates: [76.91, 43.21] },
                     properties: {
-                        id: 'telegram-user-99', name: 'User 99', type: 'telegramUser',
+                        id: 'telegram-user-99',
+                        name: 'User 99',
+                        type: 'telegramUser',
                         telegramUserId: 99,
                         updatedAt: new Date(now - 1000).toISOString(),
                     },

@@ -70,12 +70,7 @@ export function EventCard({ event, onShowCoordinates }: EventCardProps) {
     return (
         <article className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
             {event.photo_url && (
-                <img
-                    src={event.photo_url}
-                    alt={event.title}
-                    className="h-40 w-full object-cover"
-                    loading="lazy"
-                />
+                <img src={event.photo_url} alt={event.title} className="h-40 w-full object-cover" loading="lazy" />
             )}
             <div className="p-4">
                 <span className="inline-flex items-center rounded-full bg-[#f25824]/10 px-2.5 py-0.5 text-xs font-semibold text-[#f25824]">
@@ -111,7 +106,9 @@ export function EventCard({ event, onShowCoordinates }: EventCardProps) {
                     {ongoing && next && (
                         <div className="flex items-center gap-2 font-medium text-neutral-900">
                             <FontAwesomeIcon icon={faCalendarDay} className="w-4 text-[#f25824]" aria-hidden />
-                            <span>Следующее: {formatOccurrenceLabel(next.start, undefined, event.duration_minutes)}</span>
+                            <span>
+                                Следующее: {formatOccurrenceLabel(next.start, undefined, event.duration_minutes)}
+                            </span>
                         </div>
                     )}
                     {event.location_text && !startLabelOverride && (

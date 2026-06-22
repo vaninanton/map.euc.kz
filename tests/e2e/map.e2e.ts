@@ -40,10 +40,10 @@ test.describe('map smoke flow', () => {
         await page.getByLabel('Добавить').click()
 
         await expect(page.getByRole('heading', { name: 'Добавить объект' })).toBeVisible()
-        
+
         const submitBtn = page.getByRole('button', { name: 'Отправить' })
         await expect(submitBtn).toBeDisabled()
-        
+
         await expect(page.getByText('Нажмите на карту, чтобы выбрать место')).toBeVisible()
         await attachScreenshot(testInfo, 'add-point-validation-disabled', page)
     })

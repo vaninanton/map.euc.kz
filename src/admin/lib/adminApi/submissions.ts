@@ -18,10 +18,7 @@ function asPointCoordinatesFromSubmission(value: unknown): [number, number] {
 
 /** Возвращает список заявок на модерацию (опционально с фильтром по статусу). */
 export async function listSubmissions(status?: SubmissionStatus): Promise<AdminSubmission[]> {
-    let query = db()
-        .from('map_points_submissions')
-        .select('*')
-        .order('created_at', { ascending: false })
+    let query = db().from('map_points_submissions').select('*').order('created_at', { ascending: false })
     if (status) query = query.eq('status', status)
     return runManyParsed('listSubmissions', query, (raw) => parseAdminSubmission(raw))
 }

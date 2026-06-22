@@ -26,16 +26,13 @@ interface LayerControlsProps {
  *   - кнопка: 32×32px
  *   - margin для bottom-right: 0 10px 10px 0
  */
-export function LayerControls({
-    visibility,
-    onToggle,
-    baseStyle,
-    onToggleBaseStyle,
-}: LayerControlsProps) {
+export function LayerControls({ visibility, onToggle, baseStyle, onToggleBaseStyle }: LayerControlsProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isClosing, setIsClosing] = useState(false)
 
-    const handleClose = useCallback(() => { setIsClosing(true) }, [])
+    const handleClose = useCallback(() => {
+        setIsClosing(true)
+    }, [])
 
     const handleToggle = useCallback(() => {
         if (isOpen && !isClosing) {
