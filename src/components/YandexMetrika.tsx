@@ -1,8 +1,7 @@
 import { MetrikaCounter } from 'react-metrika'
 
 const rawId = import.meta.env.VITE_YANDEX_METRIKA_ID?.trim()
-const counterId =
-    rawId && rawId.length > 0 ? Number.parseInt(rawId, 10) : Number.NaN
+const counterId = rawId && rawId.length > 0 ? Number.parseInt(rawId, 10) : Number.NaN
 
 /** Счётчик Метрики через пакет react-metrika; без VITE_YANDEX_METRIKA_ID не рендерится. */
 export function YandexMetrika() {

@@ -28,7 +28,12 @@ const makePhoto = (overrides: Record<string, unknown> = {}) => ({
 })
 
 const PHOTO_1 = makePhoto()
-const PHOTO_2 = makePhoto({ id: '2', storage_path: '42/photo2.jpg', sort_order: 1, public_url: 'https://example.com/photo2.jpg' })
+const PHOTO_2 = makePhoto({
+    id: '2',
+    storage_path: '42/photo2.jpg',
+    sort_order: 1,
+    public_url: 'https://example.com/photo2.jpg',
+})
 
 function setupLoader(photos: ReturnType<typeof makePhoto>[] = []) {
     const reload = vi.fn().mockResolvedValue(undefined)

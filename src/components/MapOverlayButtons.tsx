@@ -4,9 +4,7 @@ interface MapOverlayButtonsProps {
     onOpenProjectInfo: () => void
 }
 
-export function MapOverlayButtons({
-    onOpenProjectInfo,
-}: MapOverlayButtonsProps) {
+export function MapOverlayButtons({ onOpenProjectInfo }: MapOverlayButtonsProps) {
     return (
         <>
             <ProjectInfoButton onClick={onOpenProjectInfo} />

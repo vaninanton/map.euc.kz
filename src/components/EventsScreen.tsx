@@ -38,7 +38,10 @@ export function EventsScreen({ events, loading, error, onMarkAsRead, onClose, on
         const filtered = typeFilter === 'all' ? events : events.filter((e) => e.type === typeFilter)
         // Ключ сортировки считаем один раз на событие; без будущих дат — в конец.
         return filtered
-            .map((event) => ({ event, nextTime: getNextOccurrence(event)?.start.getTime() ?? Number.POSITIVE_INFINITY }))
+            .map((event) => ({
+                event,
+                nextTime: getNextOccurrence(event)?.start.getTime() ?? Number.POSITIVE_INFINITY,
+            }))
             .sort((a, b) => a.nextTime - b.nextTime)
             .map((x) => x.event)
     }, [events, typeFilter])
@@ -76,7 +79,9 @@ export function EventsScreen({ events, loading, error, onMarkAsRead, onClose, on
                     <button
                         key={val}
                         type="button"
-                        onClick={() => { setTypeFilter(val); }}
+                        onClick={() => {
+                            setTypeFilter(val)
+                        }}
                         className={`shrink-0 cursor-pointer rounded-full px-3 py-1 text-sm font-medium transition-colors ${
                             typeFilter === val
                                 ? 'bg-[#f25824] text-white'
@@ -90,9 +95,7 @@ export function EventsScreen({ events, loading, error, onMarkAsRead, onClose, on
 
             {/* Лента */}
             <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                {error && (
-                    <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-                )}
+                {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
                 {loading && !error && (
                     <div className="py-12 text-center text-sm text-neutral-400">Загрузка событий…</div>
                 )}

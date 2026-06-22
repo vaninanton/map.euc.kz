@@ -1,541 +1,551 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'
 import type {
-  MapPointDraftInput,
-  MapPointRow,
-  MapRouteRow,
-  MapPointPhotoRow,
-  TelegramLocationRow,
-  TelegramProfileRow,
-  EventRow,
-  EventDateRow,
-  EventLinkedPoint,
-  EventType,
-} from '@/types';
-import { getTelegramGeoTtlMinutes, getTelegramMaxAccuracyMeters, getTelegramTrackTailMinutes, getViteSupabaseConfig } from '@/lib/env';
-import { isRecord } from '@/utils/mapFeatureGuards';
+    MapPointDraftInput,
+    MapPointRow,
+    MapRouteRow,
+    MapPointPhotoRow,
+    TelegramLocationRow,
+    TelegramProfileRow,
+    EventRow,
+    EventDateRow,
+    EventLinkedPoint,
+    EventType,
+} from '@/types'
+import {
+    getTelegramGeoTtlMinutes,
+    getTelegramMaxAccuracyMeters,
+    getTelegramTrackTailMinutes,
+    getViteSupabaseConfig,
+} from '@/lib/env'
+import { isRecord } from '@/utils/mapFeatureGuards'
 
-const supabaseConfig = getViteSupabaseConfig();
-const url = supabaseConfig?.url;
-const key = supabaseConfig?.key;
-const REQUEST_TIMEOUT_MS = 10_000;
-const REQUEST_RETRY_ATTEMPTS = 2;
+const supabaseConfig = getViteSupabaseConfig()
+const url = supabaseConfig?.url
+const key = supabaseConfig?.key
+const REQUEST_TIMEOUT_MS = 10_000
+const REQUEST_RETRY_ATTEMPTS = 2
 
 if (!url || !key) {
-  console.warn('Supabase URL or key missing. Map data will be empty.');
+    console.warn('Supabase URL or key missing. Map data will be empty.')
 }
 
-export const supabase =
-  typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null;
+export const supabase = typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null
 
 /** Клиент с сессией Auth (нужен для админки). */
 export function requireSupabase() {
-  if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
-  }
-  return supabase;
+    if (!supabase) {
+        throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.')
+    }
+    return supabase
 }
 
 async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(`${label}: превышено время ожидания запроса`));
-    }, timeoutMs);
-  });
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    clearTimeout(timeoutId);
-  }
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`${label}: превышено время ожидания запроса`))
+        }, timeoutMs)
+    })
+    try {
+        return await Promise.race([promise, timeoutPromise])
+    } finally {
+        clearTimeout(timeoutId)
+    }
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
 }
 
 function isTransientError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const message = error.message.toLowerCase();
-  return (
-    message.includes('timeout') ||
-    message.includes('network') ||
-    message.includes('failed to fetch') ||
-    message.includes('temporar') ||
-    message.includes('429') ||
-    message.includes('5')
-  );
+    if (!(error instanceof Error)) return false
+    const message = error.message.toLowerCase()
+    return (
+        message.includes('timeout') ||
+        message.includes('network') ||
+        message.includes('failed to fetch') ||
+        message.includes('temporar') ||
+        message.includes('429') ||
+        message.includes('5')
+    )
 }
 
 async function withTimeoutAndRetry<T>(label: string, fn: () => PromiseLike<T>): Promise<T> {
-  let lastError: unknown = null;
-  for (let attempt = 0; attempt <= REQUEST_RETRY_ATTEMPTS; attempt += 1) {
-    try {
-      return await withTimeout(fn(), REQUEST_TIMEOUT_MS, label);
-    } catch (error) {
-      lastError = error;
-      if (attempt === REQUEST_RETRY_ATTEMPTS || !isTransientError(error)) {
-        throw error;
-      }
-      const delay = 250 * Math.pow(2, attempt);
-      await sleep(delay);
+    let lastError: unknown = null
+    for (let attempt = 0; attempt <= REQUEST_RETRY_ATTEMPTS; attempt += 1) {
+        try {
+            return await withTimeout(fn(), REQUEST_TIMEOUT_MS, label)
+        } catch (error) {
+            lastError = error
+            if (attempt === REQUEST_RETRY_ATTEMPTS || !isTransientError(error)) {
+                throw error
+            }
+            const delay = 250 * Math.pow(2, attempt)
+            await sleep(delay)
+        }
     }
-  }
-  throw lastError instanceof Error ? lastError : new Error(`${label}: неизвестная ошибка запроса`);
+    throw lastError instanceof Error ? lastError : new Error(`${label}: неизвестная ошибка запроса`)
 }
 
 function asPointCoordinates(value: unknown): [number, number] | null {
-  if (!Array.isArray(value) || value.length < 2) return null;
-  const lon: unknown = value[0];
-  const lat: unknown = value[1];
-  if (typeof lon !== 'number' || typeof lat !== 'number') return null;
-  return [lon, lat];
+    if (!Array.isArray(value) || value.length < 2) return null
+    const lon: unknown = value[0]
+    const lat: unknown = value[1]
+    if (typeof lon !== 'number' || typeof lat !== 'number') return null
+    return [lon, lat]
 }
 
 function asLineCoordinates(value: unknown): Array<[number, number] | [number, number, number]> | null {
-  if (!Array.isArray(value) || value.length < 2) return null;
-  const points: Array<[number, number] | [number, number, number]> = [];
-  for (const item of value) {
-    if (!Array.isArray(item) || item.length < 2) return null;
-    const lon: unknown = item[0];
-    const lat: unknown = item[1];
-    const elevation: unknown = item[2];
-    if (typeof lon !== 'number' || typeof lat !== 'number') return null;
-    if (elevation !== undefined && typeof elevation !== 'number') return null;
-    points.push(
-      elevation === undefined ? [lon, lat] : [lon, lat, elevation]
-    );
-  }
-  return points;
+    if (!Array.isArray(value) || value.length < 2) return null
+    const points: Array<[number, number] | [number, number, number]> = []
+    for (const item of value) {
+        if (!Array.isArray(item) || item.length < 2) return null
+        const lon: unknown = item[0]
+        const lat: unknown = item[1]
+        const elevation: unknown = item[2]
+        if (typeof lon !== 'number' || typeof lat !== 'number') return null
+        if (elevation !== undefined && typeof elevation !== 'number') return null
+        points.push(elevation === undefined ? [lon, lat] : [lon, lat, elevation])
+    }
+    return points
 }
 
 function asPointCoordinatesList(value: unknown): Array<[number, number]> | null {
-  if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) return null;
-  const points: Array<[number, number]> = [];
-  for (const item of value) {
-    const point = asPointCoordinates(item);
-    if (!point) return null;
-    points.push(point);
-  }
-  return points;
+    if (value === undefined || value === null) return []
+    if (!Array.isArray(value)) return null
+    const points: Array<[number, number]> = []
+    for (const item of value) {
+        const point = asPointCoordinates(item)
+        if (!point) return null
+        points.push(point)
+    }
+    return points
 }
 
 function normalizeMapPointRow(row: unknown): MapPointRow | null {
-  if (!isRecord(row)) return null;
-  const id = row.id;
-  const type = row.type;
-  const title = row.title;
-  const description = row.description;
-  const coordinates = asPointCoordinates(row.coordinates);
-  const isMeeting = row.flag_is_meeting;
-  const hasSocket = row.flag_has_socket;
-  const isErlan = row.flag_erlan;
-  const photos = normalizeMapPointPhotos(row.map_point_photos);
-  if ((typeof id !== 'string' && typeof id !== 'number') || (type !== 'point' && type !== 'socket') || typeof title !== 'string' || !coordinates) {
-    return null;
-  }
-  return {
-    id: String(id),
-    type,
-    title,
-    description: typeof description === 'string' ? description : null,
-    coordinates,
-    flag_is_meeting: typeof isMeeting === 'boolean' ? isMeeting : null,
-    flag_has_socket: typeof hasSocket === 'boolean' ? hasSocket : null,
-    flag_erlan: typeof isErlan === 'boolean' ? isErlan : null,
-    photos,
-  };
+    if (!isRecord(row)) return null
+    const id = row.id
+    const type = row.type
+    const title = row.title
+    const description = row.description
+    const coordinates = asPointCoordinates(row.coordinates)
+    const isMeeting = row.flag_is_meeting
+    const hasSocket = row.flag_has_socket
+    const isErlan = row.flag_erlan
+    const photos = normalizeMapPointPhotos(row.map_point_photos)
+    if (
+        (typeof id !== 'string' && typeof id !== 'number') ||
+        (type !== 'point' && type !== 'socket') ||
+        typeof title !== 'string' ||
+        !coordinates
+    ) {
+        return null
+    }
+    return {
+        id: String(id),
+        type,
+        title,
+        description: typeof description === 'string' ? description : null,
+        coordinates,
+        flag_is_meeting: typeof isMeeting === 'boolean' ? isMeeting : null,
+        flag_has_socket: typeof hasSocket === 'boolean' ? hasSocket : null,
+        flag_erlan: typeof isErlan === 'boolean' ? isErlan : null,
+        photos,
+    }
 }
 
 function normalizeMapPointPhotos(value: unknown): MapPointPhotoRow[] {
-  if (!Array.isArray(value)) return [];
-  const items: MapPointPhotoRow[] = [];
+    if (!Array.isArray(value)) return []
+    const items: MapPointPhotoRow[] = []
 
-  for (const row of value) {
-    if (!isRecord(row)) continue;
-    const id = row.id;
-    const bucketName = row.bucket_name;
-    const storagePath = row.storage_path;
-    const altText = row.alt_text;
-    const sortOrder = row.sort_order;
+    for (const row of value) {
+        if (!isRecord(row)) continue
+        const id = row.id
+        const bucketName = row.bucket_name
+        const storagePath = row.storage_path
+        const altText = row.alt_text
+        const sortOrder = row.sort_order
 
-    if (
-      (typeof id !== 'string' && typeof id !== 'number') ||
-      typeof bucketName !== 'string' ||
-      typeof storagePath !== 'string'
-    ) {
-      continue;
+        if (
+            (typeof id !== 'string' && typeof id !== 'number') ||
+            typeof bucketName !== 'string' ||
+            typeof storagePath !== 'string'
+        ) {
+            continue
+        }
+
+        const fallbackPublicUrl =
+            typeof url === 'string'
+                ? `${url}/storage/v1/object/public/${encodeURIComponent(bucketName)}/${storagePath
+                      .split('/')
+                      .map((part) => encodeURIComponent(part))
+                      .join('/')}`
+                : ''
+        const publicUrl = supabase
+            ? supabase.storage.from(bucketName).getPublicUrl(storagePath).data.publicUrl
+            : fallbackPublicUrl
+
+        items.push({
+            id: String(id),
+            bucket_name: bucketName,
+            storage_path: storagePath,
+            alt_text: typeof altText === 'string' ? altText : null,
+            sort_order: typeof sortOrder === 'number' && Number.isFinite(sortOrder) ? sortOrder : 0,
+            public_url: publicUrl,
+        })
     }
 
-    const fallbackPublicUrl =
-      typeof url === 'string'
-        ? `${url}/storage/v1/object/public/${encodeURIComponent(bucketName)}/${storagePath
-            .split('/')
-            .map((part) => encodeURIComponent(part))
-            .join('/')}`
-        : '';
-    const publicUrl = supabase
-      ? supabase.storage.from(bucketName).getPublicUrl(storagePath).data.publicUrl
-      : fallbackPublicUrl;
-
-    items.push({
-      id: String(id),
-      bucket_name: bucketName,
-      storage_path: storagePath,
-      alt_text: typeof altText === 'string' ? altText : null,
-      sort_order: typeof sortOrder === 'number' && Number.isFinite(sortOrder) ? sortOrder : 0,
-      public_url: publicUrl,
-    });
-  }
-
-  items.sort((a, b) => a.sort_order - b.sort_order);
-  return items;
+    items.sort((a, b) => a.sort_order - b.sort_order)
+    return items
 }
 
 function normalizeMapRouteRow(row: unknown): MapRouteRow | null {
-  if (!isRecord(row)) return null;
-  const id = row.id;
-  const title = row.title;
-  const description = row.description;
-  const coordinates = asLineCoordinates(row.coordinates);
-  const viaCoordinates = asPointCoordinatesList(row.via_coordinates);
-  if (
-    (typeof id !== 'string' && typeof id !== 'number') ||
-    typeof title !== 'string' ||
-    !coordinates ||
-    !viaCoordinates
-  ) {
-    return null;
-  }
-  const isErlan = row.flag_erlan;
-  return {
-    id: String(id),
-    title,
-    description: typeof description === 'string' ? description : null,
-    coordinates,
-    via_coordinates: viaCoordinates,
-    flag_erlan: typeof isErlan === 'boolean' ? isErlan : null,
-  };
+    if (!isRecord(row)) return null
+    const id = row.id
+    const title = row.title
+    const description = row.description
+    const coordinates = asLineCoordinates(row.coordinates)
+    const viaCoordinates = asPointCoordinatesList(row.via_coordinates)
+    if (
+        (typeof id !== 'string' && typeof id !== 'number') ||
+        typeof title !== 'string' ||
+        !coordinates ||
+        !viaCoordinates
+    ) {
+        return null
+    }
+    const isErlan = row.flag_erlan
+    return {
+        id: String(id),
+        title,
+        description: typeof description === 'string' ? description : null,
+        coordinates,
+        via_coordinates: viaCoordinates,
+        flag_erlan: typeof isErlan === 'boolean' ? isErlan : null,
+    }
 }
 
 function normalizeTelegramLocationRow(row: unknown): TelegramLocationRow | null {
-  if (!isRecord(row)) return null;
-  const id = row.id;
-  const createdAt = row.created_at;
-  const chatId = row.chat_id;
-  const chatTitle = row.chat_title;
-  const telegramUserId = row.telegram_user_id;
-  const username = row.username;
-  const firstName = row.first_name;
-  const lastName = row.last_name;
-  const avatarUrl = row.avatar_url;
-  const longitude = row.longitude;
-  const latitude = row.latitude;
-  const locationAccuracyMeters = row.location_accuracy_meters;
+    if (!isRecord(row)) return null
+    const id = row.id
+    const createdAt = row.created_at
+    const chatId = row.chat_id
+    const chatTitle = row.chat_title
+    const telegramUserId = row.telegram_user_id
+    const username = row.username
+    const firstName = row.first_name
+    const lastName = row.last_name
+    const avatarUrl = row.avatar_url
+    const longitude = row.longitude
+    const latitude = row.latitude
+    const locationAccuracyMeters = row.location_accuracy_meters
 
-  if (
-    (typeof id !== 'string' && typeof id !== 'number') ||
-    typeof createdAt !== 'string' ||
-    typeof chatId !== 'number' ||
-    typeof telegramUserId !== 'number' ||
-    typeof longitude !== 'number' ||
-    typeof latitude !== 'number'
-  ) {
-    return null;
-  }
+    if (
+        (typeof id !== 'string' && typeof id !== 'number') ||
+        typeof createdAt !== 'string' ||
+        typeof chatId !== 'number' ||
+        typeof telegramUserId !== 'number' ||
+        typeof longitude !== 'number' ||
+        typeof latitude !== 'number'
+    ) {
+        return null
+    }
 
-  return {
-    id: String(id),
-    created_at: createdAt,
-    chat_id: chatId,
-    chat_title: typeof chatTitle === 'string' ? chatTitle : null,
-    telegram_user_id: telegramUserId,
-    username: typeof username === 'string' ? username : null,
-    first_name: typeof firstName === 'string' ? firstName : null,
-    last_name: typeof lastName === 'string' ? lastName : null,
-    avatar_url: sanitizeTelegramAvatarUrl(avatarUrl),
-    longitude,
-    latitude,
-    location_accuracy_meters:
-      typeof locationAccuracyMeters === 'number' && Number.isFinite(locationAccuracyMeters)
-        ? locationAccuracyMeters
-        : null,
-  };
+    return {
+        id: String(id),
+        created_at: createdAt,
+        chat_id: chatId,
+        chat_title: typeof chatTitle === 'string' ? chatTitle : null,
+        telegram_user_id: telegramUserId,
+        username: typeof username === 'string' ? username : null,
+        first_name: typeof firstName === 'string' ? firstName : null,
+        last_name: typeof lastName === 'string' ? lastName : null,
+        avatar_url: sanitizeTelegramAvatarUrl(avatarUrl),
+        longitude,
+        latitude,
+        location_accuracy_meters:
+            typeof locationAccuracyMeters === 'number' && Number.isFinite(locationAccuracyMeters)
+                ? locationAccuracyMeters
+                : null,
+    }
 }
 
 function normalizeTelegramProfileRow(row: unknown): TelegramProfileRow | null {
-  if (!isRecord(row)) return null;
-  const telegramUserId = row.telegram_user_id;
-  const username = row.username;
-  const firstName = row.first_name;
-  const lastName = row.last_name;
-  const avatarUrl = row.avatar_url;
-  const updatedAt = row.updated_at;
+    if (!isRecord(row)) return null
+    const telegramUserId = row.telegram_user_id
+    const username = row.username
+    const firstName = row.first_name
+    const lastName = row.last_name
+    const avatarUrl = row.avatar_url
+    const updatedAt = row.updated_at
 
-  if (typeof telegramUserId !== 'number' || typeof updatedAt !== 'string') {
-    return null;
-  }
+    if (typeof telegramUserId !== 'number' || typeof updatedAt !== 'string') {
+        return null
+    }
 
-  return {
-    telegram_user_id: telegramUserId,
-    username: typeof username === 'string' ? username : null,
-    first_name: typeof firstName === 'string' ? firstName : null,
-    last_name: typeof lastName === 'string' ? lastName : null,
-    avatar_url: sanitizeTelegramAvatarUrl(avatarUrl),
-    updated_at: updatedAt,
-  };
+    return {
+        telegram_user_id: telegramUserId,
+        username: typeof username === 'string' ? username : null,
+        first_name: typeof firstName === 'string' ? firstName : null,
+        last_name: typeof lastName === 'string' ? lastName : null,
+        avatar_url: sanitizeTelegramAvatarUrl(avatarUrl),
+        updated_at: updatedAt,
+    }
 }
 
-const EVENT_TYPES: readonly EventType[] = ['group_ride', 'event', 'training'];
+const EVENT_TYPES: readonly EventType[] = ['group_ride', 'event', 'training']
 
 function publicStorageUrl(bucket: string, path: string): string {
-  if (supabase) return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-  if (typeof url !== 'string') return '';
-  const encodedPath = path
-    .split('/')
-    .map((part) => encodeURIComponent(part))
-    .join('/');
-  return `${url}/storage/v1/object/public/${encodeURIComponent(bucket)}/${encodedPath}`;
+    if (supabase) return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
+    if (typeof url !== 'string') return ''
+    const encodedPath = path
+        .split('/')
+        .map((part) => encodeURIComponent(part))
+        .join('/')
+    return `${url}/storage/v1/object/public/${encodeURIComponent(bucket)}/${encodedPath}`
 }
 
 function normalizeEventDates(value: unknown): EventDateRow[] {
-  if (!Array.isArray(value)) return [];
-  const items: EventDateRow[] = [];
-  for (const row of value) {
-    if (!isRecord(row)) continue;
-    const id = row.id;
-    const startsAt = row.starts_at;
-    const note = row.note;
-    if ((typeof id !== 'string' && typeof id !== 'number') || typeof startsAt !== 'string') continue;
-    items.push({
-      id: String(id),
-      starts_at: startsAt,
-      note: typeof note === 'string' ? note : null,
-      cancelled: row.cancelled === true,
-    });
-  }
-  return items;
+    if (!Array.isArray(value)) return []
+    const items: EventDateRow[] = []
+    for (const row of value) {
+        if (!isRecord(row)) continue
+        const id = row.id
+        const startsAt = row.starts_at
+        const note = row.note
+        if ((typeof id !== 'string' && typeof id !== 'number') || typeof startsAt !== 'string') continue
+        items.push({
+            id: String(id),
+            starts_at: startsAt,
+            note: typeof note === 'string' ? note : null,
+            cancelled: row.cancelled === true,
+        })
+    }
+    return items
 }
 
 /** Нормализует вложенную точку-старт/финиш из join'а map_points. */
 function normalizeEventLinkedPoint(value: unknown): EventLinkedPoint | null {
-  // Supabase для to-one join может вернуть объект или массив из одного элемента.
-  const record: unknown = Array.isArray(value) ? (value as unknown[])[0] : value;
-  if (!isRecord(record)) return null;
-  const id = record.id;
-  const title = record.title;
-  const coordinates = asPointCoordinates(record.coordinates);
-  if ((typeof id !== 'string' && typeof id !== 'number') || typeof title !== 'string' || !coordinates) {
-    return null;
-  }
-  return { id: String(id), title, coordinates };
+    // Supabase для to-one join может вернуть объект или массив из одного элемента.
+    const record: unknown = Array.isArray(value) ? (value as unknown[])[0] : value
+    if (!isRecord(record)) return null
+    const id = record.id
+    const title = record.title
+    const coordinates = asPointCoordinates(record.coordinates)
+    if ((typeof id !== 'string' && typeof id !== 'number') || typeof title !== 'string' || !coordinates) {
+        return null
+    }
+    return { id: String(id), title, coordinates }
 }
 
 function normalizeEventRow(row: unknown): EventRow | null {
-  if (!isRecord(row)) return null;
-  const id = row.id;
-  const createdAt = row.created_at;
-  const type = row.type;
-  const title = row.title;
-  if (
-    (typeof id !== 'string' && typeof id !== 'number') ||
-    typeof createdAt !== 'string' ||
-    typeof title !== 'string' ||
-    !EVENT_TYPES.includes(type as EventType)
-  ) {
-    return null;
-  }
+    if (!isRecord(row)) return null
+    const id = row.id
+    const createdAt = row.created_at
+    const type = row.type
+    const title = row.title
+    if (
+        (typeof id !== 'string' && typeof id !== 'number') ||
+        typeof createdAt !== 'string' ||
+        typeof title !== 'string' ||
+        !EVENT_TYPES.includes(type as EventType)
+    ) {
+        return null
+    }
 
-  const description = row.description;
-  const durationMinutes = row.duration_minutes;
-  const locationText = row.location_text;
-  const photoBucket = row.photo_bucket;
-  const photoPath = row.photo_path;
-  const photoUrl =
-    typeof photoBucket === 'string' && typeof photoPath === 'string' && photoPath.length > 0
-      ? publicStorageUrl(photoBucket, photoPath)
-      : null;
+    const description = row.description
+    const durationMinutes = row.duration_minutes
+    const locationText = row.location_text
+    const photoBucket = row.photo_bucket
+    const photoPath = row.photo_path
+    const photoUrl =
+        typeof photoBucket === 'string' && typeof photoPath === 'string' && photoPath.length > 0
+            ? publicStorageUrl(photoBucket, photoPath)
+            : null
 
-  return {
-    id: String(id),
-    created_at: createdAt,
-    type: type as EventType,
-    title,
-    description: typeof description === 'string' ? description : null,
-    photo_url: photoUrl,
-    duration_minutes: typeof durationMinutes === 'number' && Number.isFinite(durationMinutes) ? durationMinutes : null,
-    location_text: typeof locationText === 'string' ? locationText : null,
-    start_coordinates: asPointCoordinates(row.start_coordinates),
-    finish_coordinates: asPointCoordinates(row.finish_coordinates),
-    start_point: normalizeEventLinkedPoint(row.start_point),
-    finish_point: normalizeEventLinkedPoint(row.finish_point),
-    dates: normalizeEventDates(row.map_event_dates),
-  };
+    return {
+        id: String(id),
+        created_at: createdAt,
+        type: type as EventType,
+        title,
+        description: typeof description === 'string' ? description : null,
+        photo_url: photoUrl,
+        duration_minutes:
+            typeof durationMinutes === 'number' && Number.isFinite(durationMinutes) ? durationMinutes : null,
+        location_text: typeof locationText === 'string' ? locationText : null,
+        start_coordinates: asPointCoordinates(row.start_coordinates),
+        finish_coordinates: asPointCoordinates(row.finish_coordinates),
+        start_point: normalizeEventLinkedPoint(row.start_point),
+        finish_point: normalizeEventLinkedPoint(row.finish_point),
+        dates: normalizeEventDates(row.map_event_dates),
+    }
 }
 
 function sanitizeTelegramAvatarUrl(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  // Не допускаем утечки токена Telegram из URL вида /file/bot<TOKEN>/...
-  if (value.includes('api.telegram.org/file/bot')) return null;
-  return value;
+    if (typeof value !== 'string') return null
+    // Не допускаем утечки токена Telegram из URL вида /file/bot<TOKEN>/...
+    if (value.includes('api.telegram.org/file/bot')) return null
+    return value
 }
 
 export async function fetchMapPoints(): Promise<MapPointRow[]> {
-  if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
-  }
+    if (!supabase) {
+        throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.')
+    }
 
-  const { data, error } = await withTimeoutAndRetry('fetchMapPoints', () =>
-    supabase
-      .from('map_points')
-      .select('id, type, title, description, coordinates, flag_is_meeting, flag_has_socket, flag_erlan, map_point_photos(id, bucket_name, storage_path, alt_text, sort_order)')
-      .eq('flag_disabled', false)
-  );
+    const { data, error } = await withTimeoutAndRetry('fetchMapPoints', () =>
+        supabase
+            .from('map_points')
+            .select(
+                'id, type, title, description, coordinates, flag_is_meeting, flag_has_socket, flag_erlan, map_point_photos(id, bucket_name, storage_path, alt_text, sort_order)',
+            )
+            .eq('flag_disabled', false),
+    )
 
-  if (error) {
-    console.error('fetchMapPoints:', error);
-    throw new Error('Не удалось загрузить точки');
-  }
+    if (error) {
+        console.error('fetchMapPoints:', error)
+        throw new Error('Не удалось загрузить точки')
+    }
 
-  const rows: MapPointRow[] = [];
-  for (const row of data) {
-    const normalized = normalizeMapPointRow(row);
-    if (normalized) rows.push(normalized);
-  }
-  return rows;
+    const rows: MapPointRow[] = []
+    for (const row of data) {
+        const normalized = normalizeMapPointRow(row)
+        if (normalized) rows.push(normalized)
+    }
+    return rows
 }
 
 export async function fetchMapRoutes(): Promise<MapRouteRow[]> {
-  if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
-  }
+    if (!supabase) {
+        throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.')
+    }
 
-  const { data, error } = await withTimeoutAndRetry('fetchMapRoutes', () =>
-    supabase
-      .from('map_routes')
-      .select('id, title, description, coordinates, via_coordinates, flag_erlan')
-      .eq('flag_disabled', false)
-  );
+    const { data, error } = await withTimeoutAndRetry('fetchMapRoutes', () =>
+        supabase
+            .from('map_routes')
+            .select('id, title, description, coordinates, via_coordinates, flag_erlan')
+            .eq('flag_disabled', false),
+    )
 
-  if (error) {
-    console.error('fetchMapRoutes:', error);
-    throw new Error('Не удалось загрузить маршруты');
-  }
+    if (error) {
+        console.error('fetchMapRoutes:', error)
+        throw new Error('Не удалось загрузить маршруты')
+    }
 
-  const rows: MapRouteRow[] = [];
-  for (const row of data) {
-    const normalized = normalizeMapRouteRow(row);
-    if (normalized) rows.push(normalized);
-  }
-  return rows;
+    const rows: MapRouteRow[] = []
+    for (const row of data) {
+        const normalized = normalizeMapRouteRow(row)
+        if (normalized) rows.push(normalized)
+    }
+    return rows
 }
 
 export async function fetchEvents(): Promise<EventRow[]> {
-  if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
-  }
+    if (!supabase) {
+        throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.')
+    }
 
-  const { data, error } = await withTimeoutAndRetry('fetchEvents', () =>
-    supabase
-      .from('map_events')
-      .select(
-        'id, created_at, type, title, description, photo_bucket, photo_path, duration_minutes, location_text, start_coordinates, finish_coordinates, start_point:map_points!start_point_id(id, title, coordinates), finish_point:map_points!finish_point_id(id, title, coordinates), map_event_dates(id, starts_at, note, cancelled)'
-      )
-      .eq('flag_disabled', false)
-  );
+    const { data, error } = await withTimeoutAndRetry('fetchEvents', () =>
+        supabase
+            .from('map_events')
+            .select(
+                'id, created_at, type, title, description, photo_bucket, photo_path, duration_minutes, location_text, start_coordinates, finish_coordinates, start_point:map_points!start_point_id(id, title, coordinates), finish_point:map_points!finish_point_id(id, title, coordinates), map_event_dates(id, starts_at, note, cancelled)',
+            )
+            .eq('flag_disabled', false),
+    )
 
-  if (error) {
-    console.error('fetchEvents:', error);
-    throw new Error('Не удалось загрузить события');
-  }
+    if (error) {
+        console.error('fetchEvents:', error)
+        throw new Error('Не удалось загрузить события')
+    }
 
-  const rows: EventRow[] = [];
-  for (const row of data) {
-    const normalized = normalizeEventRow(row);
-    if (normalized) rows.push(normalized);
-  }
-  return rows;
+    const rows: EventRow[] = []
+    for (const row of data) {
+        const normalized = normalizeEventRow(row)
+        if (normalized) rows.push(normalized)
+    }
+    return rows
 }
 
 export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
-  if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
-  }
+    if (!supabase) {
+        throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.')
+    }
 
-  const pageSize = 1000;
-  const ttlMinutes = getTelegramGeoTtlMinutes();
-  const trackTailMinutes = getTelegramTrackTailMinutes();
-  const maxAccuracyMeters = getTelegramMaxAccuracyMeters();
-  // Граница = TTL + хвост шлейфа: пользователь виден TTL минут, его шлейф — ещё trackTail минут назад от последней точки
-  const ttlThresholdIso = new Date(Date.now() - (ttlMinutes + trackTailMinutes) * 60 * 1000).toISOString();
-  const locationRowsRaw: unknown[] = [];
-  for (let from = 0; ; from += pageSize) {
-    const to = from + pageSize - 1;
-    const { data, error } = await withTimeoutAndRetry('fetchTelegramLocations:locations', () =>
-      supabase
-        .from('telegram_locations')
-        .select(
-          'id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters'
+    const pageSize = 1000
+    const ttlMinutes = getTelegramGeoTtlMinutes()
+    const trackTailMinutes = getTelegramTrackTailMinutes()
+    const maxAccuracyMeters = getTelegramMaxAccuracyMeters()
+    // Граница = TTL + хвост шлейфа: пользователь виден TTL минут, его шлейф — ещё trackTail минут назад от последней точки
+    const ttlThresholdIso = new Date(Date.now() - (ttlMinutes + trackTailMinutes) * 60 * 1000).toISOString()
+    const locationRowsRaw: unknown[] = []
+    for (let from = 0; ; from += pageSize) {
+        const to = from + pageSize - 1
+        const { data, error } = await withTimeoutAndRetry('fetchTelegramLocations:locations', () =>
+            supabase
+                .from('telegram_locations')
+                .select(
+                    'id, created_at, chat_id, chat_title, telegram_user_id, username, first_name, last_name, longitude, latitude, location_accuracy_meters',
+                )
+                .gte('created_at', ttlThresholdIso)
+                .or(`location_accuracy_meters.is.null,location_accuracy_meters.lte.${String(maxAccuracyMeters)}`)
+                .order('created_at', { ascending: true })
+                .order('id', { ascending: true })
+                .range(from, to),
         )
-        .gte('created_at', ttlThresholdIso)
-        .or(`location_accuracy_meters.is.null,location_accuracy_meters.lte.${String(maxAccuracyMeters)}`)
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(from, to)
-    );
 
-    if (error) {
-      console.error('fetchTelegramLocations:', error);
-      throw new Error('Не удалось загрузить telegram-локации.');
+        if (error) {
+            console.error('fetchTelegramLocations:', error)
+            throw new Error('Не удалось загрузить telegram-локации.')
+        }
+
+        locationRowsRaw.push(...data)
+        if (data.length < pageSize) break
     }
 
-    locationRowsRaw.push(...data);
-    if (data.length < pageSize) break;
-  }
+    const profileRowsRaw: unknown[] = []
+    for (let from = 0; ; from += pageSize) {
+        const to = from + pageSize - 1
+        const { data: profilesData, error: profilesError } = await withTimeoutAndRetry(
+            'fetchTelegramLocations:profiles',
+            () =>
+                supabase
+                    .from('telegram_profiles')
+                    .select('telegram_user_id, username, first_name, last_name, avatar_url, updated_at')
+                    .order('telegram_user_id', { ascending: true })
+                    .range(from, to),
+        )
 
-  const profileRowsRaw: unknown[] = [];
-  for (let from = 0; ; from += pageSize) {
-    const to = from + pageSize - 1;
-    const { data: profilesData, error: profilesError } = await withTimeoutAndRetry(
-      'fetchTelegramLocations:profiles',
-      () =>
-        supabase
-          .from('telegram_profiles')
-          .select('telegram_user_id, username, first_name, last_name, avatar_url, updated_at')
-          .order('telegram_user_id', { ascending: true })
-          .range(from, to)
-    );
+        if (profilesError) {
+            console.error('fetchTelegramLocations: profiles', profilesError)
+            throw new Error('Не удалось загрузить профили Telegram.')
+        }
 
-    if (profilesError) {
-      console.error('fetchTelegramLocations: profiles', profilesError);
-      throw new Error('Не удалось загрузить профили Telegram.');
+        profileRowsRaw.push(...profilesData)
+        if (profilesData.length < pageSize) break
     }
 
-    profileRowsRaw.push(...profilesData);
-    if (profilesData.length < pageSize) break;
-  }
-
-  const profilesByUserId = new Map<number, TelegramProfileRow>();
-  for (const row of profileRowsRaw) {
-    const normalized = normalizeTelegramProfileRow(row);
-    if (normalized) profilesByUserId.set(normalized.telegram_user_id, normalized);
-  }
-  const rows: TelegramLocationRow[] = [];
-  for (const row of locationRowsRaw) {
-    const normalized = normalizeTelegramLocationRow(row);
-    if (!normalized) continue;
-    const profile = profilesByUserId.get(normalized.telegram_user_id);
-    rows.push({
-      ...normalized,
-      username: profile?.username ?? normalized.username,
-      first_name: profile?.first_name ?? normalized.first_name,
-      last_name: profile?.last_name ?? normalized.last_name,
-      avatar_url: profile?.avatar_url ?? normalized.avatar_url,
-    });
-  }
-  return rows;
+    const profilesByUserId = new Map<number, TelegramProfileRow>()
+    for (const row of profileRowsRaw) {
+        const normalized = normalizeTelegramProfileRow(row)
+        if (normalized) profilesByUserId.set(normalized.telegram_user_id, normalized)
+    }
+    const rows: TelegramLocationRow[] = []
+    for (const row of locationRowsRaw) {
+        const normalized = normalizeTelegramLocationRow(row)
+        if (!normalized) continue
+        const profile = profilesByUserId.get(normalized.telegram_user_id)
+        rows.push({
+            ...normalized,
+            username: profile?.username ?? normalized.username,
+            first_name: profile?.first_name ?? normalized.first_name,
+            last_name: profile?.last_name ?? normalized.last_name,
+            avatar_url: profile?.avatar_url ?? normalized.avatar_url,
+        })
+    }
+    return rows
 }
 
 /**
@@ -544,51 +554,53 @@ export async function fetchTelegramLocations(): Promise<TelegramLocationRow[]> {
  * Подходит для первого рендера маркеров и радара.
  */
 export async function fetchLatestTelegramLocations(): Promise<TelegramLocationRow[]> {
-  if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
-  }
+    if (!supabase) {
+        throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.')
+    }
 
-  const ttlMinutes = getTelegramGeoTtlMinutes();
-  const maxAccuracyMeters = getTelegramMaxAccuracyMeters();
+    const ttlMinutes = getTelegramGeoTtlMinutes()
+    const maxAccuracyMeters = getTelegramMaxAccuracyMeters()
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- rpc возвращает any, нормализуем вручную
-  const { data, error } = await withTimeoutAndRetry('fetchLatestTelegramLocations', () =>
-    supabase.rpc('get_latest_telegram_locations', {
-      ttl_minutes: ttlMinutes,
-      max_accuracy_meters: maxAccuracyMeters,
-    })
-  );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- rpc возвращает any, нормализуем вручную
+    const { data, error } = await withTimeoutAndRetry('fetchLatestTelegramLocations', () =>
+        supabase.rpc('get_latest_telegram_locations', {
+            ttl_minutes: ttlMinutes,
+            max_accuracy_meters: maxAccuracyMeters,
+        }),
+    )
 
-  if (error) {
-    console.error('fetchLatestTelegramLocations:', error);
-    throw new Error('Не удалось загрузить последние Telegram-локации.');
-  }
+    if (error) {
+        console.error('fetchLatestTelegramLocations:', error)
+        throw new Error('Не удалось загрузить последние Telegram-локации.')
+    }
 
-  const rows: TelegramLocationRow[] = [];
-  for (const row of Array.isArray(data) ? (data as unknown[]) : []) {
-    const normalized = normalizeTelegramLocationRow(row);
-    if (normalized) rows.push(normalized);
-  }
-  return rows;
+    const rows: TelegramLocationRow[] = []
+    for (const row of Array.isArray(data) ? (data as unknown[]) : []) {
+        const normalized = normalizeTelegramLocationRow(row)
+        if (normalized) rows.push(normalized)
+    }
+    return rows
 }
 
 export async function createMapPointDraft(input: MapPointDraftInput): Promise<void> {
-  if (!supabase) {
-    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.');
-  }
+    if (!supabase) {
+        throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.')
+    }
 
-  const { error } = await withTimeoutAndRetry('createMapPointDraft', () =>
-    supabase.from('map_points_submissions').insert({
-      type: input.type,
-      title: input.title,
-      description: input.description,
-      coordinates: input.coordinates,
-      flag_is_meeting: input.type === 'point' ? Boolean(input.flag_is_meeting) : false,
-    })
-  );
+    const { error } = await withTimeoutAndRetry('createMapPointDraft', () =>
+        supabase.from('map_points_submissions').insert({
+            type: input.type,
+            title: input.title,
+            description: input.description,
+            coordinates: input.coordinates,
+            flag_is_meeting: input.type === 'point' ? Boolean(input.flag_is_meeting) : false,
+        }),
+    )
 
-  if (error) {
-    console.error('createMapPointDraft:', error);
-    throw new Error('Не удалось отправить заявку. Напишите об этом в чат Моноколеса Алматы или Электроклуб, мы всё исправим!');
-  }
+    if (error) {
+        console.error('createMapPointDraft:', error)
+        throw new Error(
+            'Не удалось отправить заявку. Напишите об этом в чат Моноколеса Алматы или Электроклуб, мы всё исправим!',
+        )
+    }
 }

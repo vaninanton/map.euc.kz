@@ -99,8 +99,12 @@ export function AdminLoginPage() {
                             autoComplete="email"
                             value={email}
                             placeholder="admin@example.com"
-                            onChange={(e) => { setEmail(e.target.value) }}
-                            onBlur={() => { setEmailTouched(true) }}
+                            onChange={(e) => {
+                                setEmail(e.target.value)
+                            }}
+                            onBlur={() => {
+                                setEmailTouched(true)
+                            }}
                             aria-invalid={!!emailError}
                             aria-describedby={emailError ? `${emailId}-error` : undefined}
                             className={[
@@ -130,8 +134,12 @@ export function AdminLoginPage() {
                                 autoComplete="current-password"
                                 value={password}
                                 placeholder="••••••••"
-                                onChange={(e) => { setPassword(e.target.value) }}
-                                onBlur={() => { setPasswordTouched(true) }}
+                                onChange={(e) => {
+                                    setPassword(e.target.value)
+                                }}
+                                onBlur={() => {
+                                    setPasswordTouched(true)
+                                }}
                                 aria-invalid={!!passwordError}
                                 aria-describedby={passwordError ? `${passwordId}-error` : undefined}
                                 className={[
@@ -145,7 +153,9 @@ export function AdminLoginPage() {
                             <button
                                 type="button"
                                 aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-                                onClick={() => { setShowPassword((v) => !v) }}
+                                onClick={() => {
+                                    setShowPassword((v) => !v)
+                                }}
                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
                             >
                                 {showPassword ? (

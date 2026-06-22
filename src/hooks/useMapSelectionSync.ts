@@ -1,11 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import {
-    HASH_TYPE_TO_LAYER_KEY,
-    buildMapDeepLinkPath,
-    parseHash,
-    parseMapDeepLinkPathname,
-} from '@/utils/hashNav'
+import { HASH_TYPE_TO_LAYER_KEY, buildMapDeepLinkPath, parseHash, parseMapDeepLinkPathname } from '@/utils/hashNav'
 import type { Feature } from '@/types/geojson'
 import type { LayerKey } from '@/constants'
 
@@ -59,15 +54,7 @@ export function useMapSelectionSync(options: UseMapSelectionSyncOptions) {
             openFeature(feature, layerKey)
             lastSyncedKeyRef.current = key
         })
-    }, [
-        enabled,
-        location.pathname,
-        location.hash,
-        navigate,
-        getFeatureById,
-        openFeature,
-        ensureLayerVisible,
-    ])
+    }, [enabled, location.pathname, location.hash, navigate, getFeatureById, openFeature, ensureLayerVisible])
 
     useEffect(() => {
         if (!enabled || typeof window === 'undefined') return

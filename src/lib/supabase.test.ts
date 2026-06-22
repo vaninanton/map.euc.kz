@@ -68,7 +68,8 @@ describe('lib/supabase data access', () => {
             from: (table: string) =>
                 makeThenableQuery(table, calls, (from) => {
                     if (table === 'telegram_locations') {
-                        if (from === 0) return { data: Array.from({ length: 1000 }, () => ({ invalid: true })), error: null }
+                        if (from === 0)
+                            return { data: Array.from({ length: 1000 }, () => ({ invalid: true })), error: null }
                         return {
                             data: [
                                 {

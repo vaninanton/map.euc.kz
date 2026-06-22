@@ -146,7 +146,10 @@ function isAvatarUrlSafe(avatarUrl: string | null | undefined): boolean {
 async function resolveTelegramAvatarFilePath(
     userId: number,
     botToken: string,
-): Promise<{ ok: true; filePath: string } | { ok: false; reason: 'no_photo' | 'telegram_get_photos_failed' | 'telegram_get_file_failed' }> {
+): Promise<
+    | { ok: true; filePath: string }
+    | { ok: false; reason: 'no_photo' | 'telegram_get_photos_failed' | 'telegram_get_file_failed' }
+> {
     const photosResponse = await fetch(`https://api.telegram.org/bot${botToken}/getUserProfilePhotos`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -187,7 +190,10 @@ async function uploadTelegramAvatarToStorage(
     userId: number,
     filePath: string,
     botToken: string,
-): Promise<{ ok: true; avatarUrl: string } | { ok: false; reason: 'telegram_file_download_failed' | 'unsupported_content_type' | 'storage_upload_failed' }> {
+): Promise<
+    | { ok: true; avatarUrl: string }
+    | { ok: false; reason: 'telegram_file_download_failed' | 'unsupported_content_type' | 'storage_upload_failed' }
+> {
     const fileUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`
     const fileResponse = await fetch(fileUrl)
     if (!fileResponse.ok) return { ok: false, reason: 'telegram_file_download_failed' }
@@ -661,8 +667,7 @@ async function handleAvatarBackfill(req: Request): Promise<Response> {
 
 Deno.serve(async (req) => {
     const requestPath = new URL(req.url).pathname
-    const isBackfillRequest =
-        requestPath.endsWith('/backfill') || req.headers.get('x-telegram-avatar-backfill') === '1'
+    const isBackfillRequest = requestPath.endsWith('/backfill') || req.headers.get('x-telegram-avatar-backfill') === '1'
 
     console.info('[telegram-location-bot] Входящий запрос', {
         method: req.method,
@@ -780,7 +785,7 @@ Deno.serve(async (req) => {
         return new Response('Internal Server Error', { status: 500 })
     }
 
-    let avatarUrl = isAvatarUrlSafe(existingProfile?.avatar_url) ? existingProfile?.avatar_url ?? null : null
+    let avatarUrl = isAvatarUrlSafe(existingProfile?.avatar_url) ? (existingProfile?.avatar_url ?? null) : null
     if (!avatarUrl && botToken) {
         const refreshResult = await refreshTelegramAvatarUrl(telegramUserId, botToken)
         if (refreshResult.ok) {

@@ -87,7 +87,9 @@ export function RouteListSidebar({
                     <input
                         type="text"
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value) }}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value)
+                        }}
                         placeholder="Поиск маршрута..."
                         className="w-full pl-9 pr-8 py-1.5 text-sm bg-neutral-100/80 focus:bg-white border border-neutral-200 focus:border-orange-300 rounded-xl outline-hidden focus:ring-2 focus:ring-orange-100 transition-all placeholder-neutral-400 text-neutral-800"
                     />
@@ -99,7 +101,9 @@ export function RouteListSidebar({
                     {searchQuery && (
                         <button
                             type="button"
-                            onClick={() => { setSearchQuery('') }}
+                            onClick={() => {
+                                setSearchQuery('')
+                            }}
                             className="absolute right-2.5 top-2 p-1 text-neutral-400 hover:text-neutral-600 rounded-full hover:bg-neutral-200/50 cursor-pointer"
                             aria-label="Очистить поиск"
                         >
@@ -114,17 +118,21 @@ export function RouteListSidebar({
                         Дистанция
                     </span>
                     <div className="flex flex-wrap gap-1">
-                        {([
-                            ['all', 'Все'],
-                            ['under10', '< 10 км'],
-                            ['10to25', '10-25 км'],
-                            ['25to50', '25-50 км'],
-                            ['over50', '> 50 км'],
-                        ] as const).map(([val, label]) => (
+                        {(
+                            [
+                                ['all', 'Все'],
+                                ['under10', '< 10 км'],
+                                ['10to25', '10-25 км'],
+                                ['25to50', '25-50 км'],
+                                ['over50', '> 50 км'],
+                            ] as const
+                        ).map(([val, label]) => (
                             <button
                                 key={val}
                                 type="button"
-                                onClick={() => { setDistanceRange(val) }}
+                                onClick={() => {
+                                    setDistanceRange(val)
+                                }}
                                 className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer ${
                                     distanceRange === val
                                         ? 'bg-gradient-to-r from-orange-500 to-[#f25824] text-white shadow-xs'
@@ -143,16 +151,20 @@ export function RouteListSidebar({
                         Набор высоты
                     </span>
                     <div className="flex flex-wrap gap-1">
-                        {([
-                            ['all', 'Любой'],
-                            ['flat', 'Плоские (<100 м)'],
-                            ['hilly', 'Холмистые'],
-                            ['mountain', 'Горные (>500 м)'],
-                        ] as const).map(([val, label]) => (
+                        {(
+                            [
+                                ['all', 'Любой'],
+                                ['flat', 'Плоские (<100 м)'],
+                                ['hilly', 'Холмистые'],
+                                ['mountain', 'Горные (>500 м)'],
+                            ] as const
+                        ).map(([val, label]) => (
                             <button
                                 key={val}
                                 type="button"
-                                onClick={() => { setAscentRange(val) }}
+                                onClick={() => {
+                                    setAscentRange(val)
+                                }}
                                 className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer ${
                                     ascentRange === val
                                         ? 'bg-gradient-to-r from-orange-500 to-[#f25824] text-white shadow-xs'
@@ -172,7 +184,9 @@ export function RouteListSidebar({
                         <input
                             type="checkbox"
                             checked={onlyErlan}
-                            onChange={(e) => { setOnlyErlan(e.target.checked) }}
+                            onChange={(e) => {
+                                setOnlyErlan(e.target.checked)
+                            }}
                             className="peer sr-only"
                         />
                         <span
@@ -190,16 +204,15 @@ export function RouteListSidebar({
             {/* List */}
             <div className="overflow-y-auto min-h-0 flex-1 p-3 space-y-2.5 bg-neutral-50/50">
                 {filteredRoutes.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-neutral-400 font-medium">
-                        Маршруты не найдены
-                    </div>
+                    <div className="py-8 text-center text-xs text-neutral-400 font-medium">Маршруты не найдены</div>
                 ) : (
                     filteredRoutes.map(({ feature, stats }) => {
                         const id = feature.properties.id
                         const isActive = id === selectedRouteId
-                        const dist = feature.properties.distance != null && Number.isFinite(feature.properties.distance)
-                            ? feature.properties.distance
-                            : stats.distanceKm
+                        const dist =
+                            feature.properties.distance != null && Number.isFinite(feature.properties.distance)
+                                ? feature.properties.distance
+                                : stats.distanceKm
 
                         const handleClick = () => {
                             syncSelectionUrl('route', id)
@@ -238,11 +251,19 @@ export function RouteListSidebar({
 
                                 <div className="flex flex-wrap gap-2.5 mt-2.5 text-[10px] font-medium text-neutral-400">
                                     <span className="inline-flex items-center gap-1">
-                                        <FontAwesomeIcon icon={faRoad} className="text-neutral-300 text-[9px]" aria-hidden />
+                                        <FontAwesomeIcon
+                                            icon={faRoad}
+                                            className="text-neutral-300 text-[9px]"
+                                            aria-hidden
+                                        />
                                         {dist.toFixed(1)} км
                                     </span>
                                     <span className="inline-flex items-center gap-1">
-                                        <FontAwesomeIcon icon={faMountain} className="text-neutral-300 text-[9px]" aria-hidden />
+                                        <FontAwesomeIcon
+                                            icon={faMountain}
+                                            className="text-neutral-300 text-[9px]"
+                                            aria-hidden
+                                        />
                                         ▲ {Math.round(stats.ascentM)} м
                                     </span>
                                     {stats.descentM > 0 && (

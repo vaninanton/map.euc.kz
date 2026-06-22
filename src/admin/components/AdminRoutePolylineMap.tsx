@@ -110,79 +110,80 @@ export function AdminRoutePolylineMap({
         [setMarkerHighlighted],
     )
 
-    const rebuildMarkers = useCallback((mapInstance: mapboxgl.Map, coords: RouteEditorCoordinates) => {
-        for (const m of markersRef.current) {
-            m.remove()
-        }
-        markersRef.current = []
-        const lastIndex = coords.length - 1
-        coords.forEach((coord, index) => {
-            const isIntermediate = coords.length >= 2 && index > 0 && index < lastIndex
-            const point2d: [number, number] = [coord[0], coord[1]]
-            const isVia = isIntermediate && viaCoordinates.some((viaPoint) => isSameLngLat(viaPoint, point2d))
-            const marker = isIntermediate
-                ? new Marker({
-                      element: createIntermediateVertexElement(isVia ? ROUTE_EDITOR_VIA_MARKER_HEX : COLORS.route),
-                      draggable: true,
-                      anchor: 'center',
-                  })
-                : new Marker({
-                      color:
-                          coords.length >= 2 && index === lastIndex
-                              ? ROUTE_EDITOR_FINISH_MARKER_HEX
-                              : COLORS.route,
-                      draggable: true,
-                  })
-            marker.setLngLat([coord[0], coord[1]]).addTo(mapInstance)
-
-            const el = marker.getElement()
-            const onEnter = () => {
-                onVertexHoverRef.current?.(index)
+    const rebuildMarkers = useCallback(
+        (mapInstance: mapboxgl.Map, coords: RouteEditorCoordinates) => {
+            for (const m of markersRef.current) {
+                m.remove()
             }
-            const onLeave = () => {
-                onVertexHoverRef.current?.(null)
-            }
-            el.addEventListener('mouseenter', onEnter)
-            el.addEventListener('mouseleave', onLeave)
+            markersRef.current = []
+            const lastIndex = coords.length - 1
+            coords.forEach((coord, index) => {
+                const isIntermediate = coords.length >= 2 && index > 0 && index < lastIndex
+                const point2d: [number, number] = [coord[0], coord[1]]
+                const isVia = isIntermediate && viaCoordinates.some((viaPoint) => isSameLngLat(viaPoint, point2d))
+                const marker = isIntermediate
+                    ? new Marker({
+                          element: createIntermediateVertexElement(isVia ? ROUTE_EDITOR_VIA_MARKER_HEX : COLORS.route),
+                          draggable: true,
+                          anchor: 'center',
+                      })
+                    : new Marker({
+                          color:
+                              coords.length >= 2 && index === lastIndex ? ROUTE_EDITOR_FINISH_MARKER_HEX : COLORS.route,
+                          draggable: true,
+                      })
+                marker.setLngLat([coord[0], coord[1]]).addTo(mapInstance)
 
-            el.addEventListener(
-                'dblclick',
-                (ev) => {
-                    ev.preventDefault()
-                    ev.stopPropagation()
+                const el = marker.getElement()
+                const onEnter = () => {
+                    onVertexHoverRef.current?.(index)
+                }
+                const onLeave = () => {
+                    onVertexHoverRef.current?.(null)
+                }
+                el.addEventListener('mouseenter', onEnter)
+                el.addEventListener('mouseleave', onLeave)
+
+                el.addEventListener(
+                    'dblclick',
+                    (ev) => {
+                        ev.preventDefault()
+                        ev.stopPropagation()
+                        const base = coordinatesRef.current
+                        if (base.length <= 2) return
+                        onChangeRef.current(removeVertexAtIndex(base, index))
+                    },
+                    true,
+                )
+
+                el.addEventListener(
+                    'contextmenu',
+                    (ev) => {
+                        ev.preventDefault()
+                        ev.stopPropagation()
+                        const base = coordinatesRef.current
+                        if (base.length <= 2) return
+                        onChangeRef.current(removeVertexAtIndex(base, index))
+                    },
+                    true,
+                )
+
+                marker.on('dragstart', () => {
+                    onVertexHoverRef.current?.(null)
+                })
+
+                marker.on('dragend', () => {
+                    const ll = marker.getLngLat()
                     const base = coordinatesRef.current
-                    if (base.length <= 2) return
-                    onChangeRef.current(removeVertexAtIndex(base, index))
-                },
-                true,
-            )
+                    onChangeRef.current(updateVertexLngLat(base, index, ll.lng, ll.lat))
+                })
 
-            el.addEventListener(
-                'contextmenu',
-                (ev) => {
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    const base = coordinatesRef.current
-                    if (base.length <= 2) return
-                    onChangeRef.current(removeVertexAtIndex(base, index))
-                },
-                true,
-            )
-
-            marker.on('dragstart', () => {
-                onVertexHoverRef.current?.(null)
+                markersRef.current.push(marker)
             })
-
-            marker.on('dragend', () => {
-                const ll = marker.getLngLat()
-                const base = coordinatesRef.current
-                onChangeRef.current(updateVertexLngLat(base, index, ll.lng, ll.lat))
-            })
-
-            markersRef.current.push(marker)
-        })
-        applyHighlightedIndex(highlightedVertexIndexRef.current)
-    }, [applyHighlightedIndex, isSameLngLat, viaCoordinates])
+            applyHighlightedIndex(highlightedVertexIndexRef.current)
+        },
+        [applyHighlightedIndex, isSameLngLat, viaCoordinates],
+    )
 
     const applySourceData = useCallback((mapInstance: mapboxgl.Map, coords: RouteEditorCoordinates) => {
         const fc = featureCollectionFromCoords(coords)
@@ -346,10 +347,9 @@ export function AdminRoutePolylineMap({
     return (
         <div className="flex min-h-[280px] w-full min-w-0 flex-1 flex-col gap-2 lg:min-h-0">
             <p className="shrink-0 text-xs text-neutral-500">
-                Перетаскивайте вершины: старт красный, финиш зелёный, промежуточные via-точки оранжевые.
-                Клик по линии вставляет вершину на выбранный сегмент, клик по пустому месту добавляет точку
-                в конец. Правый клик по маркеру вершины удаляет её (не ниже двух вершин). Для сохранения
-                нужно минимум две вершины.
+                Перетаскивайте вершины: старт красный, финиш зелёный, промежуточные via-точки оранжевые. Клик по линии
+                вставляет вершину на выбранный сегмент, клик по пустому месту добавляет точку в конец. Правый клик по
+                маркеру вершины удаляет её (не ниже двух вершин). Для сохранения нужно минимум две вершины.
             </p>
             <div ref={containerRef} className="admin-editor-map rounded-xl border border-neutral-200" />
         </div>

@@ -8,10 +8,7 @@ export interface PointFilterOptions {
     onlyErlan: boolean
 }
 
-export function filterPoints(
-    points: PointFeature[],
-    options: PointFilterOptions,
-): PointFeature[] {
+export function filterPoints(points: PointFeature[], options: PointFilterOptions): PointFeature[] {
     const query = options.searchQuery.trim().toLowerCase()
 
     return points.filter((feature) => {

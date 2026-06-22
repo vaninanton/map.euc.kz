@@ -1,10 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-    listRoutes,
-    toggleRouteDisabled,
-    type AdminMapRoute,
-} from '@/admin/lib/adminApi'
+import { listRoutes, toggleRouteDisabled, type AdminMapRoute } from '@/admin/lib/adminApi'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
 import { formatAdminDate } from '@/admin/utils/formatAdminDate'
 
@@ -83,55 +79,61 @@ export function RoutesPage() {
                                 </td>
                             </tr>
                         )}
-                        {items.map((route) => (
+                        {items.map((route) =>
                             (() => {
-                                const missingElevationCount = route.coordinates.filter((coord) => coord.length < 3).length
+                                const missingElevationCount = route.coordinates.filter(
+                                    (coord) => coord.length < 3,
+                                ).length
                                 return (
-                            <tr
-                                key={route.id}
-                                onClick={() => {
-                                    void navigate(`/admin/route/${String(route.id)}`)
-                                }}
-                                className="cursor-pointer hover:bg-neutral-50"
-                            >
-                                <td className="px-3 py-2 font-mono text-xs text-neutral-500">{route.id}</td>
-                                <td className="px-3 py-2 font-medium">
-                                    {route.title}
-                                    {route.flag_erlan && <span className="ml-1 text-xs text-neutral-500">· ерландия</span>}
-                                </td>
-                                <td className="px-3 py-2 text-neutral-600">
-                                    <div className="flex flex-col">
-                                        <span>{route.coordinates.length}</span>
-                                        {missingElevationCount > 0 && (
-                                            <span className="text-xs text-amber-700">
-                                                Без высоты: {missingElevationCount}
-                                            </span>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="px-3 py-2 text-neutral-600">{formatAdminDate(route.created_at)}</td>
-                                <td className="px-3 py-2">
-                                    <button
-                                        type="button"
-                                        disabled={busyId === route.id}
-                                        onClick={(event) => {
-                                            event.stopPropagation()
-                                            void handleToggle(route)
+                                    <tr
+                                        key={route.id}
+                                        onClick={() => {
+                                            void navigate(`/admin/route/${String(route.id)}`)
                                         }}
-                                        className={[
-                                            'rounded-full px-2 py-0.5 text-xs font-medium transition disabled:opacity-50',
-                                            route.flag_disabled
-                                                ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
-                                                : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
-                                        ].join(' ')}
+                                        className="cursor-pointer hover:bg-neutral-50"
                                     >
-                                        {route.flag_disabled ? 'скрыт' : 'виден'}
-                                    </button>
-                                </td>
-                            </tr>
+                                        <td className="px-3 py-2 font-mono text-xs text-neutral-500">{route.id}</td>
+                                        <td className="px-3 py-2 font-medium">
+                                            {route.title}
+                                            {route.flag_erlan && (
+                                                <span className="ml-1 text-xs text-neutral-500">· ерландия</span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2 text-neutral-600">
+                                            <div className="flex flex-col">
+                                                <span>{route.coordinates.length}</span>
+                                                {missingElevationCount > 0 && (
+                                                    <span className="text-xs text-amber-700">
+                                                        Без высоты: {missingElevationCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-2 text-neutral-600">
+                                            {formatAdminDate(route.created_at)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <button
+                                                type="button"
+                                                disabled={busyId === route.id}
+                                                onClick={(event) => {
+                                                    event.stopPropagation()
+                                                    void handleToggle(route)
+                                                }}
+                                                className={[
+                                                    'rounded-full px-2 py-0.5 text-xs font-medium transition disabled:opacity-50',
+                                                    route.flag_disabled
+                                                        ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
+                                                        : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
+                                                ].join(' ')}
+                                            >
+                                                {route.flag_disabled ? 'скрыт' : 'виден'}
+                                            </button>
+                                        </td>
+                                    </tr>
                                 )
-                            })()
-                        ))}
+                            })(),
+                        )}
                     </tbody>
                 </table>
             </div>

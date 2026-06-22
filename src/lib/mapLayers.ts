@@ -1,79 +1,79 @@
-import type { FeatureCollection } from '@/types/geojson';
-import { SOURCE_IDS, LAYER_IDS, COLORS } from '@/constants';
+import type { FeatureCollection } from '@/types/geojson'
+import { SOURCE_IDS, LAYER_IDS, COLORS } from '@/constants'
 import type {
-  Map as MapboxMap,
-  GeoJSONSource,
-  LineLayerSpecification,
-  CircleLayerSpecification,
-  SymbolLayerSpecification,
-  ExpressionSpecification,
-} from 'mapbox-gl';
+    Map as MapboxMap,
+    GeoJSONSource,
+    LineLayerSpecification,
+    CircleLayerSpecification,
+    SymbolLayerSpecification,
+    ExpressionSpecification,
+} from 'mapbox-gl'
 
 /** Выражения для подсветки по feature-state (hover / selected). */
 const stateHighlight = {
-  lineWidth: (defaultW: number, hoverW: number, selectedW: number): ExpressionSpecification => [
-    'case',
-    ['boolean', ['feature-state', 'selected'], false],
-    selectedW,
-    ['case', ['boolean', ['feature-state', 'hover'], false], hoverW, defaultW],
-  ],
-  circleRadius: (defaultR: number, hoverR: number, selectedR: number): ExpressionSpecification => [
-    'case',
-    ['boolean', ['feature-state', 'selected'], false],
-    selectedR,
-    ['case', ['boolean', ['feature-state', 'hover'], false], hoverR, defaultR],
-  ],
-  circleStrokeWidth: (defaultW: number, hoverW: number, selectedW: number): ExpressionSpecification => [
-    'case',
-    ['boolean', ['feature-state', 'selected'], false],
-    selectedW,
-    ['case', ['boolean', ['feature-state', 'hover'], false], hoverW, defaultW],
-  ],
-  iconOpacity: (defaultO: number, hoverO: number, selectedO: number): ExpressionSpecification => [
-    'case',
-    ['boolean', ['feature-state', 'selected'], false],
-    selectedO,
-    ['case', ['boolean', ['feature-state', 'hover'], false], hoverO, defaultO],
-  ],
-  /** Невыбранные — полупрозрачны (selected: true → 1, selected: false → 0.45, нет состояния → 1). */
-  opacity: (): ExpressionSpecification => [
-    'case',
-    ['==', ['feature-state', 'selected'], true],
-    1,
-    ['==', ['feature-state', 'selected'], false],
-    0.7,
-    1,
-  ],
-};
-
-function upsertGeoJsonLayer(
-  map: MapboxMap,
-  sourceId: string,
-  layerId: string,
-  data: FeatureCollection,
-  paint: LineLayerSpecification['paint'],
-  visible: boolean
-): void {
-  if (!map.getSource(sourceId)) {
-    map.addSource(sourceId, { type: 'geojson', data, promoteId: 'id' });
-  } else {
-    (map.getSource(sourceId) as GeoJSONSource).setData(data);
-  }
-  if (!map.getLayer(layerId)) {
-    const layer: LineLayerSpecification = {
-      id: layerId,
-      type: 'line',
-      source: sourceId,
-      layout: { visibility: visible ? 'visible' : 'none' },
-      paint,
-    };
-    map.addLayer(layer);
-    return;
-  }
-  map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+    lineWidth: (defaultW: number, hoverW: number, selectedW: number): ExpressionSpecification => [
+        'case',
+        ['boolean', ['feature-state', 'selected'], false],
+        selectedW,
+        ['case', ['boolean', ['feature-state', 'hover'], false], hoverW, defaultW],
+    ],
+    circleRadius: (defaultR: number, hoverR: number, selectedR: number): ExpressionSpecification => [
+        'case',
+        ['boolean', ['feature-state', 'selected'], false],
+        selectedR,
+        ['case', ['boolean', ['feature-state', 'hover'], false], hoverR, defaultR],
+    ],
+    circleStrokeWidth: (defaultW: number, hoverW: number, selectedW: number): ExpressionSpecification => [
+        'case',
+        ['boolean', ['feature-state', 'selected'], false],
+        selectedW,
+        ['case', ['boolean', ['feature-state', 'hover'], false], hoverW, defaultW],
+    ],
+    iconOpacity: (defaultO: number, hoverO: number, selectedO: number): ExpressionSpecification => [
+        'case',
+        ['boolean', ['feature-state', 'selected'], false],
+        selectedO,
+        ['case', ['boolean', ['feature-state', 'hover'], false], hoverO, defaultO],
+    ],
+    /** Невыбранные — полупрозрачны (selected: true → 1, selected: false → 0.45, нет состояния → 1). */
+    opacity: (): ExpressionSpecification => [
+        'case',
+        ['==', ['feature-state', 'selected'], true],
+        1,
+        ['==', ['feature-state', 'selected'], false],
+        0.7,
+        1,
+    ],
 }
 
-const PLUG_ICON_ID = 'plug-icon';
+function upsertGeoJsonLayer(
+    map: MapboxMap,
+    sourceId: string,
+    layerId: string,
+    data: FeatureCollection,
+    paint: LineLayerSpecification['paint'],
+    visible: boolean,
+): void {
+    if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, { type: 'geojson', data, promoteId: 'id' })
+    } else {
+        ;(map.getSource(sourceId) as GeoJSONSource).setData(data)
+    }
+    if (!map.getLayer(layerId)) {
+        const layer: LineLayerSpecification = {
+            id: layerId,
+            type: 'line',
+            source: sourceId,
+            layout: { visibility: visible ? 'visible' : 'none' },
+            paint,
+        }
+        map.addLayer(layer)
+        return
+    }
+    map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none')
+}
+
+const PLUG_ICON_ID = 'plug-icon'
 
 /** Жёлтая евро-розетка: квадратная иконка, внутри круглая розетка с контактами заземления. */
 const PLUG_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
@@ -88,36 +88,36 @@ const PLUG_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 3
   <circle cx="20" cy="16" r="2.8" fill="#1c1917"/>
   <rect x="14" y="7" width="4" height="1.8" rx="0.5" fill="#1c1917"/>
   <rect x="14" y="23.2" width="4" height="1.8" rx="0.5" fill="#1c1917"/>
-</svg>`;
+</svg>`
 
 function ensurePlugImage(map: MapboxMap, callback: () => void): void {
-  if (map.hasImage(PLUG_ICON_ID)) {
-    callback();
-    return;
-  }
-  const img = new Image();
-  img.onload = () => {
-    if (!map.hasImage(PLUG_ICON_ID)) map.addImage(PLUG_ICON_ID, img, { pixelRatio: 2 });
-    callback();
-  };
-  img.onerror = () => {
-    callback();
-  };
-  img.src = 'data:image/svg+xml,' + encodeURIComponent(PLUG_ICON_SVG);
+    if (map.hasImage(PLUG_ICON_ID)) {
+        callback()
+        return
+    }
+    const img = new Image()
+    img.onload = () => {
+        if (!map.hasImage(PLUG_ICON_ID)) map.addImage(PLUG_ICON_ID, img, { pixelRatio: 2 })
+        callback()
+    }
+    img.onerror = () => {
+        callback()
+    }
+    img.src = 'data:image/svg+xml,' + encodeURIComponent(PLUG_ICON_SVG)
 }
 
 export interface AddLayersOptions {
-  pointsGeo: FeatureCollection | null;
-  routesGeo: FeatureCollection | null;
-  bikeLanesGeo: FeatureCollection | null;
-  telegramUsersGeo: FeatureCollection | null;
-  visibility: {
-    points: boolean;
-    sockets: boolean;
-    routes: boolean;
-    bikeLanes: boolean;
-    telegramUsers: boolean;
-  };
+    pointsGeo: FeatureCollection | null
+    routesGeo: FeatureCollection | null
+    bikeLanesGeo: FeatureCollection | null
+    telegramUsersGeo: FeatureCollection | null
+    visibility: {
+        points: boolean
+        sockets: boolean
+        routes: boolean
+        bikeLanes: boolean
+        telegramUsers: boolean
+    }
 }
 
 /**
@@ -125,206 +125,200 @@ export interface AddLayersOptions {
  * Вызывать после загрузки стиля (style.load или после load).
  */
 export function addLayersToMap(map: MapboxMap, options: AddLayersOptions): void {
-  const { pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility } = options;
-  // Стиль может быть ещё не загружен (mapbox-gl)
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getStyle() может быть undefined до load
-  if (map.getStyle() === undefined) return;
+    const { pointsGeo, routesGeo, bikeLanesGeo, telegramUsersGeo, visibility } = options
+    // Стиль может быть ещё не загружен (mapbox-gl)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getStyle() может быть undefined до load
+    if (map.getStyle() === undefined) return
 
-  // Сначала маршруты и велодорожки (ниже по z-index)
-  if (routesGeo?.features.length) {
-    upsertGeoJsonLayer(map, SOURCE_IDS.routes, LAYER_IDS.routes, routesGeo, {
-      'line-color': COLORS.route,
-      'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
-      'line-opacity': stateHighlight.opacity(),
-      'line-width-transition': { duration: 200 },
-    }, visibility.routes);
-  }
-  if (bikeLanesGeo?.features.length) {
-    upsertGeoJsonLayer(map, SOURCE_IDS.bikeLanes, LAYER_IDS.bikeLanes, bikeLanesGeo, {
-      'line-color': COLORS.bikeLane,
-      'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
-      'line-dasharray': [2, 1.5],
-      'line-opacity': stateHighlight.opacity(),
-      'line-width-transition': { duration: 200 },
-    }, visibility.bikeLanes);
-  }
-  if (telegramUsersGeo) {
-    if (!map.getSource(SOURCE_IDS.telegramUsers)) {
-      map.addSource(SOURCE_IDS.telegramUsers, {
-        type: 'geojson',
-        data: telegramUsersGeo,
-        promoteId: 'id',
-        lineMetrics: true,
-      });
-    } else {
-      (map.getSource(SOURCE_IDS.telegramUsers) as GeoJSONSource).setData(telegramUsersGeo);
+    // Сначала маршруты и велодорожки (ниже по z-index)
+    if (routesGeo?.features.length) {
+        upsertGeoJsonLayer(
+            map,
+            SOURCE_IDS.routes,
+            LAYER_IDS.routes,
+            routesGeo,
+            {
+                'line-color': COLORS.route,
+                'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
+                'line-opacity': stateHighlight.opacity(),
+                'line-width-transition': { duration: 200 },
+            },
+            visibility.routes,
+        )
     }
-    if (!map.getLayer(LAYER_IDS.telegramTracks)) {
-      const lineLayer: LineLayerSpecification = {
-        id: LAYER_IDS.telegramTracks,
-        type: 'line',
-        source: SOURCE_IDS.telegramUsers,
-        layout: { visibility: visibility.telegramUsers ? 'visible' : 'none' },
-        filter: ['==', ['geometry-type'], 'LineString'],
-        paint: {
-          'line-width': stateHighlight.lineWidth(3.6, 5, 4.4),
-          'line-opacity': stateHighlight.opacity(),
-          'line-width-transition': { duration: 200 },
-          'line-gradient': [
-            'interpolate',
-            ['linear'],
-            ['line-progress'],
-            0,
-            'rgba(139,92,246,0.35)',
-            0.4,
-            'rgba(139,92,246,0.7)',
-            1,
-            COLORS.telegramTrack,
-          ],
-        },
-      };
-      map.addLayer(lineLayer);
+    if (bikeLanesGeo?.features.length) {
+        upsertGeoJsonLayer(
+            map,
+            SOURCE_IDS.bikeLanes,
+            LAYER_IDS.bikeLanes,
+            bikeLanesGeo,
+            {
+                'line-color': COLORS.bikeLane,
+                'line-width': stateHighlight.lineWidth(2.5, 3.5, 2.5),
+                'line-dasharray': [2, 1.5],
+                'line-opacity': stateHighlight.opacity(),
+                'line-width-transition': { duration: 200 },
+            },
+            visibility.bikeLanes,
+        )
     }
-    if (!map.getLayer(LAYER_IDS.telegramUsers)) {
-      const layer: CircleLayerSpecification = {
-        id: LAYER_IDS.telegramUsers,
-        type: 'circle',
-        source: SOURCE_IDS.telegramUsers,
-        layout: { visibility: visibility.telegramUsers ? 'visible' : 'none' },
-        filter: ['==', ['geometry-type'], 'Point'],
-        paint: {
-          'circle-radius': stateHighlight.circleRadius(7, 9, 12),
-          'circle-color': COLORS.telegramUser,
-          'circle-stroke-width': stateHighlight.circleStrokeWidth(2, 2.5, 4),
-          'circle-stroke-color': '#fff',
-          'circle-radius-transition': { duration: 200 },
-          'circle-stroke-width-transition': { duration: 200 },
-          'circle-opacity': [
-            'interpolate',
-            ['linear'],
-            ['get', 'ageMinutes'],
-            0,
-            1,
-            10,
-            0.6,
-          ],
-          'circle-stroke-opacity': [
-            'interpolate',
-            ['linear'],
-            ['get', 'ageMinutes'],
-            0,
-            1,
-            10,
-            0.6,
-          ],
-        },
-      };
-      map.addLayer(layer);
-    } else {
-      map.setLayoutProperty(LAYER_IDS.telegramUsers, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
+    if (telegramUsersGeo) {
+        if (!map.getSource(SOURCE_IDS.telegramUsers)) {
+            map.addSource(SOURCE_IDS.telegramUsers, {
+                type: 'geojson',
+                data: telegramUsersGeo,
+                promoteId: 'id',
+                lineMetrics: true,
+            })
+        } else {
+            ;(map.getSource(SOURCE_IDS.telegramUsers) as GeoJSONSource).setData(telegramUsersGeo)
+        }
+        if (!map.getLayer(LAYER_IDS.telegramTracks)) {
+            const lineLayer: LineLayerSpecification = {
+                id: LAYER_IDS.telegramTracks,
+                type: 'line',
+                source: SOURCE_IDS.telegramUsers,
+                layout: { visibility: visibility.telegramUsers ? 'visible' : 'none' },
+                filter: ['==', ['geometry-type'], 'LineString'],
+                paint: {
+                    'line-width': stateHighlight.lineWidth(3.6, 5, 4.4),
+                    'line-opacity': stateHighlight.opacity(),
+                    'line-width-transition': { duration: 200 },
+                    'line-gradient': [
+                        'interpolate',
+                        ['linear'],
+                        ['line-progress'],
+                        0,
+                        'rgba(139,92,246,0.35)',
+                        0.4,
+                        'rgba(139,92,246,0.7)',
+                        1,
+                        COLORS.telegramTrack,
+                    ],
+                },
+            }
+            map.addLayer(lineLayer)
+        }
+        if (!map.getLayer(LAYER_IDS.telegramUsers)) {
+            const layer: CircleLayerSpecification = {
+                id: LAYER_IDS.telegramUsers,
+                type: 'circle',
+                source: SOURCE_IDS.telegramUsers,
+                layout: { visibility: visibility.telegramUsers ? 'visible' : 'none' },
+                filter: ['==', ['geometry-type'], 'Point'],
+                paint: {
+                    'circle-radius': stateHighlight.circleRadius(7, 9, 12),
+                    'circle-color': COLORS.telegramUser,
+                    'circle-stroke-width': stateHighlight.circleStrokeWidth(2, 2.5, 4),
+                    'circle-stroke-color': '#fff',
+                    'circle-radius-transition': { duration: 200 },
+                    'circle-stroke-width-transition': { duration: 200 },
+                    'circle-opacity': ['interpolate', ['linear'], ['get', 'ageMinutes'], 0, 1, 10, 0.6],
+                    'circle-stroke-opacity': ['interpolate', ['linear'], ['get', 'ageMinutes'], 0, 1, 10, 0.6],
+                },
+            }
+            map.addLayer(layer)
+        } else {
+            map.setLayoutProperty(LAYER_IDS.telegramUsers, 'visibility', visibility.telegramUsers ? 'visible' : 'none')
+        }
+        // Symbol-слой с аватарками поверх circle — показывается только если иконка зарегистрирована
+        if (!map.getLayer(LAYER_IDS.telegramAvatars)) {
+            const avatarLayer: SymbolLayerSpecification = {
+                id: LAYER_IDS.telegramAvatars,
+                type: 'symbol',
+                source: SOURCE_IDS.telegramUsers,
+                filter: ['==', ['geometry-type'], 'Point'],
+                layout: {
+                    visibility: visibility.telegramUsers ? 'visible' : 'none',
+                    'icon-image': ['coalesce', ['get', 'avatarImageId'], ''],
+                    'icon-size': 1,
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                    'icon-anchor': 'center',
+                },
+                paint: {
+                    'icon-opacity': ['interpolate', ['linear'], ['get', 'ageMinutes'], 0, 1, 10, 0.6],
+                },
+            }
+            map.addLayer(avatarLayer)
+        } else {
+            map.setLayoutProperty(
+                LAYER_IDS.telegramAvatars,
+                'visibility',
+                visibility.telegramUsers ? 'visible' : 'none',
+            )
+        }
+        if (map.getLayer(LAYER_IDS.telegramTracks)) {
+            map.setLayoutProperty(LAYER_IDS.telegramTracks, 'visibility', visibility.telegramUsers ? 'visible' : 'none')
+        }
     }
-    // Symbol-слой с аватарками поверх circle — показывается только если иконка зарегистрирована
-    if (!map.getLayer(LAYER_IDS.telegramAvatars)) {
-      const avatarLayer: SymbolLayerSpecification = {
-        id: LAYER_IDS.telegramAvatars,
-        type: 'symbol',
-        source: SOURCE_IDS.telegramUsers,
-        filter: ['==', ['geometry-type'], 'Point'],
-        layout: {
-          visibility: visibility.telegramUsers ? 'visible' : 'none',
-          'icon-image': ['coalesce', ['get', 'avatarImageId'], ''],
-          'icon-size': 1,
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-          'icon-anchor': 'center',
-        },
-        paint: {
-          'icon-opacity': [
-            'interpolate',
-            ['linear'],
-            ['get', 'ageMinutes'],
-            0,
-            1,
-            10,
-            0.6,
-          ],
-        },
-      };
-      map.addLayer(avatarLayer);
-    } else {
-      map.setLayoutProperty(LAYER_IDS.telegramAvatars, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
-    }
-    if (map.getLayer(LAYER_IDS.telegramTracks)) {
-      map.setLayoutProperty(LAYER_IDS.telegramTracks, 'visibility', visibility.telegramUsers ? 'visible' : 'none');
-    }
-  }
 
-  // Затем точки и розетки (выше по z-index)
-  if (pointsGeo?.features.length) {
-    if (!map.getSource(SOURCE_IDS.points)) {
-      map.addSource(SOURCE_IDS.points, { type: 'geojson', data: pointsGeo, promoteId: 'id' });
-    } else {
-      (map.getSource(SOURCE_IDS.points) as GeoJSONSource).setData(pointsGeo);
+    // Затем точки и розетки (выше по z-index)
+    if (pointsGeo?.features.length) {
+        if (!map.getSource(SOURCE_IDS.points)) {
+            map.addSource(SOURCE_IDS.points, { type: 'geojson', data: pointsGeo, promoteId: 'id' })
+        } else {
+            ;(map.getSource(SOURCE_IDS.points) as GeoJSONSource).setData(pointsGeo)
+        }
+        if (!map.getLayer(LAYER_IDS.points)) {
+            const pointLayer: CircleLayerSpecification = {
+                id: LAYER_IDS.points,
+                type: 'circle',
+                source: SOURCE_IDS.points,
+                layout: { visibility: visibility.points ? 'visible' : 'none' },
+                filter: ['==', ['get', 'type'], 'point'],
+                paint: {
+                    'circle-radius': stateHighlight.circleRadius(8, 10, 13),
+                    'circle-color': COLORS.point,
+                    'circle-stroke-width': stateHighlight.circleStrokeWidth(2, 2.5, 4),
+                    'circle-stroke-color': '#fff',
+                    'circle-opacity': stateHighlight.opacity(),
+                    'circle-radius-transition': { duration: 200 },
+                    'circle-stroke-width-transition': { duration: 200 },
+                },
+            }
+            map.addLayer(pointLayer)
+        } else {
+            map.setLayoutProperty(LAYER_IDS.points, 'visibility', visibility.points ? 'visible' : 'none')
+        }
+        if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points)
+        if (!map.getLayer(LAYER_IDS.sockets)) {
+            ensurePlugImage(map, () => {
+                if (map.getLayer(LAYER_IDS.sockets)) return
+                if (!map.getSource(SOURCE_IDS.points)) return
+                const socketLayer: SymbolLayerSpecification = {
+                    id: LAYER_IDS.sockets,
+                    type: 'symbol',
+                    source: SOURCE_IDS.points,
+                    filter: ['==', ['get', 'type'], 'socket'],
+                    layout: {
+                        'icon-image': PLUG_ICON_ID,
+                        // icon-size — layout, feature-state в нём недоступен; подсветка через paint (icon-opacity)
+                        'icon-size': 1.1,
+                        'icon-allow-overlap': true,
+                        'icon-ignore-placement': true,
+                        'icon-anchor': 'bottom',
+                        visibility: visibility.sockets ? 'visible' : 'none',
+                    },
+                    paint: {
+                        'icon-opacity': [
+                            'case',
+                            ['==', ['feature-state', 'selected'], true],
+                            1,
+                            ['==', ['feature-state', 'selected'], false],
+                            0.45,
+                            ['case', ['boolean', ['feature-state', 'hover'], false], 1.2, 1],
+                        ],
+                        'icon-opacity-transition': { duration: 200 },
+                    },
+                }
+                map.addLayer(socketLayer)
+                if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points)
+                if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets)
+            })
+        } else {
+            map.setLayoutProperty(LAYER_IDS.sockets, 'visibility', visibility.sockets ? 'visible' : 'none')
+            if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets)
+        }
     }
-    if (!map.getLayer(LAYER_IDS.points)) {
-      const pointLayer: CircleLayerSpecification = {
-        id: LAYER_IDS.points,
-        type: 'circle',
-        source: SOURCE_IDS.points,
-        layout: { visibility: visibility.points ? 'visible' : 'none' },
-        filter: ['==', ['get', 'type'], 'point'],
-        paint: {
-          'circle-radius': stateHighlight.circleRadius(8, 10, 13),
-          'circle-color': COLORS.point,
-          'circle-stroke-width': stateHighlight.circleStrokeWidth(2, 2.5, 4),
-          'circle-stroke-color': '#fff',
-          'circle-opacity': stateHighlight.opacity(),
-          'circle-radius-transition': { duration: 200 },
-          'circle-stroke-width-transition': { duration: 200 },
-        },
-      };
-      map.addLayer(pointLayer);
-    } else {
-      map.setLayoutProperty(LAYER_IDS.points, 'visibility', visibility.points ? 'visible' : 'none');
-    }
-    if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points);
-    if (!map.getLayer(LAYER_IDS.sockets)) {
-      ensurePlugImage(map, () => {
-        if (map.getLayer(LAYER_IDS.sockets)) return;
-        if (!map.getSource(SOURCE_IDS.points)) return;
-        const socketLayer: SymbolLayerSpecification = {
-          id: LAYER_IDS.sockets,
-          type: 'symbol',
-          source: SOURCE_IDS.points,
-          filter: ['==', ['get', 'type'], 'socket'],
-          layout: {
-            'icon-image': PLUG_ICON_ID,
-            // icon-size — layout, feature-state в нём недоступен; подсветка через paint (icon-opacity)
-            'icon-size': 1.1,
-            'icon-allow-overlap': true,
-            'icon-ignore-placement': true,
-            'icon-anchor': 'bottom',
-            visibility: visibility.sockets ? 'visible' : 'none',
-          },
-          paint: {
-            'icon-opacity': [
-              'case',
-              ['==', ['feature-state', 'selected'], true],
-              1,
-              ['==', ['feature-state', 'selected'], false],
-              0.45,
-              ['case', ['boolean', ['feature-state', 'hover'], false], 1.2, 1],
-            ],
-            'icon-opacity-transition': { duration: 200 },
-          },
-        };
-        map.addLayer(socketLayer);
-        if (map.getLayer(LAYER_IDS.points)) map.moveLayer(LAYER_IDS.points);
-        if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets);
-      });
-    } else {
-      map.setLayoutProperty(LAYER_IDS.sockets, 'visibility', visibility.sockets ? 'visible' : 'none');
-      if (map.getLayer(LAYER_IDS.sockets)) map.moveLayer(LAYER_IDS.sockets);
-    }
-  }
 }

@@ -1,10 +1,5 @@
 import { useCallback, useState } from 'react'
-import {
-    approveSubmission,
-    listSubmissions,
-    rejectSubmission,
-    type SubmissionStatus,
-} from '@/admin/lib/adminApi'
+import { approveSubmission, listSubmissions, rejectSubmission, type SubmissionStatus } from '@/admin/lib/adminApi'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
 import { formatAdminDate } from '@/admin/utils/formatAdminDate'
 
@@ -31,10 +26,7 @@ export function SubmissionsPage() {
     const [filter, setFilter] = useState<SubmissionStatus | 'all'>('pending')
     const [busyId, setBusyId] = useState<string | null>(null)
 
-    const load = useCallback(
-        () => listSubmissions(filter === 'all' ? undefined : filter),
-        [filter],
-    )
+    const load = useCallback(() => listSubmissions(filter === 'all' ? undefined : filter), [filter])
     const { items, loading, error, reload } = useAdminListLoader(load)
 
     const handleApprove = async (id: string) => {

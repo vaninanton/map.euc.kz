@@ -6,9 +6,15 @@ if (typeof localStorage === 'undefined') {
     Object.defineProperty(globalThis, 'localStorage', {
         value: {
             getItem: (k: string) => store.get(k) ?? null,
-            setItem: (k: string, v: string) => { store.set(k, v) },
-            removeItem: (k: string) => { store.delete(k) },
-            clear: () => { store.clear() },
+            setItem: (k: string, v: string) => {
+                store.set(k, v)
+            },
+            removeItem: (k: string) => {
+                store.delete(k)
+            },
+            clear: () => {
+                store.clear()
+            },
         },
         writable: true,
         configurable: true,

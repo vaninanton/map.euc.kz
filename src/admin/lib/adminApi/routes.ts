@@ -4,29 +4,19 @@ import { parseAdminMapRoute } from '@/admin/lib/adminApi/parsers'
 
 /** Возвращает список маршрутов для админки в алфавитном порядке. */
 export async function listRoutes(): Promise<AdminMapRoute[]> {
-    return runManyParsed(
-        'listRoutes',
-        db().from('map_routes').select('*').order('title', { ascending: true }),
-        (raw) => parseAdminMapRoute(raw),
+    return runManyParsed('listRoutes', db().from('map_routes').select('*').order('title', { ascending: true }), (raw) =>
+        parseAdminMapRoute(raw),
     )
 }
 
 /** Загружает один маршрут по id с runtime-валидацией ответа. */
 export async function getRoute(id: number): Promise<AdminMapRoute> {
-    return runOneParsed(
-        'getRoute',
-        db().from('map_routes').select('*').eq('id', id).single(),
-        parseAdminMapRoute,
-    )
+    return runOneParsed('getRoute', db().from('map_routes').select('*').eq('id', id).single(), parseAdminMapRoute)
 }
 
 /** Создаёт новый маршрут и возвращает сохранённую запись. */
 export async function createRoute(input: MapRouteInput): Promise<AdminMapRoute> {
-    return runOneParsed(
-        'createRoute',
-        db().from('map_routes').insert(input).select('*').single(),
-        parseAdminMapRoute,
-    )
+    return runOneParsed('createRoute', db().from('map_routes').insert(input).select('*').single(), parseAdminMapRoute)
 }
 
 /** Обновляет существующий маршрут по id и возвращает актуальную запись. */

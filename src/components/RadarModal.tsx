@@ -136,13 +136,24 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
     const [nowMs, setNowMs] = useState(() => Date.now())
     useEffect(() => {
         if (!isOpen) return
-        const id = setInterval(() => { setNowMs(Date.now()) }, 1000)
-        return () => { clearInterval(id) }
+        const id = setInterval(() => {
+            setNowMs(Date.now())
+        }, 1000)
+        return () => {
+            clearInterval(id)
+        }
     }, [isOpen])
 
     const riders = useMemo(() => {
         if (!position) return []
-        return getRadarRiders(telegramUsersGeo, position.coords.latitude, position.coords.longitude, headingDeg, pointsGeo, nowMs)
+        return getRadarRiders(
+            telegramUsersGeo,
+            position.coords.latitude,
+            position.coords.longitude,
+            headingDeg,
+            pointsGeo,
+            nowMs,
+        )
     }, [telegramUsersGeo, position, headingDeg, pointsGeo, nowMs])
 
     const linearScaleMax = useMemo(() => {
@@ -179,11 +190,13 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
             groupOf[i] = groups.length
             for (let j = i + 1; j < riders.length; j++) {
                 if (groupOf[j] >= 0) continue
-                if (group.some((k) => {
-                    const dx = positions[k].x - positions[j].x
-                    const dy = positions[k].y - positions[j].y
-                    return dx * dx + dy * dy < OVERLAP_PX * OVERLAP_PX
-                })) {
+                if (
+                    group.some((k) => {
+                        const dx = positions[k].x - positions[j].x
+                        const dy = positions[k].y - positions[j].y
+                        return dx * dx + dy * dy < OVERLAP_PX * OVERLAP_PX
+                    })
+                ) {
                     group.push(j)
                     groupOf[j] = groups.length
                 }
@@ -211,28 +224,37 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
         <div className="fixed inset-0 z-50 bg-black">
             <div className="h-full w-full flex flex-col safe-area-padding sm:p-3 md:p-4">
                 <div className="mx-auto flex h-full w-full max-w-3xl flex-col border border-green-900/60 bg-black p-3 sm:p-4 overflow-hidden">
-
                     <div className="mb-2 shrink-0 flex items-center justify-between gap-3">
-                        <h2 className="font-mono text-sm font-bold text-green-400 tracking-widest uppercase">[РАДАР]</h2>
+                        <h2 className="font-mono text-sm font-bold text-green-400 tracking-widest uppercase">
+                            [РАДАР]
+                        </h2>
                         <div className="flex items-center gap-1.5">
                             <button
                                 type="button"
-                                onClick={() => { setScaleLog((v) => !v) }}
+                                onClick={() => {
+                                    setScaleLog((v) => !v)
+                                }}
                                 className="inline-flex h-7 items-center gap-1 border border-green-900 bg-black px-2 text-xs font-mono text-green-700 transition hover:border-green-700 hover:text-green-400 cursor-pointer"
-                                aria-label={scaleLog ? 'Переключить на линейную шкалу' : 'Переключить на логарифмическую шкалу'}
+                                aria-label={
+                                    scaleLog ? 'Переключить на линейную шкалу' : 'Переключить на логарифмическую шкалу'
+                                }
                                 title={scaleLog ? 'Шкала: лог → линейная' : 'Шкала: линейная → лог'}
                             >
                                 {scaleLog ? 'ЛОГАРИФМИЧНО' : 'АРИФМЕТИЧНО'}
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { toggleCompass() }}
+                                onClick={() => {
+                                    toggleCompass()
+                                }}
                                 className={`inline-flex h-7 items-center gap-1 border px-2 text-xs font-mono transition cursor-pointer ${
                                     compassEnabled
                                         ? 'border-green-500 bg-green-950/60 text-green-300'
                                         : 'border-green-900 bg-black text-green-700 hover:border-green-700 hover:text-green-400'
                                 }`}
-                                aria-label={compassEnabled ? 'Выключить вращение по компасу' : 'Включить вращение по компасу'}
+                                aria-label={
+                                    compassEnabled ? 'Выключить вращение по компасу' : 'Включить вращение по компасу'
+                                }
                                 title={compassEnabled ? 'Вращение включено' : 'Вращение выключено'}
                             >
                                 АВТОВРАЩАТЬ
@@ -251,7 +273,7 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
 
                     {!position && (
                         <div className="border border-green-900/50 bg-green-950/20 px-3 py-2 text-xs font-mono text-green-700">
-                            {!isSupported ? '// геолокация недоступна' : error ?? '// определяем координаты...'}
+                            {!isSupported ? '// геолокация недоступна' : (error ?? '// определяем координаты...')}
                         </div>
                     )}
 
@@ -270,29 +292,97 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
                                             <stop offset="100%" stopColor="#000d00" />
                                         </radialGradient>
                                     </defs>
-                                    <circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={RADAR_RADIUS} fill="url(#radarBg)" stroke="#00ff41" strokeWidth="1" strokeOpacity="0.35" />
+                                    <circle
+                                        cx={RADAR_CENTER}
+                                        cy={RADAR_CENTER}
+                                        r={RADAR_RADIUS}
+                                        fill="url(#radarBg)"
+                                        stroke="#00ff41"
+                                        strokeWidth="1"
+                                        strokeOpacity="0.35"
+                                    />
                                     {ringKm.map((km) => (
                                         <g key={km}>
-                                            <circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={RADAR_RADIUS * normalizeRadius(km)} fill="none" stroke="#00ff41" strokeOpacity="0.18" strokeDasharray="3 5" />
-                                            <text x={RADAR_CENTER + 5} y={RADAR_CENTER - RADAR_RADIUS * normalizeRadius(km) - 5} fontSize="9" fill="#00aa00" fillOpacity="0.8">
+                                            <circle
+                                                cx={RADAR_CENTER}
+                                                cy={RADAR_CENTER}
+                                                r={RADAR_RADIUS * normalizeRadius(km)}
+                                                fill="none"
+                                                stroke="#00ff41"
+                                                strokeOpacity="0.18"
+                                                strokeDasharray="3 5"
+                                            />
+                                            <text
+                                                x={RADAR_CENTER + 5}
+                                                y={RADAR_CENTER - RADAR_RADIUS * normalizeRadius(km) - 5}
+                                                fontSize="9"
+                                                fill="#00aa00"
+                                                fillOpacity="0.8"
+                                            >
                                                 {formatDistance(km)}
                                             </text>
                                         </g>
                                     ))}
-                                    <line x1={RADAR_CENTER} y1={RADAR_INNER_PADDING} x2={RADAR_CENTER} y2={RADAR_SIZE - RADAR_INNER_PADDING} stroke="#00ff41" strokeOpacity="0.12" />
-                                    <line x1={RADAR_INNER_PADDING} y1={RADAR_CENTER} x2={RADAR_SIZE - RADAR_INNER_PADDING} y2={RADAR_CENTER} stroke="#00ff41" strokeOpacity="0.12" />
-                                    {([['С', 0], ['В', 90], ['Ю', 180], ['З', 270]] as [string, number][]).map(([label, bearing]) => {
-                                        const rad = ((bearing - headingDeg + 360) % 360) * Math.PI / 180
+                                    <line
+                                        x1={RADAR_CENTER}
+                                        y1={RADAR_INNER_PADDING}
+                                        x2={RADAR_CENTER}
+                                        y2={RADAR_SIZE - RADAR_INNER_PADDING}
+                                        stroke="#00ff41"
+                                        strokeOpacity="0.12"
+                                    />
+                                    <line
+                                        x1={RADAR_INNER_PADDING}
+                                        y1={RADAR_CENTER}
+                                        x2={RADAR_SIZE - RADAR_INNER_PADDING}
+                                        y2={RADAR_CENTER}
+                                        stroke="#00ff41"
+                                        strokeOpacity="0.12"
+                                    />
+                                    {(
+                                        [
+                                            ['С', 0],
+                                            ['В', 90],
+                                            ['Ю', 180],
+                                            ['З', 270],
+                                        ] as [string, number][]
+                                    ).map(([label, bearing]) => {
+                                        const rad = (((bearing - headingDeg + 360) % 360) * Math.PI) / 180
                                         const lx = RADAR_CENTER + (RADAR_RADIUS + 12) * Math.sin(rad)
                                         const ly = RADAR_CENTER - (RADAR_RADIUS + 12) * Math.cos(rad)
                                         return (
-                                            <text key={label} x={lx} y={ly} textAnchor="middle" dominantBaseline="central" fontSize="11" fill="#00ff41" fillOpacity="0.8" fontWeight="bold">
+                                            <text
+                                                key={label}
+                                                x={lx}
+                                                y={ly}
+                                                textAnchor="middle"
+                                                dominantBaseline="central"
+                                                fontSize="11"
+                                                fill="#00ff41"
+                                                fillOpacity="0.8"
+                                                fontWeight="bold"
+                                            >
                                                 {label}
                                             </text>
                                         )
                                     })}
-                                    <line x1={RADAR_CENTER} y1={RADAR_CENTER} x2={RADAR_CENTER} y2={RADAR_INNER_PADDING} stroke="#00ff41" strokeWidth="1.5" strokeOpacity="0.55">
-                                        <animateTransform attributeName="transform" type="rotate" from={`0 ${String(RADAR_CENTER)} ${String(RADAR_CENTER)}`} to={`360 ${String(RADAR_CENTER)} ${String(RADAR_CENTER)}`} dur="3s" repeatCount="indefinite" />
+                                    <line
+                                        x1={RADAR_CENTER}
+                                        y1={RADAR_CENTER}
+                                        x2={RADAR_CENTER}
+                                        y2={RADAR_INNER_PADDING}
+                                        stroke="#00ff41"
+                                        strokeWidth="1.5"
+                                        strokeOpacity="0.55"
+                                    >
+                                        <animateTransform
+                                            attributeName="transform"
+                                            type="rotate"
+                                            from={`0 ${String(RADAR_CENTER)} ${String(RADAR_CENTER)}`}
+                                            to={`360 ${String(RADAR_CENTER)} ${String(RADAR_CENTER)}`}
+                                            dur="3s"
+                                            repeatCount="indefinite"
+                                        />
                                     </line>
                                     <circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={4} fill="#00ff41" />
                                     {orderedRiders.map((rider) => {
@@ -301,7 +391,10 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
                                         const x = RADAR_CENTER + pixelR * Math.sin(radians)
                                         const y = RADAR_CENTER - pixelR * Math.cos(radians)
                                         const initial = rider.name.replace('@', '').charAt(0).toUpperCase() || '•'
-                                        const handleClick = () => { onSelectRider(rider.telegramUserId); onClose() }
+                                        const handleClick = () => {
+                                            onSelectRider(rider.telegramUserId)
+                                            onClose()
+                                        }
                                         return (
                                             <g key={rider.id}>
                                                 {rider.avatarUrl && (
@@ -312,14 +405,47 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
                                                     </defs>
                                                 )}
                                                 {rider.avatarUrl ? (
-                                                    <image href={rider.avatarUrl} x={x - 11} y={y - 11} width="22" height="22" clipPath={`url(#rclip-${rider.id})`} className="cursor-pointer" onClick={handleClick} />
+                                                    <image
+                                                        href={rider.avatarUrl}
+                                                        x={x - 11}
+                                                        y={y - 11}
+                                                        width="22"
+                                                        height="22"
+                                                        clipPath={`url(#rclip-${rider.id})`}
+                                                        className="cursor-pointer"
+                                                        onClick={handleClick}
+                                                    />
                                                 ) : (
                                                     <>
-                                                        <circle cx={x} cy={y} r={11} fill="#002800" className="cursor-pointer" onClick={handleClick} />
-                                                        <text x={x} y={y + 4} textAnchor="middle" fontSize="10" fill="#00ff41" className="pointer-events-none select-none">{initial}</text>
+                                                        <circle
+                                                            cx={x}
+                                                            cy={y}
+                                                            r={11}
+                                                            fill="#002800"
+                                                            className="cursor-pointer"
+                                                            onClick={handleClick}
+                                                        />
+                                                        <text
+                                                            x={x}
+                                                            y={y + 4}
+                                                            textAnchor="middle"
+                                                            fontSize="10"
+                                                            fill="#00ff41"
+                                                            className="pointer-events-none select-none"
+                                                        >
+                                                            {initial}
+                                                        </text>
                                                     </>
                                                 )}
-                                                <circle cx={x} cy={y} r={11} fill="none" stroke="#00ff41" strokeWidth="1.5" className="pointer-events-none" />
+                                                <circle
+                                                    cx={x}
+                                                    cy={y}
+                                                    r={11}
+                                                    fill="none"
+                                                    stroke="#00ff41"
+                                                    strokeWidth="1.5"
+                                                    className="pointer-events-none"
+                                                />
                                             </g>
                                         )
                                     })}
@@ -327,7 +453,10 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
                             </div>
 
                             <div className="mt-1 shrink-0 text-xs font-mono text-green-900">
-                                // {scaleLog ? `лог · макс ${String(RADAR_MAX_DISTANCE_KM)} км` : `лин · макс ${formatDistance(linearScaleMax)}`}
+                                //{' '}
+                                {scaleLog
+                                    ? `лог · макс ${String(RADAR_MAX_DISTANCE_KM)} км`
+                                    : `лин · макс ${formatDistance(linearScaleMax)}`}
                             </div>
 
                             <div className="mt-1.5 shrink-0 flex flex-col gap-px overflow-y-auto max-h-[28vh]">
@@ -341,22 +470,34 @@ export function RadarModal({ isOpen, onClose, telegramUsersGeo, pointsGeo, onSel
                                         key={rider.id}
                                         type="button"
                                         className="flex items-center gap-2 border border-green-900/30 bg-black px-2 py-1 text-left transition hover:bg-green-950/40 hover:border-green-800 cursor-pointer"
-                                        onClick={() => { onSelectRider(rider.telegramUserId); onClose() }}
+                                        onClick={() => {
+                                            onSelectRider(rider.telegramUserId)
+                                            onClose()
+                                        }}
                                     >
                                         {rider.avatarUrl ? (
-                                            <img src={rider.avatarUrl} alt={rider.name} className="h-6 w-6 shrink-0 rounded-full object-cover border border-green-800/50" loading="lazy" />
+                                            <img
+                                                src={rider.avatarUrl}
+                                                alt={rider.name}
+                                                className="h-6 w-6 shrink-0 rounded-full object-cover border border-green-800/50"
+                                                loading="lazy"
+                                            />
                                         ) : (
                                             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-green-800/50 bg-green-950/60 text-xs font-mono text-green-500">
                                                 {rider.name.replace('@', '').charAt(0).toUpperCase() || '•'}
                                             </div>
                                         )}
                                         <div className="min-w-0 flex-1">
-                                            <span className="font-mono text-xs font-semibold text-green-400">{rider.name}</span>
+                                            <span className="font-mono text-xs font-semibold text-green-400">
+                                                {rider.name}
+                                            </span>
                                             <span className="font-mono text-xs text-green-800 ml-2">
                                                 {formatDistance(rider.distanceKm)} · {formatAge(rider.ageMinutes)}
                                             </span>
                                             <span className="block font-mono text-xs text-green-800 ml-2">
-                                                {rider.nearestPoint ? `${formatDistance(rider.nearestPoint.distanceKm)} от ${rider.nearestPoint.name}` : ''}
+                                                {rider.nearestPoint
+                                                    ? `${formatDistance(rider.nearestPoint.distanceKm)} от ${rider.nearestPoint.name}`
+                                                    : ''}
                                             </span>
                                         </div>
                                     </button>

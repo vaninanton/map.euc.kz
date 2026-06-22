@@ -13,11 +13,6 @@ export function MapFeatureInfoModal({ feature, onClose, relatedEvents, onOpenEve
     if (!feature) return null
 
     return (
-        <FeatureSidebar
-            feature={feature}
-            onClose={onClose}
-            relatedEvents={relatedEvents}
-            onOpenEvents={onOpenEvents}
-        />
+        <FeatureSidebar feature={feature} onClose={onClose} relatedEvents={relatedEvents} onOpenEvents={onOpenEvents} />
     )
 }

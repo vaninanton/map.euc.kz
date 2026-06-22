@@ -6,3 +6,7 @@ public/
 **/.git
 package-lock.json
 composer.lock
+.claude
+supabase/.temp
+# Большой сгенерированный GeoJSON велодорожек — не форматируем (огромный шумный дифф).
+src/data/almaty.json

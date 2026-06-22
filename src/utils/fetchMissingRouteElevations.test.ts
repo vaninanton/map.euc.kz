@@ -30,7 +30,10 @@ beforeEach(() => {
 
 describe('fillMissingRouteElevations', () => {
     it('возвращает копию если все точки уже имеют высоту', async () => {
-        const coords = [[76.9, 43.2, 700], [76.95, 43.25, 710]] as [number, number, number][]
+        const coords = [
+            [76.9, 43.2, 700],
+            [76.95, 43.25, 710],
+        ] as [number, number, number][]
         const result = await fillMissingRouteElevations(coords)
         expect(result.coordinates).toEqual(coords)
         expect(result.coordinates).not.toBe(coords)
@@ -40,7 +43,10 @@ describe('fillMissingRouteElevations', () => {
 
     it('заполняет высоты для точек без третьей координаты', async () => {
         mockFetch([openMeteoOk([650, 660])])
-        const coords: [number, number][] = [[76.9, 43.2], [76.95, 43.25]]
+        const coords: [number, number][] = [
+            [76.9, 43.2],
+            [76.95, 43.25],
+        ]
         const result = await fillMissingRouteElevations(coords)
         expect(result.coordinates[0]).toEqual([76.9, 43.2, 650])
         expect(result.coordinates[1]).toEqual([76.95, 43.25, 660])
@@ -50,7 +56,10 @@ describe('fillMissingRouteElevations', () => {
 
     it('заполняет только точки без высоты, оставляет остальные', async () => {
         mockFetch([openMeteoOk([720])])
-        const coords = [[76.9, 43.2, 700], [76.95, 43.25]] as ([number, number] | [number, number, number])[]
+        const coords = [
+            [76.9, 43.2, 700],
+            [76.95, 43.25],
+        ] as ([number, number] | [number, number, number])[]
         const result = await fillMissingRouteElevations(coords)
         expect(result.coordinates[0]).toEqual([76.9, 43.2, 700])
         expect(result.coordinates[1]).toEqual([76.95, 43.25, 720])
@@ -60,7 +69,10 @@ describe('fillMissingRouteElevations', () => {
 
     it('при ошибке API (429) возвращает координаты без изменений', async () => {
         mockFetch([{ ok: false, status: 429 }])
-        const coords: [number, number][] = [[76.9, 43.2], [76.95, 43.25]]
+        const coords: [number, number][] = [
+            [76.9, 43.2],
+            [76.95, 43.25],
+        ]
         const result = await fillMissingRouteElevations(coords)
         expect(result.coordinates[0]).toEqual([76.9, 43.2])
         expect(result.coordinates[1]).toEqual([76.95, 43.25])

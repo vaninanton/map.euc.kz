@@ -8,7 +8,9 @@ const user = userEvent.setup({ delay: null })
 
 vi.mock('typograf', () => ({
     default: class {
-        execute(text: string) { return text }
+        execute(text: string) {
+            return text
+        }
     },
 }))
 
@@ -45,7 +47,13 @@ function makeSocket(overrides: Record<string, unknown> = {}): Feature {
 function makeRoute(): Feature {
     return {
         type: 'Feature',
-        geometry: { type: 'LineString', coordinates: [[76.9, 43.2], [76.95, 43.25]] },
+        geometry: {
+            type: 'LineString',
+            coordinates: [
+                [76.9, 43.2],
+                [76.95, 43.25],
+            ],
+        },
         properties: { id: 'r1', type: 'route', name: 'Маршрут', distance: 5.2 },
     }
 }

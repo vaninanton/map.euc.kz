@@ -33,7 +33,7 @@ export function PointListSidebar({
     const points = useMemo<PointFeature[]>(() => {
         if (!pointsGeo) return []
         return pointsGeo.features.filter(
-            (f): f is PointFeature => f.properties.type === 'point' || f.properties.type === 'socket'
+            (f): f is PointFeature => f.properties.type === 'point' || f.properties.type === 'socket',
         )
     }, [pointsGeo])
 
@@ -85,7 +85,9 @@ export function PointListSidebar({
                     <input
                         type="text"
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value) }}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value)
+                        }}
                         placeholder="Поиск точки..."
                         className="w-full pl-9 pr-8 py-1.5 text-sm bg-neutral-100/80 focus:bg-white border border-neutral-200 focus:border-blue-300 rounded-xl outline-hidden focus:ring-2 focus:ring-blue-100 transition-all placeholder-neutral-400 text-neutral-800"
                     />
@@ -97,7 +99,9 @@ export function PointListSidebar({
                     {searchQuery && (
                         <button
                             type="button"
-                            onClick={() => { setSearchQuery('') }}
+                            onClick={() => {
+                                setSearchQuery('')
+                            }}
                             className="absolute right-2.5 top-2 p-1 text-neutral-400 hover:text-neutral-600 rounded-full hover:bg-neutral-200/50 cursor-pointer"
                             aria-label="Очистить поиск"
                         >
@@ -112,15 +116,19 @@ export function PointListSidebar({
                         Тип объекта
                     </span>
                     <div className="flex flex-wrap gap-1">
-                        {([
-                            ['all', 'Все'],
-                            ['point', 'Обычные точки'],
-                            ['socket', 'Публичные розетки'],
-                        ] as const).map(([val, label]) => (
+                        {(
+                            [
+                                ['all', 'Все'],
+                                ['point', 'Обычные точки'],
+                                ['socket', 'Публичные розетки'],
+                            ] as const
+                        ).map(([val, label]) => (
                             <button
                                 key={val}
                                 type="button"
-                                onClick={() => { setTypeFilter(val) }}
+                                onClick={() => {
+                                    setTypeFilter(val)
+                                }}
                                 className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer ${
                                     typeFilter === val
                                         ? 'bg-gradient-to-r from-blue-500 to-[#3b82f6] text-white shadow-xs'
@@ -141,7 +149,9 @@ export function PointListSidebar({
                             <input
                                 type="checkbox"
                                 checked={onlyMeeting}
-                                onChange={(e) => { setOnlyMeeting(e.target.checked) }}
+                                onChange={(e) => {
+                                    setOnlyMeeting(e.target.checked)
+                                }}
                                 className="peer sr-only"
                             />
                             <span
@@ -161,7 +171,9 @@ export function PointListSidebar({
                             <input
                                 type="checkbox"
                                 checked={onlySocket}
-                                onChange={(e) => { setOnlySocket(e.target.checked) }}
+                                onChange={(e) => {
+                                    setOnlySocket(e.target.checked)
+                                }}
                                 className="peer sr-only"
                             />
                             <span
@@ -181,7 +193,9 @@ export function PointListSidebar({
                             <input
                                 type="checkbox"
                                 checked={onlyErlan}
-                                onChange={(e) => { setOnlyErlan(e.target.checked) }}
+                                onChange={(e) => {
+                                    setOnlyErlan(e.target.checked)
+                                }}
                                 className="peer sr-only"
                             />
                             <span
@@ -200,9 +214,7 @@ export function PointListSidebar({
             {/* List */}
             <div className="overflow-y-auto min-h-0 flex-1 p-3 space-y-2.5 bg-neutral-50/50">
                 {filteredPoints.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-neutral-400 font-medium">
-                        Точки не найдены
-                    </div>
+                    <div className="py-8 text-center text-xs text-neutral-400 font-medium">Точки не найдены</div>
                 ) : (
                     filteredPoints.map((feature) => {
                         const id = feature.properties.id

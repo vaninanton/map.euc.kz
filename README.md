@@ -32,6 +32,7 @@
 ### Добавление точек пользователями
 
 Любой посетитель может предложить новую точку или розетку (вкладка «Добавить точку»):
+
 1. Клик на карте → выбор координат.
 2. Заполнение формы (тип, название, описание, флаги).
 3. Заявка отправляется в таблицу `map_points_submissions` (статус: pending).
@@ -49,6 +50,7 @@ Edge Function `telegram-location-bot` — webhook для Telegram-бота:
 5. **Отображение:** На карте видны только свежие точки в пределах TTL и погрешности.
 
 **Фильтры (переменные окружения):**
+
 - `VITE_TELEGRAM_GEO_TTL_MINUTES` (default: 60) — сколько минут показывать локацию.
 - `VITE_TELEGRAM_MAX_ACCURACY_METERS` (default: 100) — максимальная погрешность GPS.
 - `VITE_TELEGRAM_TRACK_TAIL_MINUTES` (default: 30) — длина недавнего трека.
@@ -207,7 +209,7 @@ SPA на GitHub Pages: в `dist/` появляется `404.html` (копия `i
       TELEGRAM_WEBHOOK_SECRET=<random_secret> \
       TELEGRAM_BACKFILL_SECRET=<другой_секрет_только_для_backfill>
     ```
-   Опционально: `TELEGRAM_BACKFILL_MAX_PROFILES` — лимит профилей за один вызов backfill (по умолчанию 500).
+    Опционально: `TELEGRAM_BACKFILL_MAX_PROFILES` — лимит профилей за один вызов backfill (по умолчанию 500).
 2. Задеплойте функцию (на проде при каждом push в `main` это делает GitHub Actions; вручную — например для первого запуска или отладки):
     ```bash
     supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
@@ -251,10 +253,10 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 
 ```javascript
 // DevTools console:
-map.getStyle()              // Проверить стиль
-map.getSources()            // Список источников
-map.getLayers()             // Список слоёв
-map.querySourceFeatures(sourceId)  // Данные в источнике
+map.getStyle() // Проверить стиль
+map.getSources() // Список источников
+map.getLayers() // Список слоёв
+map.querySourceFeatures(sourceId) // Данные в источнике
 ```
 
 ### Supabase не подключён
@@ -270,15 +272,15 @@ map.querySourceFeatures(sourceId)  // Данные в источнике
 
 ## База данных (Supabase)
 
-| Таблица | Цель |
-|---------|------|
-| `map_points` | Точки и розетки (type: point \| socket), флаги: meeting, socket, disabled |
-| `map_routes` | Маршруты (LineString с опциональными высотами, via_coordinates) |
-| `map_points_submissions` | Очередь модерации (status: pending \| approved \| rejected) |
-| `map_point_photos` | Фото (FK → points), Storage bucket references |
-| `map_admin_users` | Администраторы (FK → auth.users), заполняется вручную |
-| `telegram_locations` | Живые локации (с фильтром TTL в коде) |
-| `telegram_profiles` | Кэш аватаров, имён, ников Telegram-пользователей |
+| Таблица                  | Цель                                                                      |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `map_points`             | Точки и розетки (type: point \| socket), флаги: meeting, socket, disabled |
+| `map_routes`             | Маршруты (LineString с опциональными высотами, via_coordinates)           |
+| `map_points_submissions` | Очередь модерации (status: pending \| approved \| rejected)               |
+| `map_point_photos`       | Фото (FK → points), Storage bucket references                             |
+| `map_admin_users`        | Администраторы (FK → auth.users), заполняется вручную                     |
+| `telegram_locations`     | Живые локации (с фильтром TTL в коде)                                     |
+| `telegram_profiles`      | Кэш аватаров, имён, ников Telegram-пользователей                          |
 
 **RLS:** Все публичные таблицы: чтение анонимно (где `flag_disabled = false`), запись только администраторам.
 
@@ -307,6 +309,7 @@ map.querySourceFeatures(sourceId)  // Данные в источнике
 ### Опасные файлы
 
 Не модифицируй впервые без очень хорошей причины:
+
 - `src/lib/mapLayers.ts` — paint expression ошибки → невидимые слои
 - `supabase/migrations/` — RLS ошибки → утечка данных
 - `src/hooks/useMapData.ts` — race condition → stale data
@@ -329,7 +332,7 @@ npm run generate:pwa-startup
 
 ```javascript
 // No React re-render! Pure Mapbox update:
-map.setFeatureState({source, id}, {selected: true})
+map.setFeatureState({ source, id }, { selected: true })
 // Paint expr: ["case", ["feature-state", "selected"], selectedColor, defaultColor]
 ```
 
@@ -340,7 +343,7 @@ map.setFeatureState({source, id}, {selected: true})
 **Что:** Если одна из 4 фетчей упадёт, карта всё равно грузится с остальными данными.
 
 ```javascript
-const [pointsResult, routesResult, telegramResult, bikeLanesResult] 
+const [pointsResult, routesResult, telegramResult, bikeLanesResult]
   = await Promise.allSettled([...])
 // Даже если одна rejected, остальные fulfilled работают
 ```
@@ -386,23 +389,23 @@ Workflow `.github/workflows/deploy.yml` перед сборкой фронтен
 
 В настройках репозитория GitHub нужны:
 
-| GitHub Variables | Значение |
-| ---------------- | -------- |
-| `SUPABASE_PROJECT_REF` | Идентификатор проекта из URL дашборда: `https://app.supabase.com/project/<SUPABASE_PROJECT_REF>` (совпадает с поддоменом `https://<SUPABASE_PROJECT_REF>.supabase.co`). |
-| `VITE_MAPBOX_TOKEN` | Публичный токен Mapbox (см. раздел «Переменные окружения»). |
-| `VITE_SUPABASE_URL` | URL проекта Supabase. |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon / publishable-ключ. |
-| `VITE_YANDEX_METRIKA_ID` | ID Яндекс.Метрики; допускается пустая строка. |
-| `VITE_TELEGRAM_GEO_TTL_MINUTES` | TTL геометок Telegram на карте. |
-| `VITE_TELEGRAM_TRACK_TAIL_MINUTES` | Длина «хвоста» трека. |
-| `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Макс. погрешность координат, м. |
+| GitHub Variables                    | Значение                                                                                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_PROJECT_REF`              | Идентификатор проекта из URL дашборда: `https://app.supabase.com/project/<SUPABASE_PROJECT_REF>` (совпадает с поддоменом `https://<SUPABASE_PROJECT_REF>.supabase.co`). |
+| `VITE_MAPBOX_TOKEN`                 | Публичный токен Mapbox (см. раздел «Переменные окружения»).                                                                                                             |
+| `VITE_SUPABASE_URL`                 | URL проекта Supabase.                                                                                                                                                   |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`     | Anon / publishable-ключ.                                                                                                                                                |
+| `VITE_YANDEX_METRIKA_ID`            | ID Яндекс.Метрики; допускается пустая строка.                                                                                                                           |
+| `VITE_TELEGRAM_GEO_TTL_MINUTES`     | TTL геометок Telegram на карте.                                                                                                                                         |
+| `VITE_TELEGRAM_TRACK_TAIL_MINUTES`  | Длина «хвоста» трека.                                                                                                                                                   |
+| `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Макс. погрешность координат, м.                                                                                                                                         |
 
-| GitHub Secrets | Значение |
-| -------------- | -------- |
-| `SUPABASE_ACCESS_TOKEN` | [Personal access token](https://supabase.com/dashboard/account/tokens) Supabase. |
-| `SUPABASE_DB_PASSWORD` | Пароль базы данных проекта (Settings → Database). |
-| `TELEGRAM_BOT_TOKEN` | Токен бота для уведомлений о результате деплоя в Actions (не путать с секретом Edge Function — там свой экземпляр в Supabase). |
-| `TELEGRAM_CHAT_ID` | Чат или канал для этих уведомлений. |
+| GitHub Secrets          | Значение                                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `SUPABASE_ACCESS_TOKEN` | [Personal access token](https://supabase.com/dashboard/account/tokens) Supabase.                                               |
+| `SUPABASE_DB_PASSWORD`  | Пароль базы данных проекта (Settings → Database).                                                                              |
+| `TELEGRAM_BOT_TOKEN`    | Токен бота для уведомлений о результате деплоя в Actions (не путать с секретом Edge Function — там свой экземпляр в Supabase). |
+| `TELEGRAM_CHAT_ID`      | Чат или канал для этих уведомлений.                                                                                            |
 
 Локальные шаблоны со списком имён (в `.gitignore`, не коммитятся): `.env.github_vars`, `.env.github_secrets`.
 

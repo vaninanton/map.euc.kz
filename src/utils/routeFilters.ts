@@ -13,10 +13,7 @@ export interface RouteWithStats {
     stats: RouteStats
 }
 
-export function filterRoutes(
-    routes: RouteWithStats[],
-    options: RouteFilterOptions,
-): RouteWithStats[] {
+export function filterRoutes(routes: RouteWithStats[], options: RouteFilterOptions): RouteWithStats[] {
     const query = options.searchQuery.trim().toLowerCase()
 
     return routes.filter(({ feature, stats }) => {
@@ -30,9 +27,10 @@ export function filterRoutes(
         }
 
         // 2. Distance Filter
-        const dist = feature.properties.distance != null && Number.isFinite(feature.properties.distance)
-            ? feature.properties.distance
-            : stats.distanceKm
+        const dist =
+            feature.properties.distance != null && Number.isFinite(feature.properties.distance)
+                ? feature.properties.distance
+                : stats.distanceKm
         if (options.distanceRange === 'under10' && dist >= 10) return false
         if (options.distanceRange === '10to25' && (dist < 10 || dist > 25)) return false
         if (options.distanceRange === '25to50' && (dist <= 25 || dist > 50)) return false

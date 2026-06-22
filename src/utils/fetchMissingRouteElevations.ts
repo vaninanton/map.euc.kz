@@ -43,12 +43,8 @@ export interface FillElevationsResult {
  * Заполняет высоту у точек без третьей координаты через Open-Meteo.
  * При ошибке чанка — пропускает его и продолжает. Возвращает частичный результат.
  */
-export async function fillMissingRouteElevations(
-    coordinates: RouteEditorCoordinates,
-): Promise<FillElevationsResult> {
-    const missing = coordinates
-        .map((coord, index) => ({ coord, index }))
-        .filter(({ coord }) => coord.length < 3)
+export async function fillMissingRouteElevations(coordinates: RouteEditorCoordinates): Promise<FillElevationsResult> {
+    const missing = coordinates.map((coord, index) => ({ coord, index })).filter(({ coord }) => coord.length < 3)
 
     if (missing.length === 0) {
         return { coordinates: [...coordinates], filled: 0, remaining: 0 }

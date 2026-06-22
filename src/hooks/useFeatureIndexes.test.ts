@@ -18,7 +18,13 @@ function makePoint(id: string, type: FeatureType = 'point'): Feature {
 function makeRoute(id: string): Feature {
     return {
         type: 'Feature',
-        geometry: { type: 'LineString', coordinates: [[76.9, 43.2], [76.95, 43.25]] },
+        geometry: {
+            type: 'LineString',
+            coordinates: [
+                [76.9, 43.2],
+                [76.95, 43.25],
+            ],
+        },
         properties: { id, type: 'route', name: id },
     }
 }

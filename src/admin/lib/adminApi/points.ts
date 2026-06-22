@@ -15,20 +15,12 @@ export async function listPoints(): Promise<AdminMapPoint[]> {
 
 /** Загружает одну точку по id с runtime-валидацией ответа. */
 export async function getPoint(id: number): Promise<AdminMapPoint> {
-    return runOneParsed(
-        'getPoint',
-        db().from('map_points').select('*').eq('id', id).single(),
-        parseAdminMapPoint,
-    )
+    return runOneParsed('getPoint', db().from('map_points').select('*').eq('id', id).single(), parseAdminMapPoint)
 }
 
 /** Создаёт новую точку/розетку и возвращает сохранённую запись. */
 export async function createPoint(input: MapPointInput): Promise<AdminMapPoint> {
-    return runOneParsed(
-        'createPoint',
-        db().from('map_points').insert(input).select('*').single(),
-        parseAdminMapPoint,
-    )
+    return runOneParsed('createPoint', db().from('map_points').insert(input).select('*').single(), parseAdminMapPoint)
 }
 
 /** Обновляет существующую точку по id и возвращает актуальную запись. */
@@ -56,7 +48,9 @@ export async function togglePointDisabled(id: number, disabled: boolean): Promis
 export async function deletePoint(id: number): Promise<void> {
     const photos = await listPhotos(id)
     if (photos.length > 0) {
-        await db().storage.from(PHOTOS_BUCKET).remove(photos.map((photo) => photo.storage_path))
+        await db()
+            .storage.from(PHOTOS_BUCKET)
+            .remove(photos.map((photo) => photo.storage_path))
     }
     const { error } = await db().from('map_points').delete().eq('id', id)
     if (error) {

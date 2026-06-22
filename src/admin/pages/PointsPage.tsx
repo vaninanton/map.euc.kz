@@ -1,10 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-    listPoints,
-    togglePointDisabled,
-    type AdminMapPoint,
-} from '@/admin/lib/adminApi'
+import { listPoints, togglePointDisabled, type AdminMapPoint } from '@/admin/lib/adminApi'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
 import { formatAdminDate } from '@/admin/utils/formatAdminDate'
 
@@ -105,7 +101,11 @@ export function PointsPage() {
                                     {point.coordinates[0].toFixed(5)}, {point.coordinates[1].toFixed(5)}
                                 </td>
                                 <td className="px-3 py-2 text-neutral-600">
-                                    {point.photo_count > 0 ? point.photo_count : <span className="text-neutral-300">—</span>}
+                                    {point.photo_count > 0 ? (
+                                        point.photo_count
+                                    ) : (
+                                        <span className="text-neutral-300">—</span>
+                                    )}
                                 </td>
                                 <td className="px-3 py-2 text-neutral-600">{formatAdminDate(point.created_at)}</td>
                                 <td className="px-3 py-2">

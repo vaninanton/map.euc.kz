@@ -17,11 +17,7 @@ function withPublicUrl(row: PhotoRowDB): AdminPhoto {
 export async function listPhotos(pointId: number): Promise<AdminPhoto[]> {
     const rows = await runManyParsed(
         'listPhotos',
-        db()
-            .from('map_point_photos')
-            .select('*')
-            .eq('point_id', pointId)
-            .order('sort_order', { ascending: true }),
+        db().from('map_point_photos').select('*').eq('point_id', pointId).order('sort_order', { ascending: true }),
         (raw) => parsePhotoRowDB(raw),
     )
     return rows.map(withPublicUrl)
@@ -41,8 +37,8 @@ export async function uploadPhoto(
     const safeExt = /^(jpe?g|png|webp)$/.test(ext) ? ext.replace('jpeg', 'jpg') : 'jpg'
     const storagePath = `${String(pointId)}/${crypto.randomUUID()}.${safeExt}`
 
-    const { error: uploadError } = await db().storage
-        .from(PHOTOS_BUCKET)
+    const { error: uploadError } = await db()
+        .storage.from(PHOTOS_BUCKET)
         .upload(storagePath, file, { contentType: file.type, upsert: false })
     if (uploadError) {
         console.error('uploadPhoto:storage', uploadError)

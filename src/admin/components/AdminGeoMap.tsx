@@ -73,9 +73,15 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
     const hasFittedForKeyRef = useRef<number | null>(null)
     const hasToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN)
 
-    useEffect(() => { onRiderClickRef.current = onRiderClick }, [onRiderClick])
-    useEffect(() => { selectedRiderIdRef.current = selectedRiderId }, [selectedRiderId])
-    useEffect(() => { tracksRef.current = tracks }, [tracks])
+    useEffect(() => {
+        onRiderClickRef.current = onRiderClick
+    }, [onRiderClick])
+    useEffect(() => {
+        selectedRiderIdRef.current = selectedRiderId
+    }, [selectedRiderId])
+    useEffect(() => {
+        tracksRef.current = tracks
+    }, [tracks])
 
     // Инициализация карты
     useEffect(() => {
@@ -97,7 +103,9 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
                     if (new URL(url).hostname === 'events.mapbox.com') {
                         return { url: 'data:application/json;base64,e30=' }
                     }
-                } catch { /* ignore */ }
+                } catch {
+                    /* ignore */
+                }
                 return { url }
             },
         })
@@ -142,8 +150,12 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
             if (riderId == null) return
             onRiderClickRef.current(selectedRiderIdRef.current === riderId ? null : riderId)
         }
-        const onEnter = () => { map.getCanvas().style.cursor = 'pointer' }
-        const onLeave = () => { map.getCanvas().style.cursor = '' }
+        const onEnter = () => {
+            map.getCanvas().style.cursor = 'pointer'
+        }
+        const onLeave = () => {
+            map.getCanvas().style.cursor = ''
+        }
 
         map.on('click', TRACKS_LAYER, handleTrackClick)
         map.on('mouseenter', TRACKS_LAYER, onEnter)
@@ -165,9 +177,13 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
         const container = containerRef.current
         const map = mapRef.current
         if (!container || !map) return
-        const ro = new ResizeObserver(() => { map.resize() })
+        const ro = new ResizeObserver(() => {
+            map.resize()
+        })
         ro.observe(container)
-        return () => { ro.disconnect() }
+        return () => {
+            ro.disconnect()
+        }
     }, [])
 
     // Обновляем GeoJSON при смене треков или выбранного райдера

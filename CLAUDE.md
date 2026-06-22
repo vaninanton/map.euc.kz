@@ -25,6 +25,7 @@ npm run preview      # Preview production build locally
 ```
 
 Запуск одного теста:
+
 ```bash
 npx vitest run src/utils/hashNav.test.ts
 ```
@@ -36,6 +37,7 @@ E2E тесты: `npm run test:e2e` / `npm run test:e2e:ui`
 ## Environment
 
 Скопировать `.env.example` → `.env.local`:
+
 ```
 VITE_MAPBOX_TOKEN=             # Mapbox public token
 VITE_SUPABASE_URL=             # Supabase project URL
@@ -49,6 +51,7 @@ VITE_TELEGRAM_MAX_ACCURACY_METERS=100
 При добавлении переменной синхронизировать в четырёх местах: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md`.
 
 Предлагать команды из `.env.local`:
+
 - чувствительные → `gh secret set NAME --body "$NAME"`
 - некритичные → `gh variable set NAME --body "$NAME"`
 
@@ -126,6 +129,7 @@ Telegram realtime:
 ### Main Component (`EucMap.tsx`)
 
 Оркестрирует хуки в порядке зависимостей:
+
 1. `useMapbox(containerRef)` — создаёт Mapbox-инстанс (один раз)
 2. `useMapData` — загружает данные, управляет realtime
 3. `useLayers` — добавляет слои, управляет видимостью
@@ -139,6 +143,7 @@ Telegram realtime:
 ### Feature State (нет DOM-ререндеров)
 
 Hover/select реализованы через Mapbox feature-state — нулевые React-ререндеры:
+
 ```javascript
 map.setFeatureState({ source, id }, { selected: true })
 // Paint: ["case", ["feature-state", "selected"], selectedColor, defaultColor]
@@ -153,6 +158,7 @@ map.setFeatureState({ source, id }, { selected: true })
 ### Constants (`src/constants/index.ts`)
 
 Единственный источник истины — не дублировать строковые ID в коде:
+
 - `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`, `LAYER_ID_TO_SOURCE`
 - `COLORS` — цвета по типу фичи для paint-выражений
 - `FEATURE_TYPE_LABELS`, `POINT_FLAG_LABELS` — русские подписи
@@ -189,6 +195,7 @@ map.setFeatureState({ source, id }, { selected: true })
 ### Admin Section (`/admin`)
 
 Lazy-loaded, доступ — Supabase Auth + запись в `map_admin_users`. Структура:
+
 - **adminApi**: `listPoints/getPoint/createPoint/updatePoint/togglePointDisabled/deletePoint`, аналогично для routes; `listSubmissions/approveSubmission/rejectSubmission`; `getAdminGeoData`; `uploadPhoto/deletePhoto`
 - **route-editor**: геометрия и валидация вершин маршрута
 - Undo/redo координат: `useCoordinateHistory` + `useUndoRedoHotkeys`

@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import {
-    createPoint,
-    deletePoint,
-    getPoint,
-    updatePoint,
-    type AdminMapPoint,
-} from '@/admin/lib/adminApi'
+import { createPoint, deletePoint, getPoint, updatePoint, type AdminMapPoint } from '@/admin/lib/adminApi'
 import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { PointForm, type PointFormValue } from '@/admin/components/PointForm'
 import { PhotoManager } from '@/admin/components/PhotoManager'
