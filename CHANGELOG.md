@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased] — 2026-06-22
+
+### Fixed
+- Восстановлены типы для mapbox-gl: добавлены devDependencies `@types/geojson` (namespace `GeoJSON`) и `@mapbox/point-geometry` (тип `Point`) — без них `npm run build` падал с 13 ошибками типов
+
 ## [Unreleased] — 2026-06-16
 
 ### Added
