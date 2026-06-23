@@ -78,6 +78,7 @@ UI-тексты, сообщения пользователю, комментар
 - Инлайн `style` — только для динамических значений (цвет по типу фичи, позиционирование попапа).
 - Карта и оверлеи: `fixed`/`absolute` с `inset-0`. Safe area (`safe-area-padding`, `control-inset-*`) — глобально в `src/index.css` на `.mapboxgl-ctrl-*`, `.mapboxgl-popup`.
 - Адаптив: `sm:` breakpoints. Кнопки: `type="button"`, `aria-label` где нужно, декоративные иконки — `aria-hidden`.
+- На всех `<button>` и `<a>` обязателен `cursor-pointer` (без исключений). Для disabled — `cursor-not-allowed`.
 
 ## Architecture
 
@@ -186,7 +187,7 @@ map.setFeatureState({ source, id }, { selected: true })
 - **Storage**: бакеты `map-point-photos/` и `telegram-avatars/` (публичные URL, без bot-токенов)
 - **RLS**: публичное чтение (кроме disabled/draft); запись требует auth или Edge Function
 - **Resilience**: `withTimeoutAndRetry()` в `lib/supabase.ts`; при отсутствии URL/ключа — fallback на Cache API, предупреждение в консоль, не бросать ошибку при старте
-- **Миграции**: 16 файлов в `supabase/migrations/`
+- **Миграции**: файлы в `supabase/migrations/`. Применять только через `supabase db push` (или CI), **не** через MCP `apply_migration`/`execute_sql` — последний пишет в `schema_migrations` автогенерённый таймстамп, расходящийся с именем файла, и ломает деплой. Если история разошлась — чинить через `supabase migration repair` (правит учёт, не схему), сверять `supabase migration list`. MCP `apply_migration` допустим лишь для разовых проверок на preview-ветке.
 
 ### Telegram Bot (Edge Function)
 
@@ -212,8 +213,20 @@ Lazy-loaded, доступ — Supabase Auth + запись в `map_admin_users`.
 - Service worker `public/sw.js` — app shell cache + stale-while-revalidate для Supabase API, offline fallback
 - Иконки/сплэши: `npm run generate:pwa-icons` / `npm run generate:pwa-startup`
 
+### Analytics (Яндекс.Метрика)
+
+Вся аналитика централизована в `src/lib/analytics.ts`. Не вызывать `ym()` из `react-metrika` напрямую в компонентах.
+
+- **События — только через хелперы**: `trackGoal(goal, params?)` и `trackPageView(url)` из `@/lib/analytics`. Обе функции — no-op без счётчика (`VITE_YANDEX_METRIKA_ID`) и глушат ошибки, чтобы аналитика не влияла на UX.
+- **Имена целей — закрытый union `MetrikaGoal`**. Новую цель добавлять туда с комментарием; строковые имена живут только в этом типе.
+- **SPA-переходы** трекает хук `useMetrikaPageViews` (`hit` на смену пути; первый рендер пропускается — его фиксирует init). Подключён в `YandexMetrika.tsx`.
+- **В админ-зоне (`/admin/*`) Метрика отключена полностью**: не рендерится `<MetrikaCounter>` (нет webvisor по админке) и не шлются pageview. Проверка — `isAdminPath(pathname)`.
+- `pwa_launch_standalone` — единственный сигнал об установленной PWA на iOS (`isStandaloneLaunch()` через `display-mode: standalone` + `navigator.standalone`), т.к. событие `appinstalled` там не срабатывает.
+- Для нового функционала аналитики писать тесты: мок `react-metrika`/`@/lib/analytics` через `vi.hoisted`; для env-зависимого `metrikaCounterId` — `vi.stubEnv` + `vi.resetModules` + динамический импорт.
+
 ## Workflow
 
 - Слои/источники/цвета — только через константы из `src/constants/index.ts`.
 - Для публичных функций/хуков/утилит/edge functions — краткий JSDoc с назначением и ключевыми эффектами.
 - Vitest-конфиг встроен в `vite.config.ts` (environment: jsdom, globals: true, setupFiles: `src/test/setup.ts`).
+- **Тесты обязательны для любого нового функционала** (компонент, хук, утилита) — писать `*.test.ts(x)` рядом с файлом, не заканчивать задачу без тестов.
