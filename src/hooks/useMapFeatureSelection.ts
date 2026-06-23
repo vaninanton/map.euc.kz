@@ -5,6 +5,7 @@ import { LAYER_IDS, LAYER_ID_TO_SOURCE, MAP_ZOOM_FOCUS } from '@/constants'
 import { getFeatureBounds, getFeatureCenter } from '@/utils/bounds'
 import type { SelectedFeatureState } from '@/utils/selectionOpacity'
 import { computeMapPadding } from '@/hooks/useMapPadding'
+import { trackGoal } from '@/lib/analytics'
 
 type PaddingRect = { top: number; right: number; bottom: number; left: number }
 
@@ -65,6 +66,7 @@ export function useMapFeatureSelection(params: {
             }
             setSelectedFeatureState(sourceId ? { sourceId, id } : null)
             setSelectedFeature(feature)
+            trackGoal('feature_open', { featureType: feature.properties.type })
         },
         [flyTo, flyToBounds],
     )

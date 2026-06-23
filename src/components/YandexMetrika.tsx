@@ -1,17 +1,26 @@
 import { MetrikaCounter } from 'react-metrika'
+import { useLocation } from 'react-router-dom'
+import { isAdminPath, metrikaCounterId } from '@/lib/analytics'
+import { useMetrikaPageViews } from '@/hooks/useMetrikaPageViews'
 
-const rawId = import.meta.env.VITE_YANDEX_METRIKA_ID?.trim()
-const counterId = rawId && rawId.length > 0 ? Number.parseInt(rawId, 10) : Number.NaN
-
-/** Счётчик Метрики через пакет react-metrika; без VITE_YANDEX_METRIKA_ID не рендерится. */
+/**
+ * Счётчик Метрики через пакет react-metrika.
+ * Не рендерится без VITE_YANDEX_METRIKA_ID и в админ-зоне (`/admin/*`) —
+ * чтобы не считать служебный трафик и не писать webvisor по админке.
+ */
 export function YandexMetrika() {
-    if (!Number.isFinite(counterId) || counterId <= 0) {
+    // Хуки вызываем всегда (до раннего return) — иначе нарушим правила хуков.
+    // trackPageView внутри сам no-op, если счётчик не подключён или путь — админский.
+    useMetrikaPageViews()
+    const { pathname } = useLocation()
+
+    if (metrikaCounterId === null || isAdminPath(pathname)) {
         return null
     }
 
     return (
         <MetrikaCounter
-            id={counterId}
+            id={metrikaCounterId}
             options={{
                 accurateTrackBounce: true,
                 childIframe: false,

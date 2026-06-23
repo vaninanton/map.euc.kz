@@ -1,7 +1,28 @@
 import { useEffect, useState } from 'react'
+import { isStandaloneLaunch, trackGoal } from '@/lib/analytics'
 
 export function PwaPrompts() {
     const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
+
+    // Цель установки PWA: событие appinstalled срабатывает один раз при установке
+    // приложения (любым способом — кнопка браузера, меню «На экран “Домой”»).
+    useEffect(() => {
+        const onAppInstalled = () => {
+            trackGoal('pwa_install')
+        }
+        window.addEventListener('appinstalled', onAppInstalled)
+        return () => {
+            window.removeEventListener('appinstalled', onAppInstalled)
+        }
+    }, [])
+
+    // Цель запуска установленной PWA: считаем факт открытия из standalone-режима.
+    // Нужно отдельно от appinstalled — на iOS события установки нет, и это единственный сигнал.
+    useEffect(() => {
+        if (isStandaloneLaunch()) {
+            trackGoal('pwa_launch_standalone')
+        }
+    }, [])
 
     useEffect(() => {
         if (!('serviceWorker' in navigator)) return
