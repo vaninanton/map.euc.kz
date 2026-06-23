@@ -212,6 +212,17 @@ Lazy-loaded, доступ — Supabase Auth + запись в `map_admin_users`.
 - Service worker `public/sw.js` — app shell cache + stale-while-revalidate для Supabase API, offline fallback
 - Иконки/сплэши: `npm run generate:pwa-icons` / `npm run generate:pwa-startup`
 
+### Analytics (Яндекс.Метрика)
+
+Вся аналитика централизована в `src/lib/analytics.ts`. Не вызывать `ym()` из `react-metrika` напрямую в компонентах.
+
+- **События — только через хелперы**: `trackGoal(goal, params?)` и `trackPageView(url)` из `@/lib/analytics`. Обе функции — no-op без счётчика (`VITE_YANDEX_METRIKA_ID`) и глушат ошибки, чтобы аналитика не влияла на UX.
+- **Имена целей — закрытый union `MetrikaGoal`**. Новую цель добавлять туда с комментарием; строковые имена живут только в этом типе.
+- **SPA-переходы** трекает хук `useMetrikaPageViews` (`hit` на смену пути; первый рендер пропускается — его фиксирует init). Подключён в `YandexMetrika.tsx`.
+- **В админ-зоне (`/admin/*`) Метрика отключена полностью**: не рендерится `<MetrikaCounter>` (нет webvisor по админке) и не шлются pageview. Проверка — `isAdminPath(pathname)`.
+- `pwa_launch_standalone` — единственный сигнал об установленной PWA на iOS (`isStandaloneLaunch()` через `display-mode: standalone` + `navigator.standalone`), т.к. событие `appinstalled` там не срабатывает.
+- Для нового функционала аналитики писать тесты: мок `react-metrika`/`@/lib/analytics` через `vi.hoisted`; для env-зависимого `metrikaCounterId` — `vi.stubEnv` + `vi.resetModules` + динамический импорт.
+
 ## Workflow
 
 - Слои/источники/цвета — только через константы из `src/constants/index.ts`.
