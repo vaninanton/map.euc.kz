@@ -14,6 +14,7 @@ import {
     getCoordinatesArray,
     copyOrShare,
 } from '@/utils/shareLinks'
+import { trackGoal } from '@/lib/analytics'
 import type { Feature } from '@/types/geojson'
 
 interface ShareBlockProps {
@@ -145,6 +146,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
     const handleAppShare = useCallback(async () => {
         const ok = await copyOrShare(appUrl, feature.properties.name)
         if (ok) {
+            trackGoal('share_app_link', { featureType: type })
             if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
             setShowCopied(true)
             toastTimeoutRef.current = setTimeout(() => {
@@ -152,7 +154,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
             }, TOAST_DURATION_MS)
             onCopied?.()
         }
-    }, [appUrl, feature.properties.name, onCopied])
+    }, [appUrl, feature.properties.name, onCopied, type])
 
     useEffect(
         () => () => {
@@ -176,6 +178,9 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
                             }
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => {
+                                trackGoal('share_external_map', { provider: 'yandex', featureType: type })
+                            }}
                             className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-colors"
                             title="Яндекс.Карты"
                         >
@@ -189,6 +194,9 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
                             }
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => {
+                                trackGoal('share_external_map', { provider: '2gis', featureType: type })
+                            }}
                             className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                             title="2GIS"
                         >
@@ -197,6 +205,9 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
                         {(type === 'point' || type === 'socket') && coords && (
                             <a
                                 href={buildGuruPointLink(coords.lat, coords.lon)}
+                                onClick={() => {
+                                    trackGoal('share_external_map', { provider: 'guru', featureType: type })
+                                }}
                                 className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
                                 title="Guru"
                             >
@@ -209,6 +220,9 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
                     <>
                         <a
                             href={buildGuruRouteLink(coordsArray, routeViaCoordinates)}
+                            onClick={() => {
+                                trackGoal('share_external_map', { provider: 'guru', featureType: type })
+                            }}
                             className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
                             title="Guru (маршрут)"
                         >
@@ -218,6 +232,9 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
                             href={buildOpenRouteLink(coordsArray, routeViaCoordinates)}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => {
+                                trackGoal('share_external_map', { provider: 'openroute', featureType: type })
+                            }}
                             className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-green-50 hover:text-green-600 transition-colors"
                             title="OpenRouteService"
                         >
@@ -230,6 +247,9 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
                         href={telegramShareLink}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => {
+                            trackGoal('share_telegram', { featureType: type })
+                        }}
                         className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-sky-50 hover:text-sky-600 transition-colors"
                         title="Поделиться в Telegram"
                     >

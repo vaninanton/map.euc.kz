@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import type { Map as MapboxMap } from 'mapbox-gl'
+import { trackGoal } from '@/lib/analytics'
 
 function geolocationErrorMessage(error: GeolocationPositionError): string {
     if (error.code === error.PERMISSION_DENIED) {
@@ -18,6 +19,9 @@ function geolocationErrorMessage(error: GeolocationPositionError): string {
  */
 export function useGeolocateControl(map: MapboxMap | null, isMapReady: boolean) {
     const [locationErrorMessage, setLocationErrorMessage] = useState<string | null>(null)
+    // Цель geolocation_success шлём один раз за сессию: при трекинге событие geolocate
+    // приходит на каждое обновление позиции, нам же важен сам факт успешной геолокации.
+    const geolocateGoalSentRef = useRef(false)
 
     useEffect(() => {
         if (!map || !isMapReady) {
@@ -39,10 +43,17 @@ export function useGeolocateControl(map: MapboxMap | null, isMapReady: boolean) 
 
         const onGeolocate = () => {
             setLocationErrorMessage(null)
+            if (!geolocateGoalSentRef.current) {
+                geolocateGoalSentRef.current = true
+                trackGoal('geolocation_success')
+            }
         }
 
         const onError = (e: GeolocationPositionError) => {
             setLocationErrorMessage(geolocationErrorMessage(e))
+            if (e.code === e.PERMISSION_DENIED) {
+                trackGoal('geolocation_denied')
+            }
         }
 
         const onOutOfMaxBounds = () => {
