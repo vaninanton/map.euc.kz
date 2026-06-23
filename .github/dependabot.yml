@@ -1,12 +1,32 @@
 ---
+version: 2
 updates:
   - directory: /
     package-ecosystem: npm
     schedule:
       interval: daily
+    groups:
+      # dev-зависимости (eslint, typescript-eslint, prettier, vitest, @types/*, …)
+      # — minor/patch одним PR вместо PR-на-пакет
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      # некрупные обновления прод-зависимостей — тоже одним PR
+      production-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+    # major-обновления намеренно НЕ группируем — каждое отдельным PR,
+    # требуют ручного разбора breaking changes (см. скилл update-deps)
+
   - directory: /
     package-ecosystem: github-actions
     schedule:
       interval: weekly
-
-version: 2
+    groups:
+      github-actions:
+        patterns:
+          - '*'
