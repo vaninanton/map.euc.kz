@@ -30,17 +30,20 @@ export function computeMapPadding(
 }
 
 /**
- * Подстраивает видимую область карты под открытые панели через map.easeTo({ padding }).
- * Если текущий map.padding уже совпадает с целевым — easeTo не вызывается
+ * Подстраивает видимую область карты под открытые панели через map.setPadding.
+ * Если текущий map.padding уже совпадает с целевым — setPadding не вызывается
  * (предотвращает конфликт с fitBounds/flyTo, которые выставляют padding как side effect).
+ *
+ * Padding выставляется мгновенно (setPadding), а не анимацией easeTo: анимированный
+ * padding в Mapbox GL JS 3.x роняет рендер в hasStateDependentPaint (на каждом кадре
+ * перехода — `Cannot read properties of undefined (reading 'paint')`), из-за чего
+ * после выбора фичи карта переставала реагировать на ввод.
  */
 export function useMapPadding({ map, isDesktop, hasFeatureSidebar, hasListSidebar }: UseMapPaddingOptions): void {
     useEffect(() => {
         if (!map) return
         const target = computeMapPadding(isDesktop, hasFeatureSidebar, hasListSidebar)
         const cur = map.getPadding()
-        // Если padding уже совпадает (выставлен синхронно через setPadding в flyTo/fitBounds) —
-        // не запускаем easeTo, иначе он прервёт идущую анимацию камеры.
         if (
             cur.top === target.top &&
             cur.right === target.right &&
@@ -48,6 +51,6 @@ export function useMapPadding({ map, isDesktop, hasFeatureSidebar, hasListSideba
             cur.left === target.left
         )
             return
-        map.easeTo({ padding: target, duration: 300 })
+        map.setPadding(target)
     }, [map, isDesktop, hasFeatureSidebar, hasListSidebar])
 }
