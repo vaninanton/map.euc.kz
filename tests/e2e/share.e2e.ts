@@ -39,9 +39,9 @@ test.describe('ShareBlock — кнопки шаринга', () => {
         await page.goto('/m/point/1')
         await waitForSidebar(page)
 
-        await page.getByTitle('Копировать ссылку').click()
+        await page.getByRole('button', { name: 'Копировать ссылку' }).click()
 
-        await expect(page.getByRole('status')).toContainText('Ссылка скопирована')
+        await expect(page.getByRole('status')).toContainText('Скопировано')
         await attachScreenshot(testInfo, 'shareblock-copy-toast', page)
     })
 })
