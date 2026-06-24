@@ -5,8 +5,11 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc -b && vite build",
+        "build": "vite build",
+        "build:check": "tsc -b && vite build",
         "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run",
+        "build:e2e": "VITE_MAPBOX_TOKEN=e2e-mapbox-token VITE_SUPABASE_URL=https://e2e.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=e2e-publishable-key VITE_TELEGRAM_GEO_TTL_MINUTES=60 VITE_TELEGRAM_TRACK_TAIL_MINUTES=30 VITE_TELEGRAM_MAX_ACCURACY_METERS=100 vite build",
+        "pretest:e2e": "npm run build:e2e",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "lint": "eslint .",

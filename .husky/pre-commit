@@ -4,3 +4,4 @@ npm run format:check
 npx tsc -b --noEmit
 npm test
 npm run build
+npm run test:e2e
