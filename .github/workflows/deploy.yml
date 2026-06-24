@@ -41,7 +41,8 @@ jobs:
           supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
 
   deploy:
-    needs: supabase
+    # Не зависит от supabase: миграции БД/edge-функций и сборка статики Pages независимы —
+    # идут параллельно. Итоговый wall-clock ≈ max(supabase, deploy) вместо суммы.
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -60,8 +61,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build
-        # build:check = tsc -b + vite build: страхуемся type-check-гейтом перед выкатом в прод.
-        run: npm run build:check
+        # Только vite build (без tsc): типы уже проверены job `checks` в Test-workflow
+        # на PR перед merge в main. Деплой триггерится push в main → дублировать tsc незачем.
+        run: npm run build
         env:
           VITE_MAPBOX_TOKEN: ${{ vars.VITE_MAPBOX_TOKEN }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
