@@ -60,6 +60,10 @@ export const LAYER_ID_TO_SOURCE: Record<(typeof LAYER_IDS)[keyof typeof LAYER_ID
     [LAYER_IDS.telegramAvatars]: SOURCE_IDS.telegramUsers,
 }
 
+/**
+ * Единственный источник цветов проекта — и для карты (paint-выражения Mapbox),
+ * и для интерфейса. UI берёт акценты отсюда (см. UI_ACCENT), карта и UI не расходятся.
+ */
 export const COLORS = {
     point: '#2563eb',
     socket: '#eab308',
@@ -67,6 +71,21 @@ export const COLORS = {
     bikeLane: '#2563eb',
     telegramUser: '#8b5cf6',
     telegramTrack: '#a855f7',
+    erlan: '#a855f7', // фиолетовый флага «Ерландия» — внутренний мем в честь Ерлана (заезжает в оффроад дальше и круче всех); флаг есть у точек и маршрутов
+} as const
+
+/**
+ * Акцентные цвета элементов интерфейса (тумблеры, активные фильтры, иконки в шапках).
+ * Все значения берутся из COLORS — карта и UI используют одни и те же цвета.
+ * Ключи здесь — семантика UI, маппинг на цвета карты.
+ */
+export const UI_ACCENT = {
+    meeting: COLORS.point, // места встреч — цвет точек
+    socket: COLORS.socket, // розетка — как на карте
+    erlan: COLORS.erlan, // Ерландия — фиолетовый
+    route: COLORS.route, // маршрут
+    point: COLORS.point, // точки
+    satellite: '#737373', // спутник — нейтральный, аналога на карте нет
 } as const
 
 export const FEATURE_TYPE_LABELS: Record<string, string> = {

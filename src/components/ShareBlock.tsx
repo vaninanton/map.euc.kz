@@ -1,4 +1,3 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
 import {
     buildYandexLink,
     buildYandexRouteLink,
@@ -12,11 +11,14 @@ import {
     buildTelegramShareLink,
     getCoordsFromFeature,
     getCoordinatesArray,
-    copyOrShare,
 } from '@/utils/shareLinks'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCopy } from '@fortawesome/free-solid-svg-icons'
 import { trackGoal } from '@/lib/analytics'
 import { IconTelegram } from '@/components/icons/IconTelegram'
-import { IconShare } from '@/components/icons/IconShare'
+import { ShareLink } from '@/components/ShareIconButton'
+import { CopyButton } from '@/components/CopyButton'
+import { useCopyShare } from '@/hooks/useCopyShare'
 import type { Feature } from '@/types/geojson'
 
 interface ShareBlockProps {
@@ -104,8 +106,6 @@ function IconOpenRoute() {
     )
 }
 
-const TOAST_DURATION_MS = 2500
-
 export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
     const coords = getCoordsFromFeature(feature)
     const type = feature.properties.type
@@ -120,8 +120,6 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
         (type === 'route' || type === 'bikeLane') && coordsArray.length > 0 ? coordsArray[coordsArray.length - 1] : null
     const mapLinkCoords = routeEndCoords ? { lat: routeEndCoords[1], lon: routeEndCoords[0] } : coords
     const showMapLinks = type !== 'bikeLane' && mapLinkCoords !== null
-    const [showCopied, setShowCopied] = useState(false)
-    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const appUrl = buildAppShareLink(type, id)
     const isMeetingPoint = type === 'point' && feature.properties.isMeeting === true
@@ -129,25 +127,7 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
         ? buildTelegramShareLink(appUrl, buildTelegramPointMessage(feature.properties.name || 'Точка'))
         : null
 
-    const handleAppShare = useCallback(async () => {
-        const ok = await copyOrShare(appUrl, feature.properties.name)
-        if (ok) {
-            trackGoal('share_app_link', { featureType: type })
-            if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
-            setShowCopied(true)
-            toastTimeoutRef.current = setTimeout(() => {
-                setShowCopied(false)
-            }, TOAST_DURATION_MS)
-            onCopied?.()
-        }
-    }, [appUrl, feature.properties.name, onCopied, type])
-
-    useEffect(
-        () => () => {
-            if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
-        },
-        [],
-    )
+    const { showCopied, handleShare } = useCopyShare(appUrl, type, onCopied)
 
     if (!coords && type !== 'route') return null
 
@@ -156,114 +136,98 @@ export function ShareBlock({ feature, onCopied }: ShareBlockProps) {
             <div className="flex flex-wrap gap-2">
                 {showMapLinks && (
                     <>
-                        <a
+                        <ShareLink
                             href={
                                 type === 'route'
                                     ? buildYandexRouteLink(coordsArray, routeViaCoordinates)
                                     : buildYandexLink(mapLinkCoords.lat, mapLinkCoords.lon)
                             }
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            external
+                            accentClass="hover:bg-red-50 hover:text-red-600"
+                            title="Яндекс.Карты"
                             onClick={() => {
                                 trackGoal('share_external_map', { provider: 'yandex', featureType: type })
                             }}
-                            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            title="Яндекс.Карты"
                         >
                             <IconYandex />
-                        </a>
-                        <a
+                        </ShareLink>
+                        <ShareLink
                             href={
                                 type === 'route'
                                     ? build2GISRouteLink(coordsArray, isMobile, routeViaCoordinates)
                                     : build2GISLink(mapLinkCoords.lat, mapLinkCoords.lon, isMobile)
                             }
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            external
+                            accentClass="hover:bg-blue-50 hover:text-blue-600"
+                            title="2GIS"
                             onClick={() => {
                                 trackGoal('share_external_map', { provider: '2gis', featureType: type })
                             }}
-                            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                            title="2GIS"
                         >
                             <Icon2GIS />
-                        </a>
+                        </ShareLink>
                         {(type === 'point' || type === 'socket') && coords && (
-                            <a
+                            <ShareLink
                                 href={buildGuruPointLink(coords.lat, coords.lon)}
+                                accentClass="hover:bg-neutral-200 hover:text-neutral-800"
+                                title="Guru"
                                 onClick={() => {
                                     trackGoal('share_external_map', { provider: 'guru', featureType: type })
                                 }}
-                                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
-                                title="Guru"
                             >
                                 <IconGuru />
-                            </a>
+                            </ShareLink>
                         )}
                     </>
                 )}
                 {type === 'route' && coordsArray.length >= 2 && (
                     <>
-                        <a
+                        <ShareLink
                             href={buildGuruRouteLink(coordsArray, routeViaCoordinates)}
+                            accentClass="hover:bg-neutral-200 hover:text-neutral-800"
+                            title="Guru (маршрут)"
                             onClick={() => {
                                 trackGoal('share_external_map', { provider: 'guru', featureType: type })
                             }}
-                            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
-                            title="Guru (маршрут)"
                         >
                             <IconGuru />
-                        </a>
-                        <a
+                        </ShareLink>
+                        <ShareLink
                             href={buildOpenRouteLink(coordsArray, routeViaCoordinates)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            external
+                            accentClass="hover:bg-green-50 hover:text-green-600"
+                            title="OpenRouteService"
                             onClick={() => {
                                 trackGoal('share_external_map', { provider: 'openroute', featureType: type })
                             }}
-                            className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-green-50 hover:text-green-600 transition-colors"
-                            title="OpenRouteService"
                         >
                             <IconOpenRoute />
-                        </a>
+                        </ShareLink>
                     </>
                 )}
                 {telegramShareLink && (
-                    <a
+                    <ShareLink
                         href={telegramShareLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        external
+                        accentClass="hover:bg-sky-50 hover:text-sky-600"
+                        title="Поделиться в Telegram"
                         onClick={() => {
                             trackGoal('share_telegram', { featureType: type })
                         }}
-                        className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-sky-50 hover:text-sky-600 transition-colors"
-                        title="Поделиться в Telegram"
                     >
                         <IconTelegram />
-                    </a>
+                    </ShareLink>
                 )}
-                <button
-                    type="button"
+                <CopyButton
+                    copied={showCopied}
+                    ariaLabel="Копировать ссылку"
                     onClick={() => {
-                        void handleAppShare()
+                        void handleShare()
                     }}
-                    className="cursor-pointer inline-flex items-center justify-center w-10 h-10 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-800 transition-colors"
-                    title="Копировать ссылку"
                 >
-                    <IconShare />
-                </button>
+                    <FontAwesomeIcon icon={faCopy} className="text-base" aria-hidden />
+                </CopyButton>
             </div>
-            {showCopied && (
-                <div
-                    className="fixed inset-x-0 z-50 bottom-[max(1.5rem,calc(env(safe-area-inset-bottom)+1.5rem))] flex justify-center px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pointer-events-none"
-                    role="status"
-                    aria-live="polite"
-                >
-                    <div className="pointer-events-auto px-4 py-2.5 rounded-lg bg-neutral-800 text-white text-sm font-medium shadow-lg">
-                        Ссылка скопирована
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

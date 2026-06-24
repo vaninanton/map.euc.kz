@@ -8,12 +8,12 @@ vi.mock('@/utils/shareLinks', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@/utils/shareLinks')>()
     return {
         ...actual,
-        copyOrShare: vi.fn().mockResolvedValue(true),
+        copyToClipboard: vi.fn().mockResolvedValue(true),
     }
 })
 
-import { copyOrShare } from '@/utils/shareLinks'
-const mockCopyOrShare = vi.mocked(copyOrShare)
+import { copyToClipboard } from '@/utils/shareLinks'
+const mockCopyToClipboard = vi.mocked(copyToClipboard)
 
 function makePointFeature(overrides: Record<string, unknown> = {}): Feature {
     return {
@@ -44,35 +44,35 @@ beforeEach(() => {
 describe('ShareBlock', () => {
     it('рендерит кнопку "Копировать ссылку"', () => {
         render(<ShareBlock feature={makePointFeature()} />)
-        expect(screen.getByTitle(/копировать ссылку/i)).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Копировать ссылку' })).toBeInTheDocument()
     })
 
-    it('показывает тост после копирования', async () => {
+    it('показывает подтверждение после копирования', async () => {
         render(<ShareBlock feature={makePointFeature()} />)
-        await userEvent.click(screen.getByTitle(/копировать ссылку/i))
-        expect(await screen.findByText(/ссылка скопирована/i)).toBeInTheDocument()
+        await userEvent.click(screen.getByRole('button', { name: 'Копировать ссылку' }))
+        expect(await screen.findByText('Скопировано')).toBeInTheDocument()
     })
 
-    it('вызывает copyOrShare при клике', async () => {
+    it('вызывает copyToClipboard при клике', async () => {
         render(<ShareBlock feature={makePointFeature()} />)
-        await userEvent.click(screen.getByTitle(/копировать ссылку/i))
-        expect(mockCopyOrShare).toHaveBeenCalledOnce()
+        await userEvent.click(screen.getByRole('button', { name: 'Копировать ссылку' }))
+        expect(mockCopyToClipboard).toHaveBeenCalledOnce()
     })
 
     it('вызывает onCopied callback после успешного копирования', async () => {
         const onCopied = vi.fn()
         render(<ShareBlock feature={makePointFeature()} onCopied={onCopied} />)
-        await userEvent.click(screen.getByTitle(/копировать ссылку/i))
+        await userEvent.click(screen.getByRole('button', { name: 'Копировать ссылку' }))
         await waitFor(() => {
             expect(onCopied).toHaveBeenCalledOnce()
         })
     })
 
-    it('не показывает тост если copyOrShare вернул false', async () => {
-        mockCopyOrShare.mockResolvedValueOnce(false)
+    it('не показывает подтверждение если copyToClipboard вернул false', async () => {
+        mockCopyToClipboard.mockResolvedValueOnce(false)
         render(<ShareBlock feature={makePointFeature()} />)
-        await userEvent.click(screen.getByTitle(/копировать ссылку/i))
-        expect(screen.queryByText(/ссылка скопирована/i)).not.toBeInTheDocument()
+        await userEvent.click(screen.getByRole('button', { name: 'Копировать ссылку' }))
+        expect(screen.queryByText('Скопировано')).not.toBeInTheDocument()
     })
 
     it('для meeting-точки показывает ссылку на Telegram', () => {

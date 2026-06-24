@@ -11,7 +11,7 @@ import {
     build2GISRouteLink,
     buildGuruRouteLink,
     buildOpenRouteLink,
-    copyOrShare,
+    copyToClipboard,
     getCoordsFromFeature,
     getCoordinatesArray,
     getViaPoints,
@@ -188,17 +188,17 @@ describe('shareLinks координаты и ссылки приложения',
     })
 })
 
-describe('copyOrShare', () => {
+describe('copyToClipboard', () => {
     afterEach(() => {
         vi.unstubAllGlobals()
     })
 
-    it('без Web Share API копирует URL в буфер', async () => {
+    it('копирует URL в буфер обмена', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined)
         vi.stubGlobal('navigator', {
             clipboard: { writeText },
         })
-        const ok = await copyOrShare('https://map.test/#point=1')
+        const ok = await copyToClipboard('https://map.test/#point=1')
         expect(ok).toBe(true)
         expect(writeText).toHaveBeenCalledWith('https://map.test/#point=1')
     })
@@ -207,7 +207,7 @@ describe('copyOrShare', () => {
         vi.stubGlobal('navigator', {
             clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
         })
-        const ok = await copyOrShare('https://x')
+        const ok = await copyToClipboard('https://x')
         expect(ok).toBe(false)
     })
 })
