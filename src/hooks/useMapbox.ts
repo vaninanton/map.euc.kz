@@ -59,6 +59,26 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
             },
         })
         mapRef.current = mapInstance
+
+        // Защита от известного бага Mapbox GL JS 3.x: при изменении padding камеры
+        // одновременно с активной feature-state-подсветкой рендер падает в
+        // hasStateDependentPaint («Cannot read properties of undefined (reading 'paint')»).
+        // Исключение из внутреннего _render прерывает RAF-цикл обработки ввода —
+        // после выбора фичи карта переставала реагировать на мышь/тач.
+        // Глушим транзиентное исключение кадра: следующий кадр рендерится корректно.
+        const mapWithRender = mapInstance as unknown as { _render?: (...args: unknown[]) => unknown }
+        const originalRender = mapWithRender._render
+        if (typeof originalRender === 'function') {
+            mapWithRender._render = function patchedRender(this: unknown, ...args: unknown[]) {
+                try {
+                    return originalRender.apply(this, args)
+                } catch (error) {
+                    if (import.meta.env.DEV) console.warn('Mapbox render frame пропущен:', error)
+                    return undefined
+                }
+            }
+        }
+
         setMap(mapInstance)
         mapInstance.addControl(
             new mapboxgl.AttributionControl({
