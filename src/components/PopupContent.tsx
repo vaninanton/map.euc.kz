@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import Typograf from 'typograf'
 import { FEATURE_TYPE_LABELS, POINT_FLAG_LABELS, COLORS } from '@/constants'
 import { computeRouteStats } from '@/utils/routeStats'
 import type { Feature } from '@/types/geojson'
@@ -7,8 +6,7 @@ import type { EventRow } from '@/types'
 import { ShareBlock } from '@/components/ShareBlock'
 import { PointEventsBlock } from '@/components/PointEventsBlock'
 import { isRouteFeature } from '@/utils/mapFeatureGuards'
-
-const typograf = new Typograf({ locale: ['ru', 'en-US'] })
+import { applyTypography } from '@/utils/typograf'
 
 interface PopupContentProps {
     feature: Feature
@@ -135,7 +133,7 @@ export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }:
                 {description && (
                     <p
                         className="text-xs text-neutral-600 mt-1.5"
-                        dangerouslySetInnerHTML={{ __html: typograf.execute(description) }}
+                        dangerouslySetInnerHTML={{ __html: applyTypography(description) }}
                     />
                 )}
                 {feature.properties.type === 'telegramUser' && (

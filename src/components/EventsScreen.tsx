@@ -13,7 +13,6 @@ interface EventsScreenProps {
     /** Вызывается при открытии экрана — сбрасывает бейдж непрочитанных. */
     onMarkAsRead: () => void
     onClose: () => void
-    onShowOnMap?: (coordinates: [number, number]) => void
 }
 
 type TypeFilter = 'all' | EventType
@@ -26,7 +25,7 @@ const TYPE_FILTERS: Array<[TypeFilter, string]> = [
 ]
 
 /** Полноэкранная лента событий сообщества. */
-export function EventsScreen({ events, loading, error, onMarkAsRead, onClose, onShowOnMap }: EventsScreenProps) {
+export function EventsScreen({ events, loading, error, onMarkAsRead, onClose }: EventsScreenProps) {
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
     // Отмечаем прочитанным один раз при открытии.
@@ -105,7 +104,7 @@ export function EventsScreen({ events, loading, error, onMarkAsRead, onClose, on
                 {!error && visibleEvents.length > 0 && (
                     <div className="mx-auto flex max-w-xl flex-col gap-4">
                         {visibleEvents.map((event) => (
-                            <EventCard key={event.id} event={event} onShowCoordinates={onShowOnMap} />
+                            <EventCard key={event.id} event={event} />
                         ))}
                     </div>
                 )}

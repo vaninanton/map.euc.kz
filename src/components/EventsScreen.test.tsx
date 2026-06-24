@@ -125,4 +125,11 @@ describe('EventsScreen', () => {
 
         expect(screen.getByText('Пока нет событий')).toBeInTheDocument()
     })
+
+    it('карточки события ведут на страницу /events/:id', () => {
+        renderScreen()
+
+        const link = screen.getByRole('link', { name: /Большая встреча/ })
+        expect(link).toHaveAttribute('href', expect.stringContaining('/events/meet'))
+    })
 })
