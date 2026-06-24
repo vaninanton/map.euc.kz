@@ -1,6 +1,7 @@
 import type { LayerKey, LayerVisibility } from '@/hooks/useLayers'
 import type { BaseMapStyle } from '@/hooks/useMapbox'
-import { COLORS } from '@/constants'
+import { COLORS, UI_ACCENT } from '@/constants'
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 
 interface LayerPanelProps {
     visibility: LayerVisibility
@@ -60,27 +61,14 @@ export function LayerPanel({ visibility, onToggle, onCollapse, baseStyle, onTogg
                         <li key={key}>
                             <label className="flex items-center justify-between gap-3 text-[13px] text-neutral-800 cursor-pointer">
                                 <span className="flex-1 text-neutral-800">{LABELS[key]}</span>
-                                <span className="inline-flex items-center gap-2">
-                                    <span className="relative inline-flex h-5 w-9 items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={isOn}
-                                            onChange={() => {
-                                                onToggle(key)
-                                            }}
-                                            className="peer sr-only"
-                                        />
-                                        <span
-                                            className="absolute inset-0 rounded-full bg-neutral-200 transition-colors"
-                                            style={isOn ? { backgroundColor: `${color}cc` } : undefined}
-                                            aria-hidden
-                                        />
-                                        <span
-                                            className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4"
-                                            aria-hidden
-                                        />
-                                    </span>
-                                </span>
+                                <ToggleSwitch
+                                    checked={isOn}
+                                    onChange={() => {
+                                        onToggle(key)
+                                    }}
+                                    accentColor={`${color}cc`}
+                                    ariaLabel={LABELS[key]}
+                                />
                             </label>
                         </li>
                     )
@@ -92,23 +80,13 @@ export function LayerPanel({ visibility, onToggle, onCollapse, baseStyle, onTogg
                     className="flex items-center justify-between gap-3 text-[13px] text-neutral-800 cursor-pointer"
                 >
                     <span className="flex-1">Спутник</span>
-                    <span className="relative inline-flex h-5 w-9 items-center">
-                        <input
-                            id="layer-panel-satellite"
-                            type="checkbox"
-                            checked={baseStyle === 'satellite'}
-                            onChange={onToggleBaseStyle}
-                            className="peer sr-only"
-                        />
-                        <span
-                            className="absolute inset-0 rounded-full bg-neutral-200 transition-colors peer-checked:bg-neutral-500"
-                            aria-hidden
-                        />
-                        <span
-                            className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4"
-                            aria-hidden
-                        />
-                    </span>
+                    <ToggleSwitch
+                        id="layer-panel-satellite"
+                        checked={baseStyle === 'satellite'}
+                        onChange={onToggleBaseStyle}
+                        accentColor={UI_ACCENT.satellite}
+                        ariaLabel="Спутник"
+                    />
                 </label>
             </div>
         </div>

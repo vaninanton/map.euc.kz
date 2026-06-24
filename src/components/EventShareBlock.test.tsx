@@ -21,7 +21,7 @@ describe('EventShareBlock', () => {
         expect(decodeURIComponent(href)).toContain('Вечерняя+покатушка')
     })
 
-    it('копирует ссылку события в буфер и показывает тост', async () => {
+    it('копирует ссылку события в буфер и показывает tooltip-подтверждение', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined)
         vi.stubGlobal('navigator', { clipboard: { writeText } })
 
@@ -32,7 +32,7 @@ describe('EventShareBlock', () => {
         expect(writeText).toHaveBeenCalledTimes(1)
         expect(writeText.mock.calls[0][0]).toContain('/events/e9')
         await waitFor(() => {
-            expect(screen.getByText('Ссылка скопирована')).toBeInTheDocument()
+            expect(screen.getByText('Скопировано')).toBeInTheDocument()
         })
     })
 })

@@ -186,16 +186,3 @@ export async function copyToClipboard(text: string): Promise<boolean> {
         return false
     }
 }
-
-export async function copyOrShare(url: string, title?: string): Promise<boolean> {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- share отсутствует в старых браузерах
-    if (navigator.share !== undefined) {
-        try {
-            await navigator.share({ url, title: title ?? 'Мономаршруты' })
-            return true
-        } catch {
-            // fallback to copy
-        }
-    }
-    return copyToClipboard(url)
-}
