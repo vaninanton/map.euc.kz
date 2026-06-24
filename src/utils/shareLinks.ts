@@ -135,6 +135,22 @@ export function buildTelegramPointMessage(pointName: string): string {
     return pointName
 }
 
+/**
+ * Абсолютная ссылка на событие: `${origin}${base}events/:id`.
+ * Учитывает BASE_URL (в prod — `/map.euc/`).
+ */
+export function buildEventShareLink(id: string): string {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const base = import.meta.env.BASE_URL
+    const normalizedBase = base.endsWith('/') ? base : `${base}/`
+    return `${origin}${normalizedBase}events/${encodeURIComponent(id)}`
+}
+
+/** Текст сообщения при шаринге события в Telegram. */
+export function buildTelegramEventMessage(eventTitle: string): string {
+    return eventTitle
+}
+
 export function buildTelegramShareLink(shareUrl: string, text: string): string {
     const telegramUrl = new URL('https://t.me/share/url')
     telegramUrl.searchParams.set('url', shareUrl)

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
     build2GISLink,
     buildAppShareLink,
+    buildEventShareLink,
+    buildTelegramEventMessage,
     buildTelegramPointMessage,
     buildTelegramShareLink,
     buildYandexLink,
@@ -162,6 +164,23 @@ describe('shareLinks координаты и ссылки приложения',
             `https://map.euc.kz${base.endsWith('/') ? base : `${base}/`}m/route/abc%201`,
         )
         vi.unstubAllGlobals()
+    })
+
+    it('buildEventShareLink собирает origin, base и путь /events/:id с encode', () => {
+        vi.stubGlobal('window', {
+            location: {
+                origin: 'https://map.euc.kz',
+            },
+        })
+        const base = import.meta.env.BASE_URL
+        expect(buildEventShareLink('e 7')).toBe(
+            `https://map.euc.kz${base.endsWith('/') ? base : `${base}/`}events/e%207`,
+        )
+        vi.unstubAllGlobals()
+    })
+
+    it('buildTelegramEventMessage возвращает заголовок события', () => {
+        expect(buildTelegramEventMessage('Покатушка')).toBe('Покатушка')
     })
 
     afterEach(() => {

@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { EventCard } from './EventCard'
 import { dateAt, eventDate, makeEvent } from '@/test/eventFactories'
 import type { EventRow } from '@/types'
 
-const user = userEvent.setup({ delay: null })
-
-function renderCard(event: EventRow, onShowCoordinates?: (c: [number, number]) => void) {
+function renderCard(event: EventRow) {
     return render(
         <MemoryRouter>
-            <EventCard event={event} onShowCoordinates={onShowCoordinates} />
+            <EventCard event={event} />
         </MemoryRouter>,
     )
 }
@@ -41,6 +38,13 @@ describe('EventCard', () => {
         expect(screen.getByText('Сбор у фонтана')).toBeInTheDocument()
     })
 
+    it('вся карточка — ссылка на страницу события /events/:id', () => {
+        renderCard(cardEvent({ id: 'e9' }))
+
+        const link = screen.getByRole('link', { name: /Вечерняя покатушка/ })
+        expect(link).toHaveAttribute('href', expect.stringContaining('/events/e9'))
+    })
+
     it('показывает фото, когда задан photo_url', () => {
         renderCard(cardEvent({ photo_url: 'https://cdn/p.jpg' }))
 
@@ -62,41 +66,9 @@ describe('EventCard', () => {
         expect(screen.getByText('Событие прошло')).toBeInTheDocument()
     })
 
-    it('рендерит привязанную точку-старт ссылкой на её карточку', () => {
-        renderCard(cardEvent({ start_point: { id: 'p7', title: 'Парк Горького', coordinates: [76.95, 43.25] } }))
+    it('показывает текстовое место, если оно задано без привязанной точки-старта', () => {
+        renderCard(cardEvent({ location_text: 'У главного входа' }))
 
-        const link = screen.getByRole('link', { name: /Парк Горького/ })
-        expect(link).toHaveAttribute('href', expect.stringContaining('/m/point/p7'))
-    })
-
-    it('подменяет подпись старта текстовым местом, если у точки-старта есть location_text', () => {
-        renderCard(
-            cardEvent({
-                start_point: { id: 'p7', title: 'Парк Горького', coordinates: [76.95, 43.25] },
-                location_text: 'У главного входа',
-            }),
-        )
-
-        const link = screen.getByRole('link', { name: /У главного входа/ })
-        expect(link).toBeInTheDocument()
-        // location_text ушёл в подпись кнопки, отдельной строкой места его нет.
-        expect(screen.queryByText('У главного входа', { selector: 'span' })).not.toBeInTheDocument()
-    })
-
-    it('для ручных координат старта показывает кнопку и вызывает onShowCoordinates', async () => {
-        const onShow = vi.fn()
-        renderCard(cardEvent({ start_coordinates: [76.9, 43.2] }), onShow)
-
-        const btn = screen.getByRole('button', { name: 'Старт на карте' })
-        await user.click(btn)
-
-        expect(onShow).toHaveBeenCalledWith([76.9, 43.2])
-    })
-
-    it('не показывает кнопки старта/финиша, если нет ни точек, ни координат', () => {
-        renderCard(cardEvent())
-
-        expect(screen.queryByRole('button', { name: 'Старт на карте' })).not.toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: 'Финиш на карте' })).not.toBeInTheDocument()
+        expect(screen.getByText('У главного входа')).toBeInTheDocument()
     })
 })

@@ -23,6 +23,7 @@ export default function App() {
                 <Route path="/" element={<MapShell />} />
                 <Route path="radar" element={<MapShell />} />
                 <Route path="events" element={<MapShell />} />
+                <Route path="events/:eventId" element={<MapShell />} />
                 <Route path="help" element={<MapShell />} />
                 <Route path="m/:mapFeatureType/:mapFeatureId" element={<MapShell />} />
                 <Route path="/admin" element={<AdminShell />}>

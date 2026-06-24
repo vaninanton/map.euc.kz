@@ -1,74 +1,30 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
-import { faCalendarDay, faClock, faLocationDot, faFlagCheckered } from '@fortawesome/free-solid-svg-icons'
-import type { EventRow, EventLinkedPoint } from '@/types'
+import { faCalendarDay, faClock, faLocationDot } from '@fortawesome/free-solid-svg-icons'
+import type { EventRow } from '@/types'
 import { EVENT_TYPE_LABELS } from '@/constants'
-import { buildMapDeepLinkPath } from '@/utils/hashNav'
+import { buildEventDetailPath } from '@/utils/eventLinks'
+import { applyTypography } from '@/utils/typograf'
 import { formatOccurrenceLabel, summarizeEvent } from '@/utils/eventSchedule'
 
 interface EventCardProps {
     event: EventRow
-    /** Центрировать карту на координатах (для ручных координат старта/финиша). */
-    onShowCoordinates?: (coordinates: [number, number]) => void
 }
 
-interface EndpointButtonProps {
-    icon: IconDefinition
-    iconClassName: string
-    fallbackLabel: string
-    point: EventLinkedPoint | null
-    coordinates: [number, number] | null
-    /** Переопределяет подпись точки (например, текстовым местом события). */
-    labelOverride?: string | null
-    onShowCoordinates?: (coordinates: [number, number]) => void
-}
-
-/** Кнопка старта/финиша: ссылка на карточку точки либо центрирование по координатам. */
-function EndpointButton({
-    icon,
-    iconClassName,
-    fallbackLabel,
-    point,
-    coordinates,
-    labelOverride,
-    onShowCoordinates,
-}: EndpointButtonProps) {
-    const className =
-        'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50'
-
-    if (point) {
-        return (
-            <Link to={`/${buildMapDeepLinkPath('point', point.id)}`} className={className}>
-                <FontAwesomeIcon icon={icon} className={iconClassName} aria-hidden />
-                {labelOverride ?? point.title}
-            </Link>
-        )
-    }
-    if (coordinates) {
-        return (
-            <button type="button" onClick={() => onShowCoordinates?.(coordinates)} className={className}>
-                <FontAwesomeIcon icon={icon} className={iconClassName} aria-hidden />
-                {fallbackLabel}
-            </button>
-        )
-    }
-    return null
-}
-
-/** Карточка события в публичной ленте: фото, тип, расписание, ближайшая дата, место. */
-export function EventCard({ event, onShowCoordinates }: EventCardProps) {
-    const hasStart = Boolean(event.start_point ?? event.start_coordinates)
-    const hasFinish = Boolean(event.finish_point ?? event.finish_coordinates)
-    // Если у старта есть и точка, и текстовое место — на кнопке старта показываем место.
+/** Карточка-превью события в ленте: фото, тип, расписание, место. Ведёт на страницу события. */
+export function EventCard({ event }: EventCardProps) {
+    // Если у старта есть и точка, и текстовое место — отдельной строкой место не дублируем.
     const startLabelOverride = event.start_point ? event.location_text : null
     // Сводка расписания — один проход по датам события.
     const { next, ongoing, schedule } = useMemo(() => summarizeEvent(event), [event])
     const typeLabel = EVENT_TYPE_LABELS[event.type]
 
     return (
-        <article className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <Link
+            to={buildEventDetailPath(event.id)}
+            className="block cursor-pointer overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition-colors hover:border-[#f25824]/40 hover:bg-neutral-50"
+        >
             {event.photo_url && (
                 <img src={event.photo_url} alt={event.title} className="h-40 w-full object-cover" loading="lazy" />
             )}
@@ -79,7 +35,10 @@ export function EventCard({ event, onShowCoordinates }: EventCardProps) {
                 <h3 className="mt-2 text-base font-semibold text-neutral-900">{event.title}</h3>
 
                 {event.description && (
-                    <p className="mt-1.5 whitespace-pre-line text-sm text-neutral-600">{event.description}</p>
+                    <p
+                        className="mt-1.5 line-clamp-2 whitespace-pre-line text-sm text-neutral-600"
+                        dangerouslySetInnerHTML={{ __html: applyTypography(event.description) }}
+                    />
                 )}
 
                 <div className="mt-3 space-y-1.5 text-sm text-neutral-700">
@@ -118,29 +77,7 @@ export function EventCard({ event, onShowCoordinates }: EventCardProps) {
                         </div>
                     )}
                 </div>
-
-                {(hasStart || hasFinish) && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                        <EndpointButton
-                            icon={faLocationDot}
-                            iconClassName="text-[#f25824]"
-                            fallbackLabel="Старт на карте"
-                            point={event.start_point}
-                            coordinates={event.start_coordinates}
-                            labelOverride={startLabelOverride}
-                            onShowCoordinates={onShowCoordinates}
-                        />
-                        <EndpointButton
-                            icon={faFlagCheckered}
-                            iconClassName="text-neutral-500"
-                            fallbackLabel="Финиш на карте"
-                            point={event.finish_point}
-                            coordinates={event.finish_coordinates}
-                            onShowCoordinates={onShowCoordinates}
-                        />
-                    </div>
-                )}
             </div>
-        </article>
+        </Link>
     )
 }

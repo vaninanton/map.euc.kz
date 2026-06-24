@@ -23,6 +23,8 @@ import { PointListSidebar } from '@/components/PointListSidebar'
 import { MapNotificationModals } from '@/components/MapNotificationModals'
 import { RadarModal } from '@/components/RadarModal'
 import { EventsScreen } from '@/components/EventsScreen'
+import { EventDetailScreen } from '@/components/EventDetailScreen'
+import { parseEventDetailPathname } from '@/utils/eventLinks'
 import { useEvents } from '@/hooks/useEvents'
 import { LiveActivityBar } from '@/components/LiveActivityBar'
 import { getActiveRiders } from '@/utils/telegramRiders'
@@ -48,6 +50,8 @@ export function EucMap() {
     const isRadarOpen = location.pathname === '/radar'
     const isHelpOpen = location.pathname === '/help'
     const isEventsOpen = location.pathname === '/events'
+    // Страница отдельного события по deep-link `/events/:id`.
+    const detailEventId = parseEventDetailPathname(location.pathname)
     const clearMapSelectionUrl = useCallback(() => {
         void navigate('/', { replace: true })
     }, [navigate])
@@ -125,6 +129,12 @@ export function EucMap() {
     const handleToggleEvents = useCallback(() => {
         void navigate(isEventsOpen ? '/' : '/events')
     }, [navigate, isEventsOpen])
+
+    // Событие для страницы `/events/:id` (null — ещё грузится или не найдено).
+    const detailEvent = useMemo(
+        () => (detailEventId ? (events.find((e) => e.id === detailEventId) ?? null) : null),
+        [detailEventId, events],
+    )
 
     // События, для которых выбранная точка — старт или финиш.
     const relatedEventsForSelected = useMemo(() => {
@@ -479,6 +489,16 @@ export function EucMap() {
                     onMarkAsRead={markEventsAsRead}
                     onClose={() => {
                         void navigate('/', { replace: true })
+                    }}
+                />
+            )}
+            {detailEventId !== null && (
+                <EventDetailScreen
+                    event={detailEvent}
+                    loading={eventsLoading}
+                    error={eventsError}
+                    onClose={() => {
+                        void navigate('/events', { replace: true })
                     }}
                     onShowOnMap={handleShowEventOnMap}
                 />

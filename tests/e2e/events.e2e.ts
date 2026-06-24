@@ -97,42 +97,56 @@ test.describe('Лента событий — фильтр по типу', () => 
     })
 })
 
-test.describe('Лента событий — содержимое карточки', () => {
-    test('карточка показывает тип, место и привязанную точку-старт', async ({ page }) => {
+test.describe('Лента событий — карточка ведёт на страницу события', () => {
+    test('карточка — ссылка на /events/:id и показывает тип', async ({ page }) => {
         await mockExternalServices(page)
         await page.goto('/events')
 
         const screen = eventsScreen(page)
-        const card = screen.getByRole('article').filter({ hasText: 'Обучение новичков' })
+        const card = screen.getByRole('link').filter({ hasText: 'Обучение новичков' })
         await expect(card).toBeVisible()
 
-        // Тип события.
+        // Тип события на превью карточки.
         await expect(card.getByText('Обучение', { exact: true })).toBeVisible()
-        // Привязанная точка-старт рендерится ссылкой на карточку точки.
-        const startLink = card.getByRole('link')
+        // Вся карточка ведёт на страницу события.
+        await expect(card).toHaveAttribute('href', /\/events\/evt-training$/)
+    })
+
+    test('клик по карточке открывает страницу события с привязанной точкой-стартом', async ({ page }) => {
+        await mockExternalServices(page)
+        await page.goto('/events')
+
+        const screen = eventsScreen(page)
+        await screen.getByRole('link').filter({ hasText: 'Обучение новичков' }).click()
+
+        const detail = page.getByRole('dialog', { name: 'Событие' })
+        await expect(detail).toBeVisible()
+        await expect(page).toHaveURL('/events/evt-training')
+
+        // На странице события привязанная точка-старт рендерится ссылкой на карточку точки.
+        // У этого события есть и точка-старт, и текстовое место — на кнопке показывается место.
+        const startLink = detail.getByRole('link', { name: /Площадь Республики/ })
         await expect(startLink).toHaveAttribute('href', /\/m\/point\/1$/)
     })
 
-    test('карточка с ручными координатами старта показывает кнопку «Старт на карте»', async ({ page }) => {
+    test('страница события с ручными координатами старта показывает «Показать на карте»', async ({ page }) => {
         await mockExternalServices(page)
-        await page.goto('/events')
+        await page.goto('/events/evt-ride')
 
-        const screen = eventsScreen(page)
-        const card = screen.getByRole('article').filter({ hasText: 'Вечерняя покатушка' })
+        const detail = page.getByRole('dialog', { name: 'Событие' })
+        await expect(detail).toBeVisible()
 
-        await expect(card.getByRole('button', { name: 'Старт на карте' })).toBeVisible()
+        await expect(detail.getByRole('button', { name: 'Показать на карте' })).toBeVisible()
     })
 
-    test('клик по «Старт на карте» закрывает ленту и центрирует карту', async ({ page }) => {
+    test('клик по «Показать на карте» закрывает страницу и центрирует карту', async ({ page }) => {
         await mockExternalServices(page)
-        await page.goto('/events')
+        await page.goto('/events/evt-ride')
 
-        const screen = eventsScreen(page)
-        const card = screen.getByRole('article').filter({ hasText: 'Вечерняя покатушка' })
+        const detail = page.getByRole('dialog', { name: 'Событие' })
+        await detail.getByRole('button', { name: 'Показать на карте' }).click()
 
-        await card.getByRole('button', { name: 'Старт на карте' }).click()
-
-        await expect(screen).toBeHidden()
+        await expect(detail).toBeHidden()
         await expect(page).toHaveURL('/')
     })
 })
