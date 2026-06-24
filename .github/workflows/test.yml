@@ -1,9 +1,18 @@
 name: Test
 
 on:
+  # На PR гоняем всегда (merge-гейт). На push в main — пропускаем, если изменения
+  # затронули только не-кодовые файлы (docs/markdown/конфиги редактора): тесты на
+  # этот код уже прошли на PR, повторный прогон на main был бы дублем.
   pull_request:
   push:
     branches: ['main']
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.vscode/**'
 
 permissions:
   contents: read
