@@ -27,7 +27,7 @@ export function buildAnnouncementPreviewHeader(
 }
 
 /** Ключ назначения рассылки: чат + тема. NULL-тема нормализуется отдельно от любого id темы. */
-function destinationKey(chatId: number, threadId: number | null): string {
+export function destinationKey(chatId: number, threadId: number | null): string {
     return `${String(chatId)}:${threadId === null ? '' : String(threadId)}`
 }
 

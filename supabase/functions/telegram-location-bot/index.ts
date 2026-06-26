@@ -10,6 +10,9 @@ import {
     handleDeleteAnnouncements,
     handleEditAnnouncements,
     handlePinAnnouncement,
+    handleAnnounceNews,
+    handleEditNews,
+    handleDeleteNews,
     handleInlineQuery,
     handleLocationUpdate,
     jsonWithCors,
@@ -38,7 +41,10 @@ Deno.serve(async (req) => {
         requestPath.endsWith('/announce-cancel') ||
         requestPath.endsWith('/announce-edit') ||
         requestPath.endsWith('/announce-delete') ||
-        requestPath.endsWith('/announce-pin')
+        requestPath.endsWith('/announce-pin') ||
+        requestPath.endsWith('/news-announce') ||
+        requestPath.endsWith('/news-announce-edit') ||
+        requestPath.endsWith('/news-announce-delete')
 
     // CORS preflight для сабрутов админки (functions.invoke шлёт OPTIONS перед POST).
     if (req.method === 'OPTIONS' && isAnnounceRoute) {
@@ -62,6 +68,15 @@ Deno.serve(async (req) => {
         }
         if (requestPath.endsWith('/announce-pin')) {
             return handlePinAnnouncement(supabase, req, announceBotToken)
+        }
+        if (requestPath.endsWith('/news-announce-edit')) {
+            return handleEditNews(supabase, req, announceBotToken)
+        }
+        if (requestPath.endsWith('/news-announce-delete')) {
+            return handleDeleteNews(supabase, req, announceBotToken)
+        }
+        if (requestPath.endsWith('/news-announce')) {
+            return handleAnnounceNews(supabase, req, announceBotToken)
         }
         return handleAnnounceEventDate(supabase, req, announceBotToken, announceMapBaseUrl)
     }

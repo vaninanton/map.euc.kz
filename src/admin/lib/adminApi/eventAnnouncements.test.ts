@@ -191,7 +191,7 @@ describe('listEventAnnouncements', () => {
 
         await listEventAnnouncements(DATE_ID)
 
-        expect(fromTable).toHaveBeenCalledWith('map_event_announcements')
+        expect(fromTable).toHaveBeenCalledWith('telegram_outbound_messages')
         expect(eqFn).toHaveBeenCalledWith('event_date_id', DATE_ID)
         expect(orderFn).toHaveBeenCalledWith('created_at', { ascending: false })
     })

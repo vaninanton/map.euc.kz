@@ -45,3 +45,13 @@ export const AdminTelegramChatsPage = lazy(async () => {
     const m = await import('@/admin/pages/TelegramChatsPage')
     return { default: m.TelegramChatsPage }
 })
+
+export const AdminNewsPage = lazy(async () => {
+    const m = await import('@/admin/pages/NewsPage')
+    return { default: m.NewsPage }
+})
+
+export const AdminNewsEditPage = lazy(async () => {
+    const m = await import('@/admin/pages/NewsEditPage')
+    return { default: m.NewsEditPage }
+})

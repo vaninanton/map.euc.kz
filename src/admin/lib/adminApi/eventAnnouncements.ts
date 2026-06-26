@@ -1,33 +1,11 @@
 import type { AdminEventAnnouncement, AdminEventParticipant, AnnounceResult } from '@/admin/lib/adminApi/types'
 import { db, runManyParsed } from '@/admin/lib/adminApi/query'
+import { invokeAnnounce, numField } from '@/admin/lib/adminApi/announceClient'
 import {
     parseAdminEventAnnouncement,
     parseAdminEventParticipant,
     parseAnnounceResult,
 } from '@/admin/lib/adminApi/parsers'
-
-/**
- * Вызывает сабрут Edge Function telegram-location-bot и возвращает `data`.
- * `functions.invoke` сам прикладывает Authorization из сессии; сабрут проверяет
- * членство в `map_admin_users`. При ошибке логирует с контекстом и бросает.
- */
-async function invokeAnnounce(subroute: string, body: Record<string, unknown>): Promise<unknown> {
-    const { data, error } = (await db().functions.invoke(`telegram-location-bot/${subroute}`, { body })) as {
-        data: unknown
-        error: { message: string } | null
-    }
-    if (error) {
-        console.error(`invokeAnnounce(${subroute}):`, error)
-        throw new Error(error.message)
-    }
-    return data
-}
-
-/** Числовое поле из ответа Edge Function (0, если отсутствует/не число). */
-function numField(data: unknown, field: string): number {
-    const v = (data as Record<string, unknown> | null)?.[field]
-    return typeof v === 'number' ? v : 0
-}
 
 /**
  * Отправляет анонс даты события в выбранные назначения (через Edge Function).
@@ -112,7 +90,7 @@ export async function listEventAnnouncements(eventDateId: string): Promise<Admin
     return runManyParsed(
         'listEventAnnouncements',
         db()
-            .from('map_event_announcements')
+            .from('telegram_outbound_messages')
             .select(ANNOUNCEMENT_COLUMNS)
             .eq('event_date_id', eventDateId)
             .order('created_at', { ascending: false }),
@@ -129,7 +107,7 @@ export async function listEventAnnouncementsForDates(eventDateIds: string[]): Pr
     return runManyParsed(
         'listEventAnnouncementsForDates',
         db()
-            .from('map_event_announcements')
+            .from('telegram_outbound_messages')
             .select(ANNOUNCEMENT_COLUMNS)
             .in('event_date_id', eventDateIds)
             .order('created_at', { ascending: false }),

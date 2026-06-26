@@ -7,6 +7,8 @@ import type {
     AdminEventParticipant,
     AdminMapPoint,
     AdminMapRoute,
+    AdminNews,
+    AdminNewsAnnouncement,
     AdminSubmission,
     AdminTelegramChat,
     AnnounceResult,
@@ -329,6 +331,54 @@ export function parseAdminEventAnnouncement(raw: unknown): AdminEventAnnouncemen
         cancelled_at: asNullableString(raw.cancelled_at),
         deleted_at: asNullableString(raw.deleted_at),
         pinned_at: asNullableString(raw.pinned_at),
+    }
+}
+
+/** Валидирует строку `map_news`. */
+export function parseAdminNews(raw: unknown): AdminNews {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const id = raw.id
+    const created_at = raw.created_at
+    const body = raw.body
+
+    if (typeof id !== 'string') throw new Error('id')
+    if (typeof created_at !== 'string') throw new Error('created_at')
+    if (typeof body !== 'string') throw new Error('body')
+
+    return {
+        id,
+        created_at,
+        body,
+        photo_path: asNullableString(raw.photo_path),
+    }
+}
+
+/** Валидирует строку `telegram_outbound_messages` с привязкой к новости (news_id). */
+export function parseAdminNewsAnnouncement(raw: unknown): AdminNewsAnnouncement {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const id = raw.id
+    const created_at = raw.created_at
+    const news_id = raw.news_id
+    const telegram_chat_id = raw.telegram_chat_id
+
+    if (typeof id !== 'string') throw new Error('id')
+    if (typeof created_at !== 'string') throw new Error('created_at')
+    if (typeof news_id !== 'string') throw new Error('news_id')
+    if (typeof telegram_chat_id !== 'number' || !Number.isFinite(telegram_chat_id)) {
+        throw new Error('telegram_chat_id')
+    }
+
+    return {
+        id,
+        created_at,
+        news_id,
+        telegram_chat_id,
+        message_thread_id: asNullableNumber(raw.message_thread_id),
+        telegram_message_id: asNullableNumber(raw.telegram_message_id),
+        photo_path: asNullableString(raw.photo_path),
+        sent_at: asNullableString(raw.sent_at),
+        send_error: asNullableString(raw.send_error),
+        deleted_at: asNullableString(raw.deleted_at),
     }
 }
 

@@ -177,3 +177,31 @@ export interface TelegramChatPatch {
     sort_order?: number
     message_thread_id?: number | null
 }
+
+export interface AdminNews {
+    id: string
+    created_at: string
+    /** Свободный текст новости (источник истины для отправки/правки). */
+    body: string
+    /** Путь к изображению новости в Storage (null — без картинки). */
+    photo_path: string | null
+}
+
+export interface NewsInput {
+    body: string
+}
+
+/** Отправленное в Telegram сообщение новости (строка telegram_outbound_messages с news_id). */
+export interface AdminNewsAnnouncement {
+    id: string
+    created_at: string
+    news_id: string
+    telegram_chat_id: number
+    /** Тема форумной группы, куда отправлено (null — обычный чат/General). */
+    message_thread_id: number | null
+    telegram_message_id: number | null
+    photo_path: string | null
+    sent_at: string | null
+    send_error: string | null
+    deleted_at: string | null
+}
