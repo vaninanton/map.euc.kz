@@ -152,9 +152,11 @@ map.setFeatureState({ source, id }, { selected: true })
 
 ### URL Deep Links
 
-- Формат: `/m/point/11`, `/m/route/5`, `/m/socket/3`, `/m/bikelane/alm1`, `/m/telegramuser/123`
-- Старый hash `#point=11` → автоматически редиректит на путь
-- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — иначе сломается в prod (`base = /map.euc/`)
+- Формат `/m/:type/:id`: `/m/point/11`, `/m/route/5`, `/m/socket/3`, `/m/bikelane/alm1`, `/m/telegramuser/123` — только для типов фич карты (`HashFeatureType` в `src/utils/hashNav.ts`).
+- **События — отдельный маршрут `/events/:id`** (не `/m/event/:id`!). Строить только через `buildEventDetailPath` из `src/utils/eventLinks.ts`; `event` НЕ входит в `HashFeatureType`, поэтому `buildMapDeepLinkPath`/`/m/...` для события даст битую ссылку (маршрут `/m/:type/:id` не распознает тип и откроет пустую карту). Это касается и edge-функций (Telegram-бот): сегмент `events` стабилен (`EVENTS_PATH_PREFIX`), вписывать строкой.
+- При добавлении нового вида сущности со своей страницей — завести парный `build*Path`/`parse*Pathname` и маршрут в `src/App.tsx`; не переиспользовать `/m/...` вслепую.
+- Старый hash `#point=11` → автоматически редиректит на путь.
+- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — иначе сломается в prod (`base = /map.euc/`).
 
 ### Constants (`src/constants/index.ts`)
 
