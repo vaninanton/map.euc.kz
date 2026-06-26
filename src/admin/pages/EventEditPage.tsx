@@ -129,7 +129,7 @@ export function EventEditPage({ mode }: EventEditPageProps) {
                     />
                     {mode === 'edit' && eventId !== null && event && (
                         <>
-                            <EventDatesManager eventId={eventId} />
+                            <EventDatesManager event={event} />
                             <EventPhotoManager
                                 eventId={eventId}
                                 photoPath={event.photo_path}

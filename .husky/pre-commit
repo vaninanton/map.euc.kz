@@ -3,5 +3,7 @@ npm run lint
 npm run format:check
 npx tsc -b --noEmit
 npm test
+# Тесты Edge Functions (Deno). Пропускаем, если deno не установлен локально — жёсткий гейт в CI.
+if command -v deno >/dev/null 2>&1; then npm run test:functions; else echo "deno не найден — пропускаю test:functions (проверится в CI)"; fi
 npm run build
 npm run test:e2e

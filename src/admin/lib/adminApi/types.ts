@@ -116,3 +116,64 @@ export interface EventDatePatch {
     note?: string | null
     cancelled?: boolean
 }
+
+export interface AdminEventParticipant {
+    telegram_user_id: number
+    username: string | null
+    first_name: string | null
+    last_name: string | null
+    avatar_url: string | null
+    created_at: string
+}
+
+export interface AdminEventAnnouncement {
+    id: string
+    created_at: string
+    event_date_id: string
+    telegram_chat_id: number
+    /** Тема форумной группы, куда отправлен анонс (null — обычный чат/General). */
+    message_thread_id: number | null
+    telegram_message_id: number | null
+    /** Сырое тело анонса (без шапки и HTML-эскейпа) — для повторной правки. */
+    body_text: string
+    /** Путь к изображению анонса в Storage (null — без картинки). */
+    photo_path: string | null
+    sent_at: string | null
+    send_error: string | null
+    cancelled_at: string | null
+    deleted_at: string | null
+    /** Время закрепления в чате (null — не закреплено). */
+    pinned_at: string | null
+}
+
+export interface AnnounceResult {
+    sent: Array<{ chat_id: number; message_id: number; pinned?: boolean }>
+    failed: Array<{ chat_id: number; error: string }>
+}
+
+export interface AdminTelegramChat {
+    /** Суррогатный ключ назначения (чат + тема). Один chat_id может иметь несколько тем. */
+    id: string
+    chat_id: number
+    title: string
+    enabled: boolean
+    sort_order: number
+    created_at: string
+    /** ID темы форумной группы для отправки анонса (null — обычный чат/General). */
+    message_thread_id: number | null
+}
+
+export interface TelegramChatInput {
+    chat_id: number
+    title: string
+    enabled: boolean
+    sort_order: number
+    message_thread_id?: number | null
+}
+
+export interface TelegramChatPatch {
+    title?: string
+    enabled?: boolean
+    sort_order?: number
+    message_thread_id?: number | null
+}

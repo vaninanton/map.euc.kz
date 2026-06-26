@@ -267,6 +267,16 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 
 Функция пройдёт по `telegram_profiles` и обновит только небезопасные/пустые `avatar_url`.
 
+### Анонсы событий в Telegram + RSVP «Участвую»
+
+Та же Edge Function `telegram-location-bot` обслуживает рассылку анонсов дат событий и обработку кнопки «Участвую»:
+
+- **Сабрут `/announce`** (`POST`, авторизация по JWT администратора): отправляет анонс конкретной даты события в выбранные чаты с инлайн-кнопкой «Участвую». Вызывается из админки через `supabase.functions.invoke('telegram-location-bot/announce', …)`.
+- **Сабрут `/announce-cancel`** (`POST`, JWT администратора): при отмене даты редактирует все её сообщения в «❌ ОТМЕНЕНО» и убирает кнопку.
+- **`callback_query`**: нажатие «Участвую» в любом чате — toggle участия по `telegram_user_id` (повторный тап убирает запись), счётчик в подписи кнопки обновляется. Профиль участника при необходимости создаётся в `telegram_profiles` (без аватара — его добьёт backfill).
+
+Список чатов для рассылки хранится в таблице `telegram_chats` (управляется в админке `/admin/telegram-chats`, не через env). Участники — в `map_event_participants`, отправленные сообщения — в `map_event_announcements`. Новых секретов не требуется: используются существующие `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
 ## Отладка
 
 ### Service Worker / PWA

@@ -12,6 +12,7 @@
         "pretest:e2e": "npm run build:e2e",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
+        "test:functions": "deno test --allow-net supabase/functions/",
         "lint": "eslint .",
         "format": "prettier --write .",
         "format:check": "prettier --check .",

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
     parseAdminEvent,
+    parseAdminEventAnnouncement,
     parseAdminEventDate,
+    parseAdminEventParticipant,
     parseAdminMapPoint,
     parseAdminMapRoute,
+    parseAdminTelegramChat,
+    parseAnnounceResult,
 } from '@/admin/lib/adminApi/parsers'
 
 describe('adminApi parsers', () => {
@@ -227,5 +231,153 @@ describe('parseAdminEventDate', () => {
     it('отклоняет нестроковый id и starts_at', () => {
         expect(() => parseAdminEventDate({ id: 5, starts_at: 'x' })).toThrow()
         expect(() => parseAdminEventDate({ id: 'd', starts_at: 5 })).toThrow()
+    })
+
+    it('parseAdminEventParticipant читает join telegram_profiles как объект', () => {
+        const p = parseAdminEventParticipant({
+            telegram_user_id: 42,
+            created_at: '2026-07-01T00:00:00Z',
+            telegram_profiles: {
+                username: 'rider',
+                first_name: 'Иван',
+                last_name: null,
+                avatar_url: 'https://a/x.jpg',
+            },
+        })
+        expect(p).toEqual({
+            telegram_user_id: 42,
+            created_at: '2026-07-01T00:00:00Z',
+            username: 'rider',
+            first_name: 'Иван',
+            last_name: null,
+            avatar_url: 'https://a/x.jpg',
+        })
+    })
+
+    it('parseAdminEventParticipant читает join как массив и null-аватар', () => {
+        const p = parseAdminEventParticipant({
+            telegram_user_id: 7,
+            created_at: '2026-07-01T00:00:00Z',
+            telegram_profiles: [{ username: null, first_name: null, last_name: null, avatar_url: null }],
+        })
+        expect(p.username).toBeNull()
+        expect(p.avatar_url).toBeNull()
+    })
+
+    it('parseAdminEventParticipant отклоняет нечисловой telegram_user_id', () => {
+        expect(() => parseAdminEventParticipant({ telegram_user_id: 'x', created_at: 'y' })).toThrow()
+    })
+
+    it('parseAdminEventAnnouncement нормализует nullable-поля', () => {
+        const a = parseAdminEventAnnouncement({
+            id: 'a1',
+            created_at: '2026-07-01T00:00:00Z',
+            event_date_id: 'd1',
+            telegram_chat_id: 131396,
+            message_thread_id: 42,
+            telegram_message_id: 55,
+            body_text: 'Сбор у фонтана',
+            photo_path: 'events/5/a.jpg',
+            sent_at: '2026-07-01T00:00:01Z',
+            send_error: null,
+            cancelled_at: null,
+            deleted_at: null,
+            pinned_at: '2026-07-01T01:00:00Z',
+        })
+        expect(a.telegram_message_id).toBe(55)
+        expect(a.message_thread_id).toBe(42)
+        expect(a.body_text).toBe('Сбор у фонтана')
+        expect(a.photo_path).toBe('events/5/a.jpg')
+        expect(a.sent_at).toBe('2026-07-01T00:00:01Z')
+        expect(a.cancelled_at).toBeNull()
+        expect(a.deleted_at).toBeNull()
+        expect(a.pinned_at).toBe('2026-07-01T01:00:00Z')
+    })
+
+    it('parseAdminEventAnnouncement подставляет пустой body_text и null photo_path по умолчанию', () => {
+        const a = parseAdminEventAnnouncement({
+            id: 'a2',
+            created_at: '2026-07-01T00:00:00Z',
+            event_date_id: 'd1',
+            telegram_chat_id: 1,
+            telegram_message_id: null,
+            sent_at: null,
+            send_error: 'blocked',
+            cancelled_at: null,
+        })
+        expect(a.body_text).toBe('')
+        expect(a.photo_path).toBeNull()
+        expect(a.message_thread_id).toBeNull()
+    })
+
+    it('parseAnnounceResult нормализует sent/failed', () => {
+        const r = parseAnnounceResult({
+            sent: [{ chat_id: 1, message_id: 10 }],
+            failed: [{ chat_id: 2, error: 'blocked' }],
+        })
+        expect(r.sent).toEqual([{ chat_id: 1, message_id: 10 }])
+        expect(r.failed).toEqual([{ chat_id: 2, error: 'blocked' }])
+    })
+
+    it('parseAnnounceResult сохраняет pinned, когда оно boolean', () => {
+        const r = parseAnnounceResult({
+            sent: [
+                { chat_id: 1, message_id: 10, pinned: true },
+                { chat_id: 2, message_id: 20, pinned: false },
+            ],
+            failed: [],
+        })
+        expect(r.sent).toEqual([
+            { chat_id: 1, message_id: 10, pinned: true },
+            { chat_id: 2, message_id: 20, pinned: false },
+        ])
+    })
+
+    it('parseAnnounceResult подставляет дефолтную ошибку и пустые массивы', () => {
+        const r = parseAnnounceResult({ failed: [{ chat_id: 2 }] })
+        expect(r.sent).toEqual([])
+        expect(r.failed).toEqual([{ chat_id: 2, error: 'send_failed' }])
+    })
+
+    it('parseAdminTelegramChat принимает валидную строку (без темы → message_thread_id=null)', () => {
+        const c = parseAdminTelegramChat({
+            id: 'd-1',
+            chat_id: 131396,
+            title: 'Личка',
+            enabled: true,
+            sort_order: 0,
+            created_at: '2026-07-01T00:00:00Z',
+        })
+        expect(c).toEqual({
+            id: 'd-1',
+            chat_id: 131396,
+            title: 'Личка',
+            enabled: true,
+            sort_order: 0,
+            created_at: '2026-07-01T00:00:00Z',
+            message_thread_id: null,
+        })
+    })
+
+    it('parseAdminTelegramChat читает message_thread_id', () => {
+        const c = parseAdminTelegramChat({
+            id: 'd-2',
+            chat_id: -100,
+            title: 'Форум',
+            enabled: true,
+            sort_order: 0,
+            created_at: 'x',
+            message_thread_id: 17,
+        })
+        expect(c.message_thread_id).toBe(17)
+    })
+
+    it('parseAdminTelegramChat отклоняет неверные типы', () => {
+        expect(() =>
+            parseAdminTelegramChat({ chat_id: 'x', title: 't', enabled: true, sort_order: 0, created_at: 'y' }),
+        ).toThrow()
+        expect(() =>
+            parseAdminTelegramChat({ chat_id: 1, title: 't', enabled: 'yes', sort_order: 0, created_at: 'y' }),
+        ).toThrow()
     })
 })

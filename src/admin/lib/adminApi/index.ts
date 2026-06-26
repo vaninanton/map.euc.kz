@@ -5,6 +5,12 @@ export type {
     AdminSubmission,
     AdminEvent,
     AdminEventDate,
+    AdminEventParticipant,
+    AdminEventAnnouncement,
+    AnnounceResult,
+    AdminTelegramChat,
+    TelegramChatInput,
+    TelegramChatPatch,
     MapPointInput,
     MapRouteInput,
     EventInput,
@@ -50,3 +56,21 @@ export {
     updateEventDate,
     deleteEventDate,
 } from '@/admin/lib/adminApi/events'
+
+export {
+    announceEventDate,
+    cancelEventDateAnnouncements,
+    editEventDateAnnouncements,
+    deleteEventDateAnnouncements,
+    pinEventAnnouncement,
+    listEventParticipants,
+    listEventAnnouncements,
+    listEventAnnouncementsForDates,
+} from '@/admin/lib/adminApi/eventAnnouncements'
+
+export {
+    listTelegramChats,
+    createTelegramChat,
+    updateTelegramChat,
+    deleteTelegramChat,
+} from '@/admin/lib/adminApi/telegramChats'
