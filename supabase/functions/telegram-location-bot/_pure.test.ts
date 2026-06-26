@@ -62,7 +62,7 @@ Deno.test('buildRsvpKeyboard: callback и deep-link кнопки в одном �
     const kb = buildRsvpKeyboard('abc', 3, 'https://map.euc.kz', 7)
     assertEquals(kb.inline_keyboard[0][0].callback_data, 'rsvp:abc')
     assertEquals(kb.inline_keyboard[0][0].text, 'Участвую (3)')
-    assertEquals(kb.inline_keyboard[0][1].url, 'https://map.euc.kz/m/event/7')
+    assertEquals(kb.inline_keyboard[0][1].url, 'https://map.euc.kz/events/7')
 })
 
 Deno.test('buildAnnouncementHeader: день недели + абсолютное по Алматы + относительный <tg-time>', () => {

@@ -211,7 +211,9 @@ export function buildRsvpKeyboard(
                     style: 'primary',
                     callback_data: `${RSVP_CALLBACK_PREFIX}${eventDateId}`,
                 },
-                { text: 'map.euc.kz', url: `${mapBaseUrl}/m/event/${String(eventId)}` },
+                // Страница события — каноничный путь /events/:id (см. src/utils/eventLinks.ts),
+                // а НЕ /m/:type/:id (тот формат для точек/маршрутов и тип event не знает).
+                { text: 'map.euc.kz', url: `${mapBaseUrl}/events/${String(eventId)}` },
             ],
         ],
     }
