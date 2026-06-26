@@ -50,6 +50,14 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Edge Functions tests (Deno)
+        run: npm run test:functions
+
   # E2E (Playwright) на статической preview-сборке — идёт параллельно с checks.
   e2e:
     name: E2E

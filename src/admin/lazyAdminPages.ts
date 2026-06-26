@@ -40,3 +40,8 @@ export const AdminEventEditPage = lazy(async () => {
     const m = await import('@/admin/pages/EventEditPage')
     return { default: m.EventEditPage }
 })
+
+export const AdminTelegramChatsPage = lazy(async () => {
+    const m = await import('@/admin/pages/TelegramChatsPage')
+    return { default: m.TelegramChatsPage }
+})

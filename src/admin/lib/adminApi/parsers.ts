@@ -2,10 +2,14 @@ import type { MapPointType, EventType } from '@/types'
 import { isRecord } from '@/utils/mapFeatureGuards'
 import type {
     AdminEvent,
+    AdminEventAnnouncement,
     AdminEventDate,
+    AdminEventParticipant,
     AdminMapPoint,
     AdminMapRoute,
     AdminSubmission,
+    AdminTelegramChat,
+    AnnounceResult,
     SubmissionStatus,
 } from '@/admin/lib/adminApi/types'
 
@@ -261,6 +265,120 @@ export function parseAdminEvent(raw: unknown): AdminEvent {
         start_point_id: asNullableNumber(raw.start_point_id),
         finish_point_id: asNullableNumber(raw.finish_point_id),
         flag_disabled,
+    }
+}
+
+/**
+ * Извлекает первый элемент join `telegram_profiles`: Supabase отдаёт его объектом
+ * (для one-to-one FK) либо массивом — нормализуем к объекту или null.
+ */
+function pickJoinedRecord(value: unknown): Record<string, unknown> | null {
+    if (Array.isArray(value)) {
+        return value.length > 0 && isRecord(value[0]) ? value[0] : null
+    }
+    return isRecord(value) ? value : null
+}
+
+/** Валидирует строку `map_event_participants` с join `telegram_profiles`. */
+export function parseAdminEventParticipant(raw: unknown): AdminEventParticipant {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const telegram_user_id = raw.telegram_user_id
+    const created_at = raw.created_at
+    if (typeof telegram_user_id !== 'number' || !Number.isFinite(telegram_user_id)) {
+        throw new Error('telegram_user_id')
+    }
+    if (typeof created_at !== 'string') throw new Error('created_at')
+
+    const profile = pickJoinedRecord(raw.telegram_profiles)
+    return {
+        telegram_user_id,
+        created_at,
+        username: asNullableString(profile?.username),
+        first_name: asNullableString(profile?.first_name),
+        last_name: asNullableString(profile?.last_name),
+        avatar_url: asNullableString(profile?.avatar_url),
+    }
+}
+
+/** Валидирует строку `map_event_announcements`. */
+export function parseAdminEventAnnouncement(raw: unknown): AdminEventAnnouncement {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const id = raw.id
+    const created_at = raw.created_at
+    const event_date_id = raw.event_date_id
+    const telegram_chat_id = raw.telegram_chat_id
+
+    if (typeof id !== 'string') throw new Error('id')
+    if (typeof created_at !== 'string') throw new Error('created_at')
+    if (typeof event_date_id !== 'string') throw new Error('event_date_id')
+    if (typeof telegram_chat_id !== 'number' || !Number.isFinite(telegram_chat_id)) {
+        throw new Error('telegram_chat_id')
+    }
+
+    return {
+        id,
+        created_at,
+        event_date_id,
+        telegram_chat_id,
+        message_thread_id: asNullableNumber(raw.message_thread_id),
+        telegram_message_id: asNullableNumber(raw.telegram_message_id),
+        body_text: typeof raw.body_text === 'string' ? raw.body_text : '',
+        photo_path: asNullableString(raw.photo_path),
+        sent_at: asNullableString(raw.sent_at),
+        send_error: asNullableString(raw.send_error),
+        cancelled_at: asNullableString(raw.cancelled_at),
+        deleted_at: asNullableString(raw.deleted_at),
+        pinned_at: asNullableString(raw.pinned_at),
+    }
+}
+
+/** Валидирует ответ Edge Function `/announce`. */
+export function parseAnnounceResult(raw: unknown): AnnounceResult {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const sentRaw = Array.isArray(raw.sent) ? raw.sent : []
+    const failedRaw = Array.isArray(raw.failed) ? raw.failed : []
+
+    const sent = sentRaw.map((item) => {
+        if (!isRecord(item)) throw new Error('sent[]')
+        const chat_id = Number(item.chat_id)
+        const message_id = Number(item.message_id)
+        if (!Number.isFinite(chat_id) || !Number.isFinite(message_id)) throw new Error('sent[] числа')
+        return typeof item.pinned === 'boolean' ? { chat_id, message_id, pinned: item.pinned } : { chat_id, message_id }
+    })
+    const failed = failedRaw.map((item) => {
+        if (!isRecord(item)) throw new Error('failed[]')
+        const chat_id = Number(item.chat_id)
+        if (!Number.isFinite(chat_id)) throw new Error('failed[] chat_id')
+        return { chat_id, error: typeof item.error === 'string' ? item.error : 'send_failed' }
+    })
+    return { sent, failed }
+}
+
+/** Валидирует строку `telegram_chats`. */
+export function parseAdminTelegramChat(raw: unknown): AdminTelegramChat {
+    if (!isRecord(raw)) throw new Error('не объект')
+    const id = raw.id
+    const chat_id = raw.chat_id
+    const title = raw.title
+    const enabled = raw.enabled
+    const sort_order = raw.sort_order
+    const created_at = raw.created_at
+
+    if (typeof id !== 'string') throw new Error('id')
+    if (typeof chat_id !== 'number' || !Number.isFinite(chat_id)) throw new Error('chat_id')
+    if (typeof title !== 'string') throw new Error('title')
+    if (typeof enabled !== 'boolean') throw new Error('enabled')
+    if (typeof sort_order !== 'number' || !Number.isFinite(sort_order)) throw new Error('sort_order')
+    if (typeof created_at !== 'string') throw new Error('created_at')
+
+    return {
+        id,
+        chat_id,
+        title,
+        enabled,
+        sort_order,
+        created_at,
+        message_thread_id: asNullableNumber(raw.message_thread_id),
     }
 }
 

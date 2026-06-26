@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -54,6 +55,8 @@ export default defineConfig(() => {
             environment: 'jsdom',
             globals: true,
             setupFiles: ['src/test/setup.ts'],
+            // Edge Functions (Deno, https://-импорты) тестируются через `deno test`, не Vitest.
+            exclude: [...configDefaults.exclude, 'supabase/functions/**'],
         },
         base: process.env.GITHUB_PAGES === 'true' ? '/map.euc/' : '/',
         server: {
