@@ -18,12 +18,20 @@ interface EventDatesManagerProps {
     event: AdminEvent
 }
 
-/** Имя участника для отображения: имя/фамилия, иначе @username, иначе id. */
+/**
+ * Имя участника для отображения: имя/фамилия, иначе @username (если есть), иначе id.
+ * username выводится отдельной ссылкой, поэтому здесь возвращаем его только как fallback.
+ */
 function participantName(p: AdminEventParticipant): string {
     const full = [p.first_name, p.last_name].filter(Boolean).join(' ').trim()
     if (full) return full
     if (p.username) return `@${p.username}`
     return `id${String(p.telegram_user_id)}`
+}
+
+/** Есть ли у участника отображаемое имя помимо username (чтобы не дублировать @username). */
+function hasRealName(p: AdminEventParticipant): boolean {
+    return [p.first_name, p.last_name].filter(Boolean).join(' ').trim().length > 0
 }
 
 /** Раскрываемый список участников даты с количеством и аватарами. */
@@ -103,7 +111,19 @@ function ParticipantsBlock({ eventDateId }: { eventDateId: string }) {
                                             {participantName(p).slice(0, 1).toUpperCase()}
                                         </span>
                                     )}
-                                    {participantName(p)}
+                                    {hasRealName(p) && <span>{participantName(p)}</span>}
+                                    {p.username ? (
+                                        <a
+                                            href={`https://t.me/${p.username}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="cursor-pointer text-blue-700 hover:underline"
+                                        >
+                                            @{p.username}
+                                        </a>
+                                    ) : (
+                                        !hasRealName(p) && <span>{participantName(p)}</span>
+                                    )}
                                 </li>
                             ))}
                         </ul>
