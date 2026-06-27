@@ -122,7 +122,9 @@ jobs:
             ENDPOINT_ARG="--endpoint-url ${S3_ENDPOINT}"
           fi
 
+          # --no-verify-ssl: S3-gateway Selectel отдаёт сертификат российского УЦ,
+          # которого нет в trust store раннера. Канал к доверенному провайдеру — приемлемо.
           for f in "$DB_FILE" "$STORAGE_FILE"; do
-            aws s3 cp "$f" "s3://${S3_BUCKET}/supabase/${f}" ${ENDPOINT_ARG} --no-progress
+            aws s3 cp "$f" "s3://${S3_BUCKET}/supabase/${f}" ${ENDPOINT_ARG} --no-verify-ssl --no-progress
             echo "Загружено: s3://${S3_BUCKET}/supabase/${f}"
           done
