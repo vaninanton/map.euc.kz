@@ -12,8 +12,9 @@ import {
     TELEGRAM_AVATARS_BUCKET,
     UUID_RE,
     buildAnnouncementText,
+    buildCancelledAnnouncementText,
+    buildNewsText,
     buildRsvpKeyboard,
-    escapeHtml,
     isAvatarUrlSafe,
     parsePositiveIntEnv,
     parseRsvpCallbackData,
@@ -349,15 +350,20 @@ type LiveAnnouncement = {
 }
 
 /**
- * Живые анонсы даты: отправленные (telegram_message_id), не отменённые и не удалённые.
- * Единый источник для обновления счётчика (RSVP), отмены, правки текста и удаления.
+ * Живые исходящие сообщения по родителю (event_date_id или news_id): отправленные
+ * (telegram_message_id), не отменённые и не удалённые. Единый источник для обновления
+ * счётчика (RSVP), отмены, правки текста и удаления.
  * photo_path определяет тип сообщения (фото → caption, иначе → text) при редактировании.
  */
-async function listLiveAnnouncements(supabase: SupabaseClient, eventDateId: string): Promise<LiveAnnouncement[]> {
+async function listLiveAnnouncements(
+    supabase: SupabaseClient,
+    parentColumn: 'event_date_id' | 'news_id',
+    parentId: string,
+): Promise<LiveAnnouncement[]> {
     const { data } = await supabase
-        .from('map_event_announcements')
+        .from('telegram_outbound_messages')
         .select('id, telegram_chat_id, telegram_message_id, message_text, photo_path')
-        .eq('event_date_id', eventDateId)
+        .eq(parentColumn, parentId)
         .not('telegram_message_id', 'is', null)
         .is('cancelled_at', null)
         .is('deleted_at', null)
@@ -375,8 +381,8 @@ function isMessageGoneError(description: string | undefined): boolean {
 }
 
 /** Помечает строку анонса как удалённую — самоочищение «призраков» из listLiveAnnouncements. */
-async function markAnnouncementDeleted(supabase: SupabaseClient, id: string): Promise<void> {
-    await supabase.from('map_event_announcements').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+async function markOutboundDeleted(supabase: SupabaseClient, id: string): Promise<void> {
+    await supabase.from('telegram_outbound_messages').update({ deleted_at: new Date().toISOString() }).eq('id', id)
 }
 
 /**
@@ -412,7 +418,7 @@ async function setAnnouncementPinned(
         return { ok: false, pinned: !pin, description: result.description }
     }
     await supabase
-        .from('map_event_announcements')
+        .from('telegram_outbound_messages')
         .update({ pinned_at: pin ? new Date().toISOString() : null })
         .eq('id', row.id)
     return { ok: true, pinned: pin }
@@ -424,7 +430,7 @@ async function setAnnouncementPinned(
  * Единый примитив для правки и отмены — без пробного вызова с фолбэком.
  */
 async function editAnnouncementContent(
-    row: LiveAnnouncement,
+    row: Pick<LiveAnnouncement, 'telegram_chat_id' | 'telegram_message_id' | 'photo_path'>,
     text: string,
     botToken: string,
     replyMarkup?: { inline_keyboard: unknown[] },
@@ -452,7 +458,7 @@ async function refreshAnnouncementKeyboards(
     mapBaseUrl: string,
     botToken: string,
 ): Promise<void> {
-    const rows = await listLiveAnnouncements(supabase, eventDateId)
+    const rows = await listLiveAnnouncements(supabase, 'event_date_id', eventDateId)
     const keyboard = buildRsvpKeyboard(eventDateId, count, mapBaseUrl, eventId)
     for (const row of rows) {
         const editResult = await callTelegramApi(
@@ -471,7 +477,7 @@ async function refreshAnnouncementKeyboards(
                 description: editResult.description,
             })
             // Сообщение удалено из чата → выводим анонс из живых, чтобы не дёргать его впредь.
-            if (isMessageGoneError(editResult.description)) await markAnnouncementDeleted(supabase, row.id)
+            if (isMessageGoneError(editResult.description)) await markOutboundDeleted(supabase, row.id)
         }
     }
 }
@@ -637,7 +643,7 @@ export async function handleAnnounceEventDate(
 
         if (apiResult.ok && messageId !== null) {
             const { data: inserted } = await supabase
-                .from('map_event_announcements')
+                .from('telegram_outbound_messages')
                 .insert({
                     event_date_id: eventDateId,
                     telegram_chat_id: chatId,
@@ -668,7 +674,7 @@ export async function handleAnnounceEventDate(
             )
         } else {
             const errText = apiResult.description ?? 'send_failed'
-            await supabase.from('map_event_announcements').insert({
+            await supabase.from('telegram_outbound_messages').insert({
                 event_date_id: eventDateId,
                 telegram_chat_id: chatId,
                 message_thread_id: threadId,
@@ -697,18 +703,21 @@ export async function handleCancelAnnouncements(
     if (guard instanceof Response) return guard
     const { eventDateId, botToken: token } = guard
 
-    const rows = await listLiveAnnouncements(supabase, eventDateId)
+    const rows = await listLiveAnnouncements(supabase, 'event_date_id', eventDateId)
 
     let cancelled = 0
     for (const r of rows) {
-        const newText = `❌ <b>ОТМЕНЕНО</b>\n\n<s>${escapeHtml(r.message_text)}</s>`
+        const newText = buildCancelledAnnouncementText(r.message_text)
         await editAnnouncementContent(r, newText, token)
         await callTelegramApi(
             'editMessageReplyMarkup',
             { chat_id: r.telegram_chat_id, message_id: r.telegram_message_id, reply_markup: { inline_keyboard: [] } },
             token,
         )
-        await supabase.from('map_event_announcements').update({ cancelled_at: new Date().toISOString() }).eq('id', r.id)
+        await supabase
+            .from('telegram_outbound_messages')
+            .update({ cancelled_at: new Date().toISOString() })
+            .eq('id', r.id)
         cancelled += 1
     }
 
@@ -737,7 +746,7 @@ export async function handleEditAnnouncements(
     const text = buildAnnouncementText(ctx.event, ctx.startsAt, bodyText)
     const count = await countEventParticipants(supabase, eventDateId)
     const keyboard = buildRsvpKeyboard(eventDateId, count, mapBaseUrl, ctx.eventId)
-    const rows = await listLiveAnnouncements(supabase, eventDateId)
+    const rows = await listLiveAnnouncements(supabase, 'event_date_id', eventDateId)
 
     let edited = 0
     const failed: Array<{ chat_id: number; error: string }> = []
@@ -746,14 +755,14 @@ export async function handleEditAnnouncements(
 
         if (editResult.ok) {
             await supabase
-                .from('map_event_announcements')
+                .from('telegram_outbound_messages')
                 .update({ message_text: text, body_text: bodyText })
                 .eq('id', r.id)
             edited += 1
         } else {
             failed.push({ chat_id: r.telegram_chat_id, error: editResult.description ?? 'edit_failed' })
             // Сообщение удалено из чата → выводим из живых (иначе «призрак» вечно в failed).
-            if (isMessageGoneError(editResult.description)) await markAnnouncementDeleted(supabase, r.id)
+            if (isMessageGoneError(editResult.description)) await markOutboundDeleted(supabase, r.id)
         }
     }
 
@@ -773,7 +782,7 @@ export async function handleDeleteAnnouncements(
     if (guard instanceof Response) return guard
     const { eventDateId, botToken: token } = guard
 
-    const rows = await listLiveAnnouncements(supabase, eventDateId)
+    const rows = await listLiveAnnouncements(supabase, 'event_date_id', eventDateId)
 
     let deleted = 0
     for (const r of rows) {
@@ -790,7 +799,10 @@ export async function handleDeleteAnnouncements(
                 description: delResult.description,
             })
         }
-        await supabase.from('map_event_announcements').update({ deleted_at: new Date().toISOString() }).eq('id', r.id)
+        await supabase
+            .from('telegram_outbound_messages')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', r.id)
         deleted += 1
     }
 
@@ -822,7 +834,7 @@ export async function handlePinAnnouncement(
 
     // Только живое (отправленное, не отменённое/удалённое) сообщение можно (от)закрепить.
     const { data: row } = await supabase
-        .from('map_event_announcements')
+        .from('telegram_outbound_messages')
         .select('id, telegram_chat_id, telegram_message_id')
         .eq('id', announcementId)
         .not('telegram_message_id', 'is', null)
@@ -834,6 +846,219 @@ export async function handlePinAnnouncement(
     const result = await setAnnouncementPinned(supabase, row, body.pin, botToken)
     if (!result.ok) return jsonWithCors({ error: 'telegram_failed', description: result.description }, 502)
     return jsonWithCors({ ok: true, pinned: result.pinned }, 200)
+}
+
+// ───────────────────────────── Новости проекта ─────────────────────────────
+
+/**
+ * Общий guard сабрутов /news-*: проверяет админа, наличие bot-токена, парсит JSON
+ * и валидирует news_id (UUID). Возвращает распарсенное тело либо готовый error-Response.
+ */
+async function requireNewsRequest(
+    supabase: SupabaseClient,
+    req: Request,
+    botToken: string | undefined,
+): Promise<{ body: Record<string, unknown>; newsId: string; botToken: string } | Response> {
+    if (!(await isAdminRequest(supabase, req))) return jsonWithCors({ error: 'unauthorized' }, 401)
+    if (!botToken) return jsonWithCors({ error: 'no_bot_token' }, 500)
+
+    let body: Record<string, unknown>
+    try {
+        body = (await req.json()) as Record<string, unknown>
+    } catch {
+        return jsonWithCors({ error: 'bad_request' }, 400)
+    }
+    const newsId = body.news_id
+    if (typeof newsId !== 'string' || !UUID_RE.test(newsId)) {
+        return jsonWithCors({ error: 'invalid_input' }, 400)
+    }
+    return { body, newsId, botToken }
+}
+
+/** Загружает новость (тело + фото) для отправки/правки. */
+async function loadNewsContext(
+    supabase: SupabaseClient,
+    newsId: string,
+): Promise<{ body: string; photoPath: string | null } | null> {
+    const { data, error } = await supabase
+        .from('map_news')
+        .select('body, photo_path, deleted_at')
+        .eq('id', newsId)
+        .maybeSingle<{ body: string; photo_path: string | null; deleted_at: string | null }>()
+    if (error || !data || data.deleted_at !== null) return null
+    return { body: data.body, photoPath: data.photo_path }
+}
+
+/** Публичный URL фото новости. */
+function newsPhotoPublicUrl(supabase: SupabaseClient, photoPath: string): string {
+    return supabase.storage.from('map-news-photos').getPublicUrl(photoPath).data.publicUrl
+}
+
+/**
+ * Сабрут /news-announce: отправляет новость в выбранные чаты (sendMessage/sendPhoto).
+ * Body: { news_id: uuid, destination_ids: string[] }. Авторизация — JWT администратора.
+ */
+export async function handleAnnounceNews(
+    supabase: SupabaseClient,
+    req: Request,
+    botToken: string | undefined,
+): Promise<Response> {
+    const guard = await requireNewsRequest(supabase, req, botToken)
+    if (guard instanceof Response) return guard
+    const { body, newsId, botToken: token } = guard
+    // destination_ids — суррогатные id назначений (чат+тема); один chat_id может встречаться несколько раз.
+    const destinationIds = body.destination_ids
+    if (
+        !Array.isArray(destinationIds) ||
+        destinationIds.length === 0 ||
+        !destinationIds.every((d) => typeof d === 'string')
+    ) {
+        return jsonWithCors({ error: 'invalid_input' }, 400)
+    }
+
+    const ctx = await loadNewsContext(supabase, newsId)
+    if (!ctx) return jsonWithCors({ error: 'news_not_found' }, 404)
+    if (ctx.body.trim().length === 0) return jsonWithCors({ error: 'empty_body' }, 400)
+
+    // Только переданные назначения, которые есть в telegram_chats и enabled.
+    const { data: chatRows } = await supabase
+        .from('telegram_chats')
+        .select('chat_id, message_thread_id')
+        .eq('enabled', true)
+        .in('id', destinationIds)
+    const validChats = (chatRows ?? []) as Array<{ chat_id: number; message_thread_id: number | null }>
+    if (validChats.length === 0) return jsonWithCors({ error: 'no_valid_chats' }, 400)
+
+    const text = buildNewsText(ctx.body)
+    const photoUrl = ctx.photoPath ? newsPhotoPublicUrl(supabase, ctx.photoPath) : null
+
+    const sent: Array<{ chat_id: number; message_id: number }> = []
+    const failed: Array<{ chat_id: number; error: string }> = []
+
+    for (const { chat_id: chatId, message_thread_id: threadId } of validChats) {
+        // В форумных группах сообщение адресуется в тему; для обычных чатов ключ не шлём.
+        const thread = typeof threadId === 'number' ? { message_thread_id: threadId } : {}
+        const apiResult = photoUrl
+            ? await callTelegramApi(
+                  'sendPhoto',
+                  { chat_id: chatId, ...thread, photo: photoUrl, caption: text, parse_mode: 'HTML' },
+                  token,
+              )
+            : await callTelegramApi(
+                  'sendMessage',
+                  { chat_id: chatId, ...thread, text, parse_mode: 'HTML', disable_web_page_preview: true },
+                  token,
+              )
+
+        const messageId =
+            apiResult.ok && apiResult.result && typeof apiResult.result === 'object'
+                ? ((apiResult.result as { message_id?: number }).message_id ?? null)
+                : null
+
+        if (apiResult.ok && messageId !== null) {
+            await supabase.from('telegram_outbound_messages').insert({
+                news_id: newsId,
+                telegram_chat_id: chatId,
+                message_thread_id: threadId,
+                telegram_message_id: messageId,
+                message_text: text,
+                body_text: ctx.body,
+                photo_path: ctx.photoPath,
+                sent_at: new Date().toISOString(),
+            })
+            sent.push({ chat_id: chatId, message_id: messageId })
+        } else {
+            const errText = apiResult.description ?? 'send_failed'
+            await supabase.from('telegram_outbound_messages').insert({
+                news_id: newsId,
+                telegram_chat_id: chatId,
+                message_thread_id: threadId,
+                message_text: text,
+                body_text: ctx.body,
+                photo_path: ctx.photoPath,
+                send_error: errText,
+            })
+            failed.push({ chat_id: chatId, error: errText })
+        }
+    }
+
+    return jsonWithCors({ sent, failed }, 200)
+}
+
+/**
+ * Сабрут /news-announce-edit: меняет текст во ВСЕХ живых сообщениях новости.
+ * Берёт актуальное тело из map_news (источник истины). Body: { news_id: uuid }.
+ */
+export async function handleEditNews(
+    supabase: SupabaseClient,
+    req: Request,
+    botToken: string | undefined,
+): Promise<Response> {
+    const guard = await requireNewsRequest(supabase, req, botToken)
+    if (guard instanceof Response) return guard
+    const { newsId, botToken: token } = guard
+
+    const ctx = await loadNewsContext(supabase, newsId)
+    if (!ctx) return jsonWithCors({ error: 'news_not_found' }, 404)
+
+    const text = buildNewsText(ctx.body)
+    const rows = await listLiveAnnouncements(supabase, 'news_id', newsId)
+
+    let edited = 0
+    const failed: Array<{ chat_id: number; error: string }> = []
+    for (const r of rows) {
+        const editResult = await editAnnouncementContent(r, text, token)
+        if (editResult.ok) {
+            await supabase
+                .from('telegram_outbound_messages')
+                .update({ message_text: text, body_text: ctx.body })
+                .eq('id', r.id)
+            edited += 1
+        } else {
+            failed.push({ chat_id: r.telegram_chat_id, error: editResult.description ?? 'edit_failed' })
+            // Сообщение удалено из чата → выводим из живых, иначе «призрак» вечно в failed.
+            if (isMessageGoneError(editResult.description)) await markOutboundDeleted(supabase, r.id)
+        }
+    }
+
+    return jsonWithCors({ edited, failed }, 200)
+}
+
+/**
+ * Сабрут /news-announce-delete: удаляет сообщения новости из Telegram (deleteMessage)
+ * и помечает строки deleted_at. Строки остаются в БД для истории. Body: { news_id: uuid }.
+ */
+export async function handleDeleteNews(
+    supabase: SupabaseClient,
+    req: Request,
+    botToken: string | undefined,
+): Promise<Response> {
+    const guard = await requireNewsRequest(supabase, req, botToken)
+    if (guard instanceof Response) return guard
+    const { newsId, botToken: token } = guard
+
+    const rows = await listLiveAnnouncements(supabase, 'news_id', newsId)
+
+    let deleted = 0
+    for (const r of rows) {
+        // Telegram возвращает ok=true даже если сообщение уже удалено — считаем успехом.
+        const delResult = await callTelegramApi(
+            'deleteMessage',
+            { chat_id: r.telegram_chat_id, message_id: r.telegram_message_id },
+            token,
+        )
+        if (!delResult.ok) {
+            console.info('[telegram-location-bot] deleteMessage (news) пропущен', {
+                chat_id: r.telegram_chat_id,
+                message_id: r.telegram_message_id,
+                description: delResult.description,
+            })
+        }
+        await markOutboundDeleted(supabase, r.id)
+        deleted += 1
+    }
+
+    return jsonWithCors({ deleted }, 200)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

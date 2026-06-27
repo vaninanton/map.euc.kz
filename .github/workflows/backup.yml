@@ -1,0 +1,130 @@
+name: Backup Supabase
+
+# Резервная копия Supabase → S3-совместимое хранилище (Cloudflare R2 / Backblaze B2 / MinIO):
+#   1. Дамп БД (схема + данные) проектных таблиц, gzip.
+#   2. Файлы Storage (бакеты фото/аватаров) — tar.gz.
+# Имена с общим UTC-таймстампом. Старые копии не чистим — полагаемся на lifecycle-политику бакета.
+on:
+  schedule:
+    # Ежедневно в 03:00 UTC (≈08:00 Алматы). Cron GitHub Actions всегда в UTC.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Не запускать два бэкапа одновременно (ручной + по расписанию).
+  group: 'supabase-backup'
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Дамп БД + Storage и выгрузка в S3
+    runs-on: ubuntu-latest
+    env:
+      # Публичные бакеты Storage проекта (см. CLAUDE.md → Supabase Backend → Storage).
+      STORAGE_BUCKETS: 'map-point-photos telegram-avatars map-event-photos map-news-photos'
+    steps:
+      - name: Общий таймстамп бэкапа
+        run: echo "TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)" >> "$GITHUB_ENV"
+
+      - name: Установить Supabase CLI
+        uses: supabase/setup-cli@v2
+
+      - name: Установить pg_dump 17 (сервер на PG 17, раннер по умолчанию — 16)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Линковка проекта
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Дамп БД (схема + данные)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          # Системные схемы Supabase/расширений исключаем — бэкапим только проектные данные.
+          # Держать в синхроне с .claude/skills/supabase-backup/SKILL.md.
+          EXCLUDE='information_schema|pg_*|_analytics|_realtime|_supavisor|auth|etl|extensions|pgbouncer|realtime|storage|supabase_functions|supabase_migrations|cron|dbdev|graphql|graphql_public|net|pgmq|pgsodium|pgsodium_masks|pgtle|repack|tiger|tiger_data|timescaledb_*|_timescaledb_*|topology|vault'
+
+          # Свежие session-credentials для прямого pg_dump (Docker на раннере не нужен).
+          eval "$(supabase db dump --linked --dry-run 2>/dev/null | grep '^export PG')"
+
+          DB_FILE="db_${TIMESTAMP}.sql.gz"
+          echo "DB_FILE=${DB_FILE}" >> "$GITHUB_ENV"
+
+          # Схема + данные в один файл, сразу gzip.
+          {
+            pg_dump --schema-only --quote-all-identifier --role postgres --exclude-schema "$EXCLUDE"
+            pg_dump --data-only   --quote-all-identifier --role postgres --exclude-schema "$EXCLUDE"
+          } | gzip -9 > "$DB_FILE"
+
+          echo "Создан ${DB_FILE} ($(du -h "$DB_FILE" | cut -f1))"
+          # Защита от пустого/битого дампа: gzip непустого SQL — заведомо > 1 КБ.
+          test "$(stat -c%s "$DB_FILE")" -gt 1024
+
+      - name: Бэкап Storage (файлы бакетов)
+        env:
+          # Отдельные S3-ключи Storage (Supabase Dashboard → Storage → S3 Connection).
+          AWS_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+          # S3-эндпоинт и регион Storage из той же панели S3 Connection.
+          STORAGE_S3_ENDPOINT: ${{ vars.SUPABASE_STORAGE_S3_ENDPOINT }}
+          AWS_DEFAULT_REGION: ${{ vars.SUPABASE_STORAGE_S3_REGION }}
+        run: |
+          set -euo pipefail
+
+          STORAGE_DIR="storage_${TIMESTAMP}"
+          mkdir -p "$STORAGE_DIR"
+
+          # Каждый бакет — в свою папку; пустой/отсутствующий бакет не валит бэкап.
+          for bucket in $STORAGE_BUCKETS; do
+            echo "→ Скачиваю бакет ${bucket}"
+            aws s3 sync "s3://${bucket}" "${STORAGE_DIR}/${bucket}" \
+              --endpoint-url "$STORAGE_S3_ENDPOINT" \
+              --no-progress || echo "  ⚠ бакет ${bucket} пропущен (пуст или нет доступа)"
+          done
+
+          STORAGE_FILE="storage_${TIMESTAMP}.tar.gz"
+          echo "STORAGE_FILE=${STORAGE_FILE}" >> "$GITHUB_ENV"
+          tar -czf "$STORAGE_FILE" -C "$STORAGE_DIR" .
+          echo "Создан ${STORAGE_FILE} ($(du -h "$STORAGE_FILE" | cut -f1))"
+
+      - name: Выгрузка в S3
+        env:
+          # Креды бэкап-хранилища (R2/B2/MinIO) — секреты; бакет/endpoint/регион — переменные репозитория.
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.BACKUP_S3_REGION }}
+          S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+        run: |
+          set -euo pipefail
+
+          # endpoint-url задаём только если переменная не пустая (для чистого AWS S3 — не нужен).
+          ENDPOINT_ARG=""
+          if [ -n "${S3_ENDPOINT}" ]; then
+            ENDPOINT_ARG="--endpoint-url ${S3_ENDPOINT}"
+          fi
+
+          # --no-verify-ssl: S3-gateway Selectel отдаёт сертификат российского УЦ,
+          # которого нет в trust store раннера. Канал к доверенному провайдеру — приемлемо.
+          for f in "$DB_FILE" "$STORAGE_FILE"; do
+            aws s3 cp "$f" "s3://${S3_BUCKET}/supabase/${f}" ${ENDPOINT_ARG} --no-verify-ssl --no-progress
+            echo "Загружено: s3://${S3_BUCKET}/supabase/${f}"
+          done

@@ -7,6 +7,7 @@ const NAV_ITEMS = [
     { to: 'point', label: 'Точки' },
     { to: 'route', label: 'Маршруты' },
     { to: 'event', label: 'События' },
+    { to: 'news', label: 'Новости' },
     { to: 'telegram-chats', label: 'Telegram-чаты' },
     { to: 'geo', label: 'Гео' },
 ] as const

@@ -152,9 +152,11 @@ map.setFeatureState({ source, id }, { selected: true })
 
 ### URL Deep Links
 
-- Формат: `/m/point/11`, `/m/route/5`, `/m/socket/3`, `/m/bikelane/alm1`, `/m/telegramuser/123`
-- Старый hash `#point=11` → автоматически редиректит на путь
-- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — иначе сломается в prod (`base = /map.euc/`)
+- Формат `/m/:type/:id`: `/m/point/11`, `/m/route/5`, `/m/socket/3`, `/m/bikelane/alm1`, `/m/telegramuser/123` — только для типов фич карты (`HashFeatureType` в `src/utils/hashNav.ts`).
+- **События — отдельный маршрут `/events/:id`** (не `/m/event/:id`!). Строить только через `buildEventDetailPath` из `src/utils/eventLinks.ts`; `event` НЕ входит в `HashFeatureType`, поэтому `buildMapDeepLinkPath`/`/m/...` для события даст битую ссылку (маршрут `/m/:type/:id` не распознает тип и откроет пустую карту). Это касается и edge-функций (Telegram-бот): сегмент `events` стабилен (`EVENTS_PATH_PREFIX`), вписывать строкой.
+- При добавлении нового вида сущности со своей страницей — завести парный `build*Path`/`parse*Pathname` и маршрут в `src/App.tsx`; не переиспользовать `/m/...` вслепую.
+- Старый hash `#point=11` → автоматически редиректит на путь.
+- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — иначе сломается в prod (`base = /map.euc/`).
 
 ### Constants (`src/constants/index.ts`)
 
@@ -183,8 +185,9 @@ map.setFeatureState({ source, id }, { selected: true })
 
 ### Supabase Backend
 
-- **Таблицы**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions`, `telegram_locations`, `telegram_profiles`, `map_admin_users`
-- **Storage**: бакеты `map-point-photos/` и `telegram-avatars/` (публичные URL, без bot-токенов)
+- **Таблицы**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions`, `telegram_locations`, `telegram_profiles`, `map_admin_users`, `map_events`, `map_event_dates`, `map_event_participants`, `map_news`, `telegram_chats`, `telegram_outbound_messages`
+- **`telegram_outbound_messages`** — единая таблица исходящих сообщений бота (бывшая `map_event_announcements`, переименована в миграции `20260627120000`). Полиморфная привязка: `event_date_id` (анонс события) ЛИБО `news_id` (новость проекта); CHECK гарантирует ровно один из них. Маппинг `(telegram_chat_id, telegram_message_id)` → отправитель используется для RSVP-callback событий, а также правки/удаления сообщений. Поля `cancelled_at`/`pinned_at` специфичны для событий.
+- **Storage**: бакеты `map-point-photos/`, `telegram-avatars/`, `map-event-photos/`, `map-news-photos/` (публичные URL, без bot-токенов)
 - **RLS**: публичное чтение (кроме disabled/draft); запись требует auth или Edge Function
 - **Resilience**: `withTimeoutAndRetry()` в `lib/supabase.ts`; при отсутствии URL/ключа — fallback на Cache API, предупреждение в консоль, не бросать ошибку при старте
 - **Миграции**: файлы в `supabase/migrations/`. Применять только через `supabase db push` (или CI), **не** через MCP `apply_migration`/`execute_sql` — последний пишет в `schema_migrations` автогенерённый таймстамп, расходящийся с именем файла, и ломает деплой. Если история разошлась — чинить через `supabase migration repair` (правит учёт, не схему), сверять `supabase migration list`. MCP `apply_migration` допустим лишь для разовых проверок на preview-ветке.

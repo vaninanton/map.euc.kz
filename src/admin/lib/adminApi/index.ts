@@ -7,6 +7,9 @@ export type {
     AdminEventDate,
     AdminEventParticipant,
     AdminEventAnnouncement,
+    AdminNews,
+    NewsInput,
+    AdminNewsAnnouncement,
     AnnounceResult,
     AdminTelegramChat,
     TelegramChatInput,
@@ -74,3 +77,21 @@ export {
     updateTelegramChat,
     deleteTelegramChat,
 } from '@/admin/lib/adminApi/telegramChats'
+
+export {
+    listNews,
+    getNews,
+    createNews,
+    updateNews,
+    deleteNews,
+    setNewsPhoto,
+    deleteNewsPhoto,
+    newsPhotoUrl,
+} from '@/admin/lib/adminApi/news'
+
+export {
+    announceNews,
+    editNewsAnnouncements,
+    deleteNewsAnnouncements,
+    listNewsAnnouncements,
+} from '@/admin/lib/adminApi/newsAnnouncements'

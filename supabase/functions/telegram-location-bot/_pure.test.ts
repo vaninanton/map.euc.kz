@@ -2,6 +2,8 @@ import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
 import {
     buildAnnouncementHeader,
     buildAnnouncementText,
+    buildCancelledAnnouncementText,
+    buildNewsText,
     buildRsvpKeyboard,
     escapeHtml,
     formatParticipateButtonLabel,
@@ -62,7 +64,7 @@ Deno.test('buildRsvpKeyboard: callback и deep-link кнопки в одном �
     const kb = buildRsvpKeyboard('abc', 3, 'https://map.euc.kz', 7)
     assertEquals(kb.inline_keyboard[0][0].callback_data, 'rsvp:abc')
     assertEquals(kb.inline_keyboard[0][0].text, 'Участвую (3)')
-    assertEquals(kb.inline_keyboard[0][1].url, 'https://map.euc.kz/m/event/7')
+    assertEquals(kb.inline_keyboard[0][1].url, 'https://map.euc.kz/events/7')
 })
 
 Deno.test('buildAnnouncementHeader: день недели + абсолютное по Алматы + относительный <tg-time>', () => {
@@ -119,6 +121,25 @@ Deno.test('buildAnnouncementText: шапка + тело (с escape) либо т�
     const noBody = buildAnnouncementText(event, 'not-a-date', '   ')
     assertEquals(noBody, 'Покатушка · <b>T</b>')
 })
+
+Deno.test('buildNewsText: тримит и экранирует HTML, без шапки', () => {
+    assertEquals(buildNewsText('  Привет <b>мир</b> & все  '), 'Привет &lt;b&gt;мир&lt;/b&gt; &amp; все')
+    assertEquals(buildNewsText('   '), '')
+})
+
+Deno.test('buildCancelledAnnouncementText: не экранирует готовый HTML, зачёркивает текст', () => {
+    const text = buildCancelledAnnouncementText('Покатушка · <b>T</b>\n\nпривет')
+    assertEquals(text, '❌ <b>ОТМЕНЕНО</b>\n\n<s>Покатушка · <b>T</b>\n\nпривет</s>')
+})
+
+Deno.test(
+    'buildCancelledAnnouncementText: сворачивает <tg-time> в фолбэк (кастомный тег внутри <s> не зачёркивается)',
+    () => {
+        const src = 'вторник, 14 июля, 19:00 (<tg-time unix="1782568800" format="r">скоро</tg-time>)'
+        const text = buildCancelledAnnouncementText(src)
+        assertEquals(text, '❌ <b>ОТМЕНЕНО</b>\n\n<s>вторник, 14 июля, 19:00 (скоро)</s>')
+    },
+)
 
 Deno.test('getMessageWithLocation: приоритет message → edited → channel', () => {
     const withLoc = (id: number): TelegramMessage => ({

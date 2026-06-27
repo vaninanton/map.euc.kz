@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased] — 2026-06-27
+
+### Added
+
+- Новости проекта: раздел `/admin/news` — создание новости (текст + фото), рассылка в выбранные Telegram-чаты, обновление текста во всех отправленных сообщениях и удаление их из Telegram
+- Edge-сабруты `telegram-location-bot`: `/news-announce`, `/news-announce-edit`, `/news-announce-delete`
+- Миграция: таблица `map_news`, Storage-бакет `map-news-photos`
+
+### Changed
+
+- Исходящие сообщения бота объединены в единую таблицу `telegram_outbound_messages` (переименование `map_event_announcements` + полиморфная привязка `event_date_id` | `news_id`); анонсы событий и новости используют общие helpers (`announceClient`, `listLiveAnnouncements`, `editAnnouncementContent`)
+
 ## [Unreleased] — 2026-06-22
 
 ### Fixed

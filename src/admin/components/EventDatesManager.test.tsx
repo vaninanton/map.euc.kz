@@ -123,6 +123,52 @@ describe('EventDatesManager', () => {
         expect(await screen.findByText('Отправлено')).toBeInTheDocument()
         fireEvent.click(await screen.findByText(/Показать участников/))
         expect(await screen.findByText('Иван')).toBeInTheDocument()
+        // username выводится отдельной ссылкой на профиль в Telegram
+        const link = await screen.findByRole('link', { name: '@rider' })
+        expect(link).toHaveAttribute('href', 'https://t.me/rider')
+    })
+
+    it('участник без username показывается без ссылки на профиль', async () => {
+        vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+        vi.mocked(listEventAnnouncementsForDates).mockResolvedValue([announcedAnnouncement])
+        vi.mocked(listEventParticipants).mockResolvedValue([
+            {
+                telegram_user_id: 2,
+                created_at: 'x',
+                username: null,
+                first_name: 'Пётр',
+                last_name: null,
+                avatar_url: null,
+            },
+        ])
+
+        render(<EventDatesManager event={EVENT} />)
+
+        fireEvent.click(await screen.findByText(/Показать участников/))
+        expect(await screen.findByText('Пётр')).toBeInTheDocument()
+        expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    })
+
+    it('участник только с username показывает @username ссылкой без дублирования', async () => {
+        vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+        vi.mocked(listEventAnnouncementsForDates).mockResolvedValue([announcedAnnouncement])
+        vi.mocked(listEventParticipants).mockResolvedValue([
+            {
+                telegram_user_id: 3,
+                created_at: 'x',
+                username: 'solo',
+                first_name: null,
+                last_name: null,
+                avatar_url: null,
+            },
+        ])
+
+        render(<EventDatesManager event={EVENT} />)
+
+        fireEvent.click(await screen.findByText(/Показать участников/))
+        const links = await screen.findAllByRole('link', { name: '@solo' })
+        expect(links).toHaveLength(1)
+        expect(links[0]).toHaveAttribute('href', 'https://t.me/solo')
     })
 
     it('при отмене анонсированной даты вызывает cancelEventDateAnnouncements', async () => {
