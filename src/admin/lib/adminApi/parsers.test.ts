@@ -6,6 +6,8 @@ import {
     parseAdminEventParticipant,
     parseAdminMapPoint,
     parseAdminMapRoute,
+    parseAdminNews,
+    parseAdminNewsAnnouncement,
     parseAdminTelegramChat,
     parseAnnounceResult,
 } from '@/admin/lib/adminApi/parsers'
@@ -378,6 +380,40 @@ describe('parseAdminEventDate', () => {
         ).toThrow()
         expect(() =>
             parseAdminTelegramChat({ chat_id: 1, title: 't', enabled: 'yes', sort_order: 0, created_at: 'y' }),
+        ).toThrow()
+    })
+
+    it('parseAdminNews принимает валидную строку и нормализует photo_path', () => {
+        const n = parseAdminNews({ id: 'n-1', created_at: 'x', body: 'Привет', photo_path: null })
+        expect(n).toEqual({ id: 'n-1', created_at: 'x', body: 'Привет', photo_path: null })
+        expect(parseAdminNews({ id: 'n-1', created_at: 'x', body: 'b', photo_path: 'p.jpg' }).photo_path).toBe('p.jpg')
+    })
+
+    it('parseAdminNews отклоняет отсутствующее body', () => {
+        expect(() => parseAdminNews({ id: 'n-1', created_at: 'x' })).toThrow()
+    })
+
+    it('parseAdminNewsAnnouncement нормализует nullable-поля', () => {
+        const a = parseAdminNewsAnnouncement({
+            id: 'a-1',
+            created_at: 'x',
+            news_id: 'n-1',
+            telegram_chat_id: -100,
+            message_thread_id: null,
+            telegram_message_id: 10,
+            photo_path: null,
+            sent_at: 'y',
+            send_error: null,
+            deleted_at: null,
+        })
+        expect(a.news_id).toBe('n-1')
+        expect(a.telegram_message_id).toBe(10)
+        expect(a.deleted_at).toBeNull()
+    })
+
+    it('parseAdminNewsAnnouncement отклоняет неверный telegram_chat_id', () => {
+        expect(() =>
+            parseAdminNewsAnnouncement({ id: 'a-1', created_at: 'x', news_id: 'n-1', telegram_chat_id: 'nope' }),
         ).toThrow()
     })
 })

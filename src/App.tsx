@@ -14,6 +14,8 @@ import {
     AdminEventsPage,
     AdminEventEditPage,
     AdminTelegramChatsPage,
+    AdminNewsPage,
+    AdminNewsEditPage,
 } from '@/admin/lazyAdminPages'
 
 export default function App() {
@@ -39,6 +41,9 @@ export default function App() {
                     <Route path="event" element={<AdminEventsPage />} />
                     <Route path="event/new" element={<AdminEventEditPage mode="create" />} />
                     <Route path="event/:id" element={<AdminEventEditPage mode="edit" />} />
+                    <Route path="news" element={<AdminNewsPage />} />
+                    <Route path="news/new" element={<AdminNewsEditPage mode="create" />} />
+                    <Route path="news/:id" element={<AdminNewsEditPage mode="edit" />} />
                     <Route path="telegram-chats" element={<AdminTelegramChatsPage />} />
                     <Route path="geo" element={<AdminGeoPage />} />
                     <Route path="*" element={<Navigate to="/admin/submissions" replace />} />

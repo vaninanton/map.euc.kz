@@ -185,8 +185,9 @@ map.setFeatureState({ source, id }, { selected: true })
 
 ### Supabase Backend
 
-- **Таблицы**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions`, `telegram_locations`, `telegram_profiles`, `map_admin_users`
-- **Storage**: бакеты `map-point-photos/` и `telegram-avatars/` (публичные URL, без bot-токенов)
+- **Таблицы**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions`, `telegram_locations`, `telegram_profiles`, `map_admin_users`, `map_events`, `map_event_dates`, `map_event_participants`, `map_news`, `telegram_chats`, `telegram_outbound_messages`
+- **`telegram_outbound_messages`** — единая таблица исходящих сообщений бота (бывшая `map_event_announcements`, переименована в миграции `20260627120000`). Полиморфная привязка: `event_date_id` (анонс события) ЛИБО `news_id` (новость проекта); CHECK гарантирует ровно один из них. Маппинг `(telegram_chat_id, telegram_message_id)` → отправитель используется для RSVP-callback событий, а также правки/удаления сообщений. Поля `cancelled_at`/`pinned_at` специфичны для событий.
+- **Storage**: бакеты `map-point-photos/`, `telegram-avatars/`, `map-event-photos/`, `map-news-photos/` (публичные URL, без bot-токенов)
 - **RLS**: публичное чтение (кроме disabled/draft); запись требует auth или Edge Function
 - **Resilience**: `withTimeoutAndRetry()` в `lib/supabase.ts`; при отсутствии URL/ключа — fallback на Cache API, предупреждение в консоль, не бросать ошибку при старте
 - **Миграции**: файлы в `supabase/migrations/`. Применять только через `supabase db push` (или CI), **не** через MCP `apply_migration`/`execute_sql` — последний пишет в `schema_migrations` автогенерённый таймстамп, расходящийся с именем файла, и ломает деплой. Если история разошлась — чинить через `supabase migration repair` (правит учёт, не схему), сверять `supabase migration list`. MCP `apply_migration` допустим лишь для разовых проверок на preview-ветке.

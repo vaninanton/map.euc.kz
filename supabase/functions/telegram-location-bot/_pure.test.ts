@@ -2,6 +2,7 @@ import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
 import {
     buildAnnouncementHeader,
     buildAnnouncementText,
+    buildNewsText,
     buildRsvpKeyboard,
     escapeHtml,
     formatParticipateButtonLabel,
@@ -118,6 +119,11 @@ Deno.test('buildAnnouncementText: шапка + тело (с escape) либо т�
     assertEquals(withBody, 'Покатушка · <b>T</b>\n\nпривет &lt;b&gt;')
     const noBody = buildAnnouncementText(event, 'not-a-date', '   ')
     assertEquals(noBody, 'Покатушка · <b>T</b>')
+})
+
+Deno.test('buildNewsText: тримит и экранирует HTML, без шапки', () => {
+    assertEquals(buildNewsText('  Привет <b>мир</b> & все  '), 'Привет &lt;b&gt;мир&lt;/b&gt; &amp; все')
+    assertEquals(buildNewsText('   '), '')
 })
 
 Deno.test('getMessageWithLocation: приоритет message → edited → channel', () => {

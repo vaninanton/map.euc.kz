@@ -313,3 +313,11 @@ export function buildAnnouncementText(event: AnnouncementEvent, startsAtIso: str
     const trimmed = body.trim()
     return trimmed ? `${header}\n\n${escapeHtml(trimmed)}` : header
 }
+
+/**
+ * Текст новости проекта для Telegram: свободное тело админа, экранированное для parse_mode HTML.
+ * Без шапки и кнопок (в отличие от анонса события) — новость это просто текст (+ опц. фото).
+ */
+export function buildNewsText(body: string): string {
+    return escapeHtml(body.trim())
+}

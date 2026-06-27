@@ -9,6 +9,9 @@ import {
     handleDeleteAnnouncements,
     handleEditAnnouncements,
     handlePinAnnouncement,
+    handleAnnounceNews,
+    handleEditNews,
+    handleDeleteNews,
     isAdminRequest,
 } from './_handlers.ts'
 import type { TelegramCallbackQuery } from './_pure.ts'
@@ -316,7 +319,7 @@ Deno.test('handleCallbackQuery: новый участник → insert + тос�
             return { count: 1, error: null }
         },
         // дата разослана в два чата — обновить нужно оба сообщения
-        map_event_announcements: () => ({
+        telegram_outbound_messages: () => ({
             data: [
                 { telegram_chat_id: -200, telegram_message_id: 42 },
                 { telegram_chat_id: -300, telegram_message_id: 99 },
@@ -357,7 +360,7 @@ Deno.test(
                 if (op === 'insert') return { data: null, error: null }
                 return { count: 1, error: null }
             },
-            map_event_announcements: (op) =>
+            telegram_outbound_messages: (op) =>
                 op === 'select'
                     ? { data: [{ id: 'a1', telegram_chat_id: -200, telegram_message_id: 42 }], error: null }
                     : { error: null },
@@ -372,7 +375,7 @@ Deno.test(
         try {
             await handleCallbackQuery(client, makeCb(`rsvp:${VALID_UUID}`), 'TOKEN', 'https://map.euc.kz')
             // строка-«призрак» помечена deleted_at
-            const updates = opsLog.filter((o) => o.table === 'map_event_announcements' && o.op === 'update')
+            const updates = opsLog.filter((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
             assertEquals(updates.length, 1)
             assertEquals(Object.prototype.hasOwnProperty.call(updates[0].payload, 'deleted_at'), true)
         } finally {
@@ -430,7 +433,7 @@ function announceHandlers(): Record<string, TableHandler> {
         telegram_chats: () => ({ data: [{ chat_id: -200 }], error: null }),
         map_event_participants: () => ({ count: 0, error: null }),
         // insert ... .select('id').single() → строка с id (нужно для последующего pin)
-        map_event_announcements: (op) =>
+        telegram_outbound_messages: (op) =>
             op === 'insert' ? { data: { id: 'new-ann' }, error: null } : { data: null, error: null },
     }
 }
@@ -509,7 +512,7 @@ Deno.test('handleAnnounceEventDate: сохраняет сырое body_text и p
             'TOKEN',
             'https://map.euc.kz',
         )
-        const insert = opsLog.find((o) => o.table === 'map_event_announcements' && o.op === 'insert')!
+        const insert = opsLog.find((o) => o.table === 'telegram_outbound_messages' && o.op === 'insert')!
         const payload = insert.payload as { body_text: string; photo_path: string | null }
         assertEquals(payload.body_text, 'Сбор у фонтана')
         // в announceHandlers photo_path = null
@@ -616,7 +619,7 @@ function editDeleteHandlers(): Record<string, TableHandler> {
             error: null,
         }),
         map_event_participants: () => ({ count: 0, error: null }),
-        map_event_announcements: (op) =>
+        telegram_outbound_messages: (op) =>
             op === 'select'
                 ? {
                       data: [
@@ -661,7 +664,7 @@ Deno.test('handleEditAnnouncements: правит текст во всех соо
         // новый текст содержит свободное тело и не равен старому снимку
         assertEquals((edits[0].body as { text: string }).text.includes('новый текст'), true)
         // снимок текста обновлён в БД по каждой строке: message_text (со шапкой) + сырое body_text
-        const updates = opsLog.filter((o) => o.table === 'map_event_announcements' && o.op === 'update')
+        const updates = opsLog.filter((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
         assertEquals(updates.length, 2)
         const payload = updates[0].payload as { message_text: string; body_text: string }
         assertEquals(payload.body_text, 'новый текст')
@@ -677,7 +680,7 @@ Deno.test(
         // Строки с photo_path → редактируются как подпись (детерминированно по типу, без пробного вызова).
         const handlers: Record<string, TableHandler> = {
             ...editDeleteHandlers(),
-            map_event_announcements: (op) =>
+            telegram_outbound_messages: (op) =>
                 op === 'select'
                     ? {
                           data: [
@@ -740,7 +743,7 @@ Deno.test('handleEditAnnouncements: сообщение удалено из ча�
         assertEquals(json.edited, 0)
         assertEquals(json.failed.length, 2)
         // обе строки помечены deleted_at (самоочищение из живых)
-        const updates = opsLog.filter((o) => o.table === 'map_event_announcements' && o.op === 'update')
+        const updates = opsLog.filter((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
         assertEquals(updates.length, 2)
         assertEquals(Object.prototype.hasOwnProperty.call(updates[0].payload, 'deleted_at'), true)
     } finally {
@@ -784,7 +787,7 @@ Deno.test('handleDeleteAnnouncements: deleteMessage во всех чатах + �
         assertEquals(json.deleted, 2)
         assertEquals(calls.filter((c) => methodOf(c.url) === 'deleteMessage').length, 2)
         // обе строки помечены deleted_at
-        const updates = opsLog.filter((o) => o.table === 'map_event_announcements' && o.op === 'update')
+        const updates = opsLog.filter((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
         assertEquals(updates.length, 2)
         assertEquals(Object.prototype.hasOwnProperty.call(updates[0].payload, 'deleted_at'), true)
     } finally {
@@ -805,7 +808,7 @@ Deno.test('handleDeleteAnnouncements: deleteMessage упал → строка в
         )
         const json = (await res.json()) as { deleted: number }
         assertEquals(json.deleted, 2)
-        assertEquals(opsLog.filter((o) => o.table === 'map_event_announcements' && o.op === 'update').length, 2)
+        assertEquals(opsLog.filter((o) => o.table === 'telegram_outbound_messages' && o.op === 'update').length, 2)
     } finally {
         restore()
     }
@@ -829,7 +832,7 @@ const PIN_ANN_ID = '99999999-2222-3333-4444-555555555555'
 function pinHandlers(): Record<string, TableHandler> {
     return {
         map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
-        map_event_announcements: (op) =>
+        telegram_outbound_messages: (op) =>
             op === 'select'
                 ? { data: { id: PIN_ANN_ID, telegram_chat_id: -200, telegram_message_id: 42 }, error: null }
                 : { error: null },
@@ -852,7 +855,7 @@ Deno.test('handlePinAnnouncement: pin=true → pinChatMessage + update pinned_at
             calls.some((c) => methodOf(c.url) === 'pinChatMessage'),
             true,
         )
-        const upd = opsLog.find((o) => o.table === 'map_event_announcements' && o.op === 'update')!
+        const upd = opsLog.find((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')!
         assertEquals(typeof (upd.payload as { pinned_at: unknown }).pinned_at, 'string')
     } finally {
         restore()
@@ -874,7 +877,7 @@ Deno.test('handlePinAnnouncement: pin=false → unpinChatMessage + pinned_at=nul
             calls.some((c) => methodOf(c.url) === 'unpinChatMessage'),
             true,
         )
-        const upd = opsLog.find((o) => o.table === 'map_event_announcements' && o.op === 'update')!
+        const upd = opsLog.find((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')!
         assertEquals((upd.payload as { pinned_at: unknown }).pinned_at, null)
     } finally {
         restore()
@@ -894,7 +897,7 @@ Deno.test('handlePinAnnouncement: Telegram отказал → 502, pinned_at н�
         )
         assertEquals(res.status, 502)
         assertEquals(
-            opsLog.some((o) => o.table === 'map_event_announcements' && o.op === 'update'),
+            opsLog.some((o) => o.table === 'telegram_outbound_messages' && o.op === 'update'),
             false,
         )
     } finally {
@@ -906,7 +909,7 @@ Deno.test('handlePinAnnouncement: строки нет (удалена/чужая
     const { client } = makeFakeSupabase(
         {
             map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
-            map_event_announcements: () => ({ data: null, error: null }),
+            telegram_outbound_messages: () => ({ data: null, error: null }),
         },
         { adminUserId: 'admin-1' },
     )
@@ -996,4 +999,153 @@ Deno.test('handleAvatarBackfill: безопасные URL пропускаютс
     assertEquals(json.processed, 2)
     assertEquals(json.skipped_safe, 2)
     assertEquals(json.updated, 0)
+})
+
+// ───────────────────────────── Новости проекта ─────────────────────────────
+
+/** Запрос на /news-* от админа с заданным телом. */
+function newsReq(body: unknown): Request {
+    return new Request('https://x/news-announce', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer jwt', 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+    })
+}
+
+Deno.test('handleAnnounceNews: шлёт sendMessage в выбранные чаты и пишет строку с news_id', async () => {
+    const { client, opsLog } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            map_news: () => ({ data: { body: 'Привет', photo_path: null, deleted_at: null }, error: null }),
+            telegram_chats: () => ({ data: [{ chat_id: -200, message_thread_id: null }], error: null }),
+            telegram_outbound_messages: () => ({ data: null, error: null }),
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const { calls, restore } = installFetchMock(() => tgOk({ message_id: 77 }))
+    try {
+        const res = await handleAnnounceNews(client, newsReq({ news_id: VALID_UUID, destination_ids: ['d1'] }), 'TOKEN')
+        const json = (await res.json()) as { sent: Array<{ chat_id: number; message_id: number }>; failed: unknown[] }
+        assertEquals(json.sent, [{ chat_id: -200, message_id: 77 }])
+        assertEquals(json.failed.length, 0)
+        assertEquals(methodOf(calls[0].url), 'sendMessage')
+        const insert = opsLog.find((o) => o.table === 'telegram_outbound_messages' && o.op === 'insert')!
+        assertEquals((insert.payload as { news_id: string }).news_id, VALID_UUID)
+        assertEquals((insert.payload as { telegram_message_id: number }).telegram_message_id, 77)
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleAnnounceNews: фото у новости → sendPhoto с caption', async () => {
+    const { client } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            map_news: () => ({ data: { body: 'Текст', photo_path: 'n/1.jpg', deleted_at: null }, error: null }),
+            telegram_chats: () => ({ data: [{ chat_id: -200, message_thread_id: null }], error: null }),
+            telegram_outbound_messages: () => ({ data: null, error: null }),
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const { calls, restore } = installFetchMock(() => tgOk({ message_id: 5 }))
+    try {
+        await handleAnnounceNews(client, newsReq({ news_id: VALID_UUID, destination_ids: ['d1'] }), 'TOKEN')
+        assertEquals(methodOf(calls[0].url), 'sendPhoto')
+        assertEquals((calls[0].body as { caption: string }).caption, 'Текст')
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleAnnounceNews: пустое тело → 400 empty_body', async () => {
+    const { client } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            map_news: () => ({ data: { body: '   ', photo_path: null, deleted_at: null }, error: null }),
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const res = await handleAnnounceNews(client, newsReq({ news_id: VALID_UUID, destination_ids: ['d1'] }), 'TOKEN')
+    assertEquals(res.status, 400)
+    assertEquals(((await res.json()) as { error: string }).error, 'empty_body')
+})
+
+Deno.test('handleAnnounceNews: удалённая новость → 404 news_not_found', async () => {
+    const { client } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            map_news: () => ({
+                data: { body: 'x', photo_path: null, deleted_at: '2026-01-01T00:00:00Z' },
+                error: null,
+            }),
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const res = await handleAnnounceNews(client, newsReq({ news_id: VALID_UUID, destination_ids: ['d1'] }), 'TOKEN')
+    assertEquals(res.status, 404)
+})
+
+Deno.test('handleEditNews: editMessageText во всех живых + обновление body_text', async () => {
+    const { client, opsLog } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            map_news: () => ({ data: { body: 'Новый текст', photo_path: null, deleted_at: null }, error: null }),
+            telegram_outbound_messages: (op) =>
+                op === 'select'
+                    ? {
+                          data: [
+                              { id: 'a1', telegram_chat_id: -200, telegram_message_id: 11, photo_path: null },
+                              { id: 'a2', telegram_chat_id: -300, telegram_message_id: 22, photo_path: null },
+                          ],
+                          error: null,
+                      }
+                    : { error: null },
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        const res = await handleEditNews(client, newsReq({ news_id: VALID_UUID }), 'TOKEN')
+        const json = (await res.json()) as { edited: number; failed: unknown[] }
+        assertEquals(json.edited, 2)
+        assertEquals(json.failed.length, 0)
+        assertEquals(calls.filter((c) => methodOf(c.url) === 'editMessageText').length, 2)
+        const updates = opsLog.filter((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
+        assertEquals(updates.length, 2)
+        assertEquals((updates[0].payload as { body_text: string }).body_text, 'Новый текст')
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleDeleteNews: deleteMessage + пометка deleted_at для каждого живого', async () => {
+    const { client, opsLog } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            telegram_outbound_messages: (op) =>
+                op === 'select'
+                    ? {
+                          data: [{ id: 'a1', telegram_chat_id: -200, telegram_message_id: 11, photo_path: null }],
+                          error: null,
+                      }
+                    : { error: null },
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        const res = await handleDeleteNews(client, newsReq({ news_id: VALID_UUID }), 'TOKEN')
+        assertEquals(((await res.json()) as { deleted: number }).deleted, 1)
+        assertEquals(calls.filter((c) => methodOf(c.url) === 'deleteMessage').length, 1)
+        const updates = opsLog.filter((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
+        assertEquals(Object.prototype.hasOwnProperty.call(updates[0].payload, 'deleted_at'), true)
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleAnnounceNews: не админ → 401', async () => {
+    const { client } = makeFakeSupabase({})
+    const res = await handleAnnounceNews(client, newsReq({ news_id: VALID_UUID, destination_ids: ['d1'] }), 'TOKEN')
+    assertEquals(res.status, 401)
 })
