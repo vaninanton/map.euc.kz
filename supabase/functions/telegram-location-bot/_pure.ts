@@ -315,6 +315,20 @@ export function buildAnnouncementText(event: AnnouncementEvent, startsAtIso: str
 }
 
 /**
+ * Текст отменённого анонса: «❌ ОТМЕНЕНО» + зачёркнутый исходный текст.
+ *
+ * message_text — уже готовый HTML (шапка с <b>/<tg-time> + экранированное тело), поэтому
+ * его НЕЛЬЗЯ повторно экранировать (escapeHtml превратил бы теги в видимый текст —
+ * «<b>», «<tg-time …>»). Живой <tg-time format="r"> сворачиваем в его фолбэк-текст:
+ * относительный таймер у отменённого события бессмыслен, а кастомный тег внутри <s>
+ * Telegram не зачёркивает.
+ */
+export function buildCancelledAnnouncementText(messageText: string): string {
+    const withoutLiveTime = messageText.replace(/<tg-time\b[^>]*>([\s\S]*?)<\/tg-time>/gi, '$1')
+    return `❌ <b>ОТМЕНЕНО</b>\n\n<s>${withoutLiveTime}</s>`
+}
+
+/**
  * Текст новости проекта для Telegram: свободное тело админа, экранированное для parse_mode HTML.
  * Без шапки и кнопок (в отличие от анонса события) — новость это просто текст (+ опц. фото).
  */

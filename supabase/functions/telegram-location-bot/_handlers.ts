@@ -12,9 +12,9 @@ import {
     TELEGRAM_AVATARS_BUCKET,
     UUID_RE,
     buildAnnouncementText,
+    buildCancelledAnnouncementText,
     buildNewsText,
     buildRsvpKeyboard,
-    escapeHtml,
     isAvatarUrlSafe,
     parsePositiveIntEnv,
     parseRsvpCallbackData,
@@ -707,7 +707,7 @@ export async function handleCancelAnnouncements(
 
     let cancelled = 0
     for (const r of rows) {
-        const newText = `❌ <b>ОТМЕНЕНО</b>\n\n<s>${escapeHtml(r.message_text)}</s>`
+        const newText = buildCancelledAnnouncementText(r.message_text)
         await editAnnouncementContent(r, newText, token)
         await callTelegramApi(
             'editMessageReplyMarkup',
