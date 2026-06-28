@@ -73,11 +73,7 @@ export interface TelegramUserProperties extends BaseFeatureProperties {
 }
 
 export type FeatureProperties =
-    | PointProperties
-    | SocketProperties
-    | RouteProperties
-    | BikeLaneProperties
-    | TelegramUserProperties
+    PointProperties | SocketProperties | RouteProperties | BikeLaneProperties | TelegramUserProperties
 
 export interface Feature<G extends Geometry = Geometry, P extends FeatureProperties = FeatureProperties> {
     type: 'Feature'
