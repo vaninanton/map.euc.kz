@@ -1,6 +1,7 @@
 import type { MapPointType, EventType } from '@/types'
 import { isRecord } from '@/utils/mapFeatureGuards'
 import type {
+    AdminDashboardStats,
     AdminEvent,
     AdminEventAnnouncement,
     AdminEventDate,
@@ -12,6 +13,7 @@ import type {
     AdminSubmission,
     AdminTelegramChat,
     AnnounceResult,
+    DashboardDailyActivity,
     SubmissionStatus,
 } from '@/admin/lib/adminApi/types'
 
@@ -471,5 +473,67 @@ export function parsePhotoRowDB(raw: unknown): PhotoRowDB {
         storage_path,
         alt_text,
         sort_order,
+    }
+}
+
+function asFiniteNumber(value: unknown, field: string): number {
+    const n = Number(value)
+    if (!Number.isFinite(n)) throw new Error(field)
+    return n
+}
+
+function asEntityCounts(value: unknown, field: string): { total: number; disabled: number } {
+    if (!isRecord(value)) throw new Error(field)
+    return {
+        total: asFiniteNumber(value.total, `${field}.total`),
+        disabled: asFiniteNumber(value.disabled, `${field}.disabled`),
+    }
+}
+
+function asDailyActivity(value: unknown): DashboardDailyActivity[] {
+    if (!Array.isArray(value)) throw new Error('daily_activity')
+    return value.map((item, index) => {
+        if (!isRecord(item) || typeof item.day !== 'string') throw new Error(`daily_activity[${String(index)}]`)
+        return {
+            day: item.day,
+            riders: asFiniteNumber(item.riders, `daily_activity[${String(index)}].riders`),
+            locations: asFiniteNumber(item.locations, `daily_activity[${String(index)}].locations`),
+        }
+    })
+}
+
+/**
+ * Валидирует ответ RPC `get_admin_dashboard_stats` в модель дашборда.
+ */
+export function parseAdminDashboardStats(raw: unknown): AdminDashboardStats {
+    if (!isRecord(raw)) throw new Error('не объект')
+
+    if (!isRecord(raw.points)) throw new Error('points')
+    if (!isRecord(raw.riders)) throw new Error('riders')
+
+    return {
+        points: {
+            ...asEntityCounts(raw.points, 'points'),
+            sockets: asFiniteNumber(raw.points.sockets, 'points.sockets'),
+            meetings: asFiniteNumber(raw.points.meetings, 'points.meetings'),
+        },
+        routes: asEntityCounts(raw.routes, 'routes'),
+        photos_total: asFiniteNumber(raw.photos_total, 'photos_total'),
+        events: asEntityCounts(raw.events, 'events'),
+        upcoming_event_dates: asFiniteNumber(raw.upcoming_event_dates, 'upcoming_event_dates'),
+        next_event_starts_at: asNullableString(raw.next_event_starts_at),
+        participants_total: asFiniteNumber(raw.participants_total, 'participants_total'),
+        news_total: asFiniteNumber(raw.news_total, 'news_total'),
+        submissions_pending: asFiniteNumber(raw.submissions_pending, 'submissions_pending'),
+        chats_enabled: asFiniteNumber(raw.chats_enabled, 'chats_enabled'),
+        outbound_errors_30d: asFiniteNumber(raw.outbound_errors_30d, 'outbound_errors_30d'),
+        last_location_at: asNullableString(raw.last_location_at),
+        riders: {
+            today: asFiniteNumber(raw.riders.today, 'riders.today'),
+            week: asFiniteNumber(raw.riders.week, 'riders.week'),
+            month: asFiniteNumber(raw.riders.month, 'riders.month'),
+            year: asFiniteNumber(raw.riders.year, 'riders.year'),
+        },
+        daily_activity: asDailyActivity(raw.daily_activity),
     }
 }

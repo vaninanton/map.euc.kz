@@ -4,6 +4,7 @@ import {
     parseAdminEventAnnouncement,
     parseAdminEventDate,
     parseAdminEventParticipant,
+    parseAdminDashboardStats,
     parseAdminMapPoint,
     parseAdminMapRoute,
     parseAdminNews,
@@ -415,5 +416,66 @@ describe('parseAdminEventDate', () => {
         expect(() =>
             parseAdminNewsAnnouncement({ id: 'a-1', created_at: 'x', news_id: 'n-1', telegram_chat_id: 'nope' }),
         ).toThrow()
+    })
+})
+
+const DASHBOARD_STATS = {
+    points: { total: 42, sockets: 10, meetings: 5, disabled: 2 },
+    routes: { total: 7, disabled: 1 },
+    photos_total: 30,
+    events: { total: 3, disabled: 0 },
+    upcoming_event_dates: 2,
+    next_event_starts_at: '2026-07-05T14:00:00+00:00',
+    participants_total: 12,
+    news_total: 4,
+    submissions_pending: 1,
+    chats_enabled: 3,
+    outbound_errors_30d: 0,
+    last_location_at: '2026-07-02T09:00:00+00:00',
+    riders: { today: 5, week: 11, month: 20, year: 60 },
+    daily_activity: [{ day: '2026-07-01', riders: 3, locations: 120 }],
+}
+
+describe('parseAdminDashboardStats', () => {
+    it('парсит валидный ответ RPC', () => {
+        const stats = parseAdminDashboardStats(DASHBOARD_STATS)
+        expect(stats.points.total).toBe(42)
+        expect(stats.points.sockets).toBe(10)
+        expect(stats.routes).toEqual({ total: 7, disabled: 1 })
+        expect(stats.riders.year).toBe(60)
+        expect(stats.daily_activity).toEqual([{ day: '2026-07-01', riders: 3, locations: 120 }])
+        expect(stats.next_event_starts_at).toBe('2026-07-05T14:00:00+00:00')
+    })
+
+    it('null-поля дат допустимы', () => {
+        const stats = parseAdminDashboardStats({
+            ...DASHBOARD_STATS,
+            next_event_starts_at: null,
+            last_location_at: null,
+        })
+        expect(stats.next_event_starts_at).toBeNull()
+        expect(stats.last_location_at).toBeNull()
+    })
+
+    it('пустая активность — пустой массив', () => {
+        expect(parseAdminDashboardStats({ ...DASHBOARD_STATS, daily_activity: [] }).daily_activity).toEqual([])
+    })
+
+    it('не объект — ошибка', () => {
+        expect(() => parseAdminDashboardStats(null)).toThrow()
+        expect(() => parseAdminDashboardStats([])).toThrow()
+    })
+
+    it('нечисловой счётчик — ошибка с именем поля', () => {
+        expect(() => parseAdminDashboardStats({ ...DASHBOARD_STATS, photos_total: 'many' })).toThrow('photos_total')
+        expect(() =>
+            parseAdminDashboardStats({ ...DASHBOARD_STATS, riders: { ...DASHBOARD_STATS.riders, today: undefined } }),
+        ).toThrow('riders.today')
+    })
+
+    it('битая запись daily_activity — ошибка с индексом', () => {
+        expect(() =>
+            parseAdminDashboardStats({ ...DASHBOARD_STATS, daily_activity: [{ day: 5, riders: 1, locations: 1 }] }),
+        ).toThrow('daily_activity[0]')
     })
 })

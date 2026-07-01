@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased] — 2026-07-02 (дашборд)
+
+### Added
+
+- Админ-дашборд на `/admin`: райдеры за сегодня/7 дней/30 дней/год, sparkline активности за 30 дней, контент (точки, маршруты + суммарные км, события, новости), алерты (pending-заявки, ошибки рассылок за 30 дней, health-check webhook'а бота)
+- RPC `get_admin_dashboard_stats` (SECURITY DEFINER, только админы) — все агрегаты одним вызовом; миграция `20260702120000`
+- Бейдж числа pending-заявок в меню админки (`countPendingSubmissions`)
+- Утилиты `routeDistance.ts` (км маршрутов) и `adminTime.ts` (`formatAgo`, `isBotStale`) с тестами
+- `IDEAS.md` — бэклог идей развития проекта
+
+### Changed
+
+- `/admin` больше не редиректит на `/admin/submissions` — там дашборд
+
 ## [Unreleased] — 2026-07-02
 
 ### Added

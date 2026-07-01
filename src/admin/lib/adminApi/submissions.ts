@@ -23,6 +23,19 @@ export async function listSubmissions(status?: SubmissionStatus): Promise<AdminS
     return runManyParsed('listSubmissions', query, (raw) => parseAdminSubmission(raw))
 }
 
+/** Количество заявок в статусе pending — для бейджа в меню админки. */
+export async function countPendingSubmissions(): Promise<number> {
+    const { count, error } = await db()
+        .from('map_points_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+    if (error) {
+        console.error('countPendingSubmissions:', error)
+        throw new Error(error.message)
+    }
+    return count ?? 0
+}
+
 /**
  * Подтверждает заявку:
  * создаёт точку в `map_points` и помечает заявку как `approved`.
