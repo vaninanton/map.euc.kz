@@ -4,7 +4,7 @@
 
 **Ссылка:** https://map.euc.kz  
 **Статус:** Production (React 19 + Mapbox GL + Supabase + PWA)  
-**Архитектура:** Подробно описана в [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) — для новых инженеров и архитектурных обзоров.
+**Архитектура:** Подробно описана в [docs/](docs/README.md) — для новых инженеров и архитектурных обзоров. Правила разработки — в [AGENTS.md](AGENTS.md).
 
 ## Основной функционал
 
@@ -22,7 +22,7 @@
 
 - **Переключение подложки:** Карта (Mapbox Streets) ↔ Спутник (сохраняется в localStorage).
 - **Детали фичи:** Сайдбар с информацией, фотогалерея, координаты, поделиться ссылкой.
-- **Deep links:** `#point-123`, `#route-456` — прямая ссылка на фичу с автозумом.
+- **Deep links:** `/m/point/11`, `/m/route/5` — прямая ссылка на фичу с автозумом (легаси `#point=11` редиректится); события — `/events/:id`.
 - **Offline-first:** Service Worker кэширует app shell, статические ассеты, Mapbox-тайлы. Карта работает офлайн.
 - **PWA:** Установима на iOS/Android (splash-screens для всех современных устройств).
 - **Интерактивность:** Hover/click-эффекты через Mapbox `feature-state` (без React re-renders!).
@@ -91,7 +91,7 @@ public/
 ├── favicon.svg, icons/, splash screens
 ```
 
-**Для понимания архитектуры:** см. [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) с полными диаграммами, data flow, top-10 файлов и опасных зон.
+**Для понимания архитектуры:** см. [docs/](docs/README.md) — диаграммы, data flow, схема БД, бот, тесты и деплой.
 
 ## Как система работает (в двух словах)
 
@@ -275,7 +275,7 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 - **Сабрут `/announce-cancel`** (`POST`, JWT администратора): при отмене даты редактирует все её сообщения в «❌ ОТМЕНЕНО» и убирает кнопку.
 - **`callback_query`**: нажатие «Участвую» в любом чате — toggle участия по `telegram_user_id` (повторный тап убирает запись), счётчик в подписи кнопки обновляется. Профиль участника при необходимости создаётся в `telegram_profiles` (без аватара — его добьёт backfill).
 
-Список чатов для рассылки хранится в таблице `telegram_chats` (управляется в админке `/admin/telegram-chats`, не через env). Участники — в `map_event_participants`, отправленные сообщения — в `map_event_announcements`. Новых секретов не требуется: используются существующие `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+Список чатов для рассылки хранится в таблице `telegram_chats` (управляется в админке `/admin/telegram-chats`, не через env). Участники — в `map_event_participants`, отправленные сообщения — в `telegram_outbound_messages` (общая таблица для анонсов событий и новостей проекта). Новых секретов не требуется: используются существующие `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Подробно: [docs/telegram-bot.md](docs/telegram-bot.md).
 
 ## Отладка
 
@@ -309,27 +309,33 @@ map.querySourceFeatures(sourceId) // Данные в источнике
 
 - Supabase Dashboard → Edge Functions → `telegram-location-bot` → Logs
 - Проверить `TELEGRAM_WEBHOOK_SECRET` совпадает с Telegram API
-- Ручной тест webhook (см. KNOWLEDGE_BASE.md → Debugging Guide)
+- Ручной тест webhook (см. [docs/telegram-bot.md](docs/telegram-bot.md))
 
 ## База данных (Supabase)
 
-| Таблица                  | Цель                                                                      |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `map_points`             | Точки и розетки (type: point \| socket), флаги: meeting, socket, disabled |
-| `map_routes`             | Маршруты (LineString с опциональными высотами, via_coordinates)           |
-| `map_points_submissions` | Очередь модерации (status: pending \| approved \| rejected)               |
-| `map_point_photos`       | Фото (FK → points), Storage bucket references                             |
-| `map_admin_users`        | Администраторы (FK → auth.users), заполняется вручную                     |
-| `telegram_locations`     | Живые локации (с фильтром TTL в коде)                                     |
-| `telegram_profiles`      | Кэш аватаров, имён, ников Telegram-пользователей                          |
+| Таблица                      | Цель                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `map_points`                 | Точки и розетки (type: point \| socket), флаги: meeting, socket, disabled |
+| `map_routes`                 | Маршруты (LineString с опциональными высотами, via_coordinates)           |
+| `map_points_submissions`     | Очередь модерации (status: pending \| approved \| rejected)               |
+| `map_point_photos`           | Фото (FK → points), Storage bucket references                             |
+| `map_admin_users`            | Администраторы (FK → auth.users), заполняется вручную                     |
+| `telegram_locations`         | Живые локации (с фильтром TTL в коде)                                     |
+| `telegram_profiles`          | Кэш аватаров, имён, ников Telegram-пользователей                          |
+| `map_events`                 | События (покатушки/мероприятия/обучение) + фото, старт/финиш              |
+| `map_event_dates`            | Даты проведения событий (с отменой)                                       |
+| `map_event_participants`     | RSVP «Участвую» из Telegram (toggle)                                      |
+| `map_news`                   | Новости проекта (только рассылка, мягкое удаление)                        |
+| `telegram_chats`             | Чаты/темы для рассылки анонсов                                            |
+| `telegram_outbound_messages` | Исходящие сообщения бота (анонсы событий ЛИБО новости)                    |
 
-**RLS:** Все публичные таблицы: чтение анонимно (где `flag_disabled = false`), запись только администраторам.
+**RLS:** Публичные таблицы: чтение анонимно (где `flag_disabled = false`), запись только администраторам. Полная матрица — в [docs/database.md](docs/database.md).
 
 ## Для новых инженеров
 
 ### Первые 30 минут
 
-1. Прочитай этот README + [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md)
+1. Прочитай этот README + [docs/architecture.md](docs/architecture.md)
 2. `npm install && npm run dev`
 3. Открой `http://localhost:5173` в браузере
 4. Кликни на точку → смотри как это работает в DevTools

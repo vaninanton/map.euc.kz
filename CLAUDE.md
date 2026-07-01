@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PWA-карта для райдеров на моноколёсах (EUC) в Алматы — live at **map.euc.kz**. Точки встреч, розетки, маршруты, велодорожки и live-геопозиции из Telegram-чатов.
 
+**Полная документация — в [docs/](docs/README.md)**: архитектура, фронтенд, схема БД и RLS, Telegram-бот, события/новости, админка, тесты, деплой. Перед изменением подсистемы читать профильный файл; при изменении поведения — обновлять docs/ в том же коммите. Правила для агентов продублированы в [AGENTS.md](AGENTS.md).
+
 ## Stack
 
 - **React 19** + **TypeScript 6** (strict) + **Vite 8** + **Tailwind CSS 4** (`@tailwindcss/vite`)
@@ -30,7 +32,7 @@ npm run preview      # Preview production build locally
 npx vitest run src/utils/hashNav.test.ts
 ```
 
-**Pre-commit хук** (`.husky/pre-commit`) запускает автоматически: `lint → tsc --noEmit → test → build`.
+**Pre-commit хук** (`.husky/pre-commit`) запускает автоматически: `lint → format:check → tsc --noEmit → test → test:functions (если есть deno) → build → test:e2e`.
 
 E2E тесты: `npm run test:e2e` / `npm run test:e2e:ui`
 

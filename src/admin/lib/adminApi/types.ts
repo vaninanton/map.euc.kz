@@ -205,3 +205,44 @@ export interface AdminNewsAnnouncement {
     send_error: string | null
     deleted_at: string | null
 }
+
+/** Счётчики по одной сущности с флагом скрытия. */
+export interface DashboardEntityCounts {
+    total: number
+    disabled: number
+}
+
+/** Уникальные райдеры за периоды (границы — по полуночи Алматы). */
+export interface DashboardRiderCounts {
+    today: number
+    week: number
+    month: number
+    year: number
+}
+
+/** Активность за один день (для sparkline на 30 дней). */
+export interface DashboardDailyActivity {
+    /** День в формате YYYY-MM-DD (таймзона Алматы). */
+    day: string
+    riders: number
+    locations: number
+}
+
+/** Ответ RPC get_admin_dashboard_stats — агрегаты для дашборда /admin. */
+export interface AdminDashboardStats {
+    points: DashboardEntityCounts & { sockets: number; meetings: number }
+    routes: DashboardEntityCounts
+    photos_total: number
+    events: DashboardEntityCounts
+    upcoming_event_dates: number
+    next_event_starts_at: string | null
+    participants_total: number
+    news_total: number
+    submissions_pending: number
+    chats_enabled: number
+    outbound_errors_30d: number
+    /** Время последней принятой геопозиции (health-check webhook'а бота). */
+    last_location_at: string | null
+    riders: DashboardRiderCounts
+    daily_activity: DashboardDailyActivity[]
+}
