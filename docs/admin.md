@@ -13,17 +13,25 @@ Lazy-loaded раздел SPA. Доступ: Supabase Auth (email/пароль) +
 
 ## Маршруты
 
-| Путь                            | Страница                      | Назначение                                                            |
-| ------------------------------- | ----------------------------- | --------------------------------------------------------------------- |
-| `/admin` → `/admin/submissions` | `SubmissionsPage`             | Модерация заявок (фильтр по статусу, approve → создаёт точку, reject) |
-| `/admin/point`, `/new`, `/:id`  | `PointsPage`, `PointEditPage` | CRUD точек: карта + форма + `PhotoManager`; toggle disabled           |
-| `/admin/route`, `/new`, `/:id`  | `RoutesPage`, `RouteEditPage` | CRUD маршрутов: полилиния + список вершин + высоты                    |
-| `/admin/event`, `/new`, `/:id`  | `EventsPage`, `EventEditPage` | События + даты + анонсы (см. [events-news.md](events-news.md))        |
-| `/admin/news`, `/new`, `/:id`   | `NewsPage`, `NewsEditPage`    | Новости + рассылка                                                    |
-| `/admin/telegram-chats`         | `TelegramChatsPage`           | Чаты/темы для рассылки (enabled, sort_order, thread)                  |
-| `/admin/geo`                    | `GeoPage`                     | Треки райдеров за период (30 мин…всё), `AdminGeoMap`                  |
+| Путь                           | Страница                      | Назначение                                                                                                                            |
+| ------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `/admin`                       | `DashboardPage`               | Дашборд: райдеры за периоды, sparkline за 30 дней, контент (+км маршрутов), алерты (pending, ошибки рассылок, health-check webhook'а) |
+| `/admin/submissions`           | `SubmissionsPage`             | Модерация заявок (фильтр по статусу, approve → создаёт точку, reject)                                                                 |
+| `/admin/point`, `/new`, `/:id` | `PointsPage`, `PointEditPage` | CRUD точек: карта + форма + `PhotoManager`; toggle disabled                                                                           |
+| `/admin/route`, `/new`, `/:id` | `RoutesPage`, `RouteEditPage` | CRUD маршрутов: полилиния + список вершин + высоты                                                                                    |
+| `/admin/event`, `/new`, `/:id` | `EventsPage`, `EventEditPage` | События + даты + анонсы (см. [events-news.md](events-news.md))                                                                        |
+| `/admin/news`, `/new`, `/:id`  | `NewsPage`, `NewsEditPage`    | Новости + рассылка                                                                                                                    |
+| `/admin/telegram-chats`        | `TelegramChatsPage`           | Чаты/темы для рассылки (enabled, sort_order, thread)                                                                                  |
+| `/admin/geo`                   | `GeoPage`                     | Треки райдеров за период (30 мин…всё), `AdminGeoMap`                                                                                  |
 
 Кнопка «Открыть на сайте» в edit-страницах: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}`.
+
+### Дашборд
+
+- Данные — одним вызовом RPC `get_admin_dashboard_stats()` (см. [database.md](database.md)); километраж маршрутов считается на клиенте из `listRoutes()` (`src/admin/utils/routeDistance.ts`), best-effort.
+- Границы периодов «сегодня/7 дней/30 дней/год» — по полуночи Алматы (Asia/Almaty), считаются в RPC.
+- Health-check бота: `isBotStale()` (`src/admin/utils/adminTime.ts`) — алерт, если последней геопозиции больше 48 часов.
+- В боковом меню (`AdminLayout`) — бейдж числа pending-заявок (`countPendingSubmissions()`), обновляется при переходах между разделами.
 
 ## adminApi (`src/admin/lib/adminApi/`)
 
@@ -41,13 +49,14 @@ Lazy-loaded раздел SPA. Доступ: Supabase Auth (email/пароль) +
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `points.ts`             | `listPoints/getPoint/createPoint/updatePoint/togglePointDisabled/deletePoint` (с чисткой фото)                                                                                       |
 | `routes.ts`             | аналогичный CRUD маршрутов                                                                                                                                                           |
-| `submissions.ts`        | `listSubmissions(status?)`, `approveSubmission` (создаёт `map_points`), `rejectSubmission`                                                                                           |
+| `submissions.ts`        | `listSubmissions(status?)`, `approveSubmission` (создаёт `map_points`), `rejectSubmission`, `countPendingSubmissions`                                                                |
 | `photos.ts`             | `listPhotos/uploadPhoto/updatePhoto/deletePhoto` (Storage + БД с откатом при ошибке)                                                                                                 |
 | `events.ts`             | CRUD событий, дат (`listEventDates/addEventDate/updateEventDate/deleteEventDate`), фото                                                                                              |
 | `eventAnnouncements.ts` | `announceEventDate/editEventDateAnnouncements/cancelEventDateAnnouncements/deleteEventDateAnnouncements/pinEventAnnouncement/listEventParticipants/listEventAnnouncements(ForDates)` |
 | `news.ts`               | CRUD новостей (soft delete), фото                                                                                                                                                    |
 | `newsAnnouncements.ts`  | `announceNews/editNewsAnnouncements/deleteNewsAnnouncements/listNewsAnnouncements`                                                                                                   |
 | `telegramChats.ts`      | CRUD назначений рассылки                                                                                                                                                             |
+| `dashboard.ts`          | `getDashboardStats` — RPC `get_admin_dashboard_stats` (агрегаты дашборда)                                                                                                            |
 | `geo.ts`                | `fetchTelegramLocations(periodMinutes)` (пагинация по 1000), `buildRiderTracks` (группировка по райдеру, 10 цветов)                                                                  |
 
 ## Редактор маршрутов (`src/admin/route-editor/`)

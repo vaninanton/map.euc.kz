@@ -20,6 +20,9 @@ export type {
     EventDateInput,
     EventDatePatch,
     SubmissionStatus,
+    AdminDashboardStats,
+    DashboardDailyActivity,
+    DashboardRiderCounts,
 } from '@/admin/lib/adminApi/types'
 
 export {
@@ -40,7 +43,12 @@ export {
     deleteRoute,
 } from '@/admin/lib/adminApi/routes'
 
-export { listSubmissions, approveSubmission, rejectSubmission } from '@/admin/lib/adminApi/submissions'
+export {
+    listSubmissions,
+    approveSubmission,
+    rejectSubmission,
+    countPendingSubmissions,
+} from '@/admin/lib/adminApi/submissions'
 
 export { listPhotos, uploadPhoto, updatePhoto, deletePhoto } from '@/admin/lib/adminApi/photos'
 
@@ -95,3 +103,5 @@ export {
     deleteNewsAnnouncements,
     listNewsAnnouncements,
 } from '@/admin/lib/adminApi/newsAnnouncements'
+
+export { getDashboardStats } from '@/admin/lib/adminApi/dashboard'

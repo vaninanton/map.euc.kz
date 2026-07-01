@@ -5,6 +5,7 @@ import { MapShell } from '@/app/MapShell'
 import { NotFound } from '@/app/NotFound'
 import { AdminShell } from '@/admin/AdminShell'
 import {
+    AdminDashboardPage,
     AdminPointEditPage,
     AdminRouteEditPage,
     AdminPointsPage,
@@ -30,7 +31,7 @@ export default function App() {
                 <Route path="help" element={<MapShell />} />
                 <Route path="m/:mapFeatureType/:mapFeatureId" element={<MapShell />} />
                 <Route path="/admin" element={<AdminShell />}>
-                    <Route index element={<Navigate to="submissions" replace />} />
+                    <Route index element={<AdminDashboardPage />} />
                     <Route path="submissions" element={<AdminSubmissionsPage />} />
                     <Route path="point" element={<AdminPointsPage />} />
                     <Route path="point/new" element={<AdminPointEditPage mode="create" />} />
@@ -46,7 +47,7 @@ export default function App() {
                     <Route path="news/:id" element={<AdminNewsEditPage mode="edit" />} />
                     <Route path="telegram-chats" element={<AdminTelegramChatsPage />} />
                     <Route path="geo" element={<AdminGeoPage />} />
-                    <Route path="*" element={<Navigate to="/admin/submissions" replace />} />
+                    <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
             </Routes>

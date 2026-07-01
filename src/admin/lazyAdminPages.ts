@@ -55,3 +55,8 @@ export const AdminNewsEditPage = lazy(async () => {
     const m = await import('@/admin/pages/NewsEditPage')
     return { default: m.NewsEditPage }
 })
+
+export const AdminDashboardPage = lazy(async () => {
+    const m = await import('@/admin/pages/DashboardPage')
+    return { default: m.DashboardPage }
+})

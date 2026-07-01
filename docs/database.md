@@ -70,6 +70,8 @@ event_types:        'group_ride' | 'event' | 'training'
 
 ## RPC
 
+**`get_admin_dashboard_stats()`** — агрегаты для админ-дашборда одним вызовом: счётчики контента (точки/маршруты/события/фото/новости), pending-заявки, включённые чаты, ошибки рассылок за 30 дней, время последней геопозиции, уникальные райдеры за сегодня/7 дней/30 дней/год и активность по дням за 30 дней (границы периодов — полуночь Asia/Almaty). SECURITY DEFINER; внутри проверка `map_admin_users`, иначе `42501`. EXECUTE только `authenticated`.
+
 **`get_latest_telegram_locations(ttl_minutes int DEFAULT 60, max_accuracy_meters int DEFAULT 100)`** — последняя позиция каждого пользователя за TTL, JOIN с `telegram_profiles` (имя, аватар), фильтр по точности. Возвращает по одной строке на райдера (ROW_NUMBER, самая свежая). GRANT EXECUTE TO public — раздаёт только безопасные колонки (без `raw_update`).
 
 ## Матрица RLS (упрощённо)
