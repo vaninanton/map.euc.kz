@@ -44,6 +44,24 @@ npm run test
 
 > Исключения (тесты не нужны): конфиги (`vite.config.ts`, `eslint.config.ts`, `tailwind.config.*`), миграции БД, статические данные (`*.json`), типы без логики, страницы-роутеры без логики.
 
+## Шаг 2.5. Проверить актуальность документации
+
+Документация в `docs/` — канонический источник и обновляется **в том же коммите**, что и код. Сопоставь изменённые файлы с профильными документами:
+
+| Изменено                                                 | Проверить/обновить                         |
+| -------------------------------------------------------- | ------------------------------------------ |
+| `supabase/migrations/`, `supabase/schema.sql`            | `docs/database.md` (таблицы, RLS, бакеты)  |
+| `supabase/functions/telegram-location-bot/`              | `docs/telegram-bot.md` (маршруты, секреты) |
+| `src/App.tsx`, `src/utils/hashNav.ts`, `eventLinks.ts`   | `docs/frontend.md` (таблица маршрутов)     |
+| `src/hooks/`, `src/components/`, `src/lib/`, `constants` | `docs/frontend.md` (инвентарь)             |
+| события/новости (`useEvents`, `event*`, `news*`)         | `docs/events-news.md`                      |
+| `src/admin/`                                             | `docs/admin.md` (маршруты, adminApi)       |
+| `.github/workflows/`, `.env.example`, `vite.config.ts`   | `docs/deployment.md`                       |
+| `tests/e2e/`, vitest-конфиг, `.husky/`                   | `docs/testing.md`                          |
+| новые инварианты/правила разработки                      | `AGENTS.md`, `CLAUDE.md`                   |
+
+Если поведение изменилось, а профильный документ — нет: обнови документ и включи его в этот же коммит. Если изменения не затрагивают задокументированное поведение — продолжай без вопросов.
+
 ## Шаг 3. Сформировать commit message
 
 Изучи:
