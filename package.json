@@ -26,12 +26,12 @@
         "@fortawesome/free-brands-svg-icons": "^7.3.0",
         "@fortawesome/free-solid-svg-icons": "^7.3.0",
         "@fortawesome/react-fontawesome": "^3.3.1",
-        "@supabase/supabase-js": "^2.108.2",
+        "@supabase/supabase-js": "^2.110.0",
         "mapbox-gl": "^3.25.0",
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
         "react-metrika": "^1.0.0",
-        "react-router-dom": "^7.18.0",
+        "react-router-dom": "^7.18.1",
         "typograf": "^7.7.0"
     },
     "devDependencies": {
