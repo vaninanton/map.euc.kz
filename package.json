@@ -19,6 +19,7 @@
         "preview": "vite preview",
         "generate:pwa-icons": "pwa-asset-generator public/favicon.svg public/icons --icon-only --type png --manifest public/manifest.webmanifest --path-override /icons",
         "generate:pwa-startup": "pwa-asset-generator public/favicon.svg public/icons --splash-only --index index.html --path-override /icons --background \"#0f172a\" --type png",
+        "secrets:sync": "sh scripts/set-supabase-secrets.sh",
         "prepare": "husky"
     },
     "dependencies": {

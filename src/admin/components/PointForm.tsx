@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type
 import type { MapPointType } from '@/types'
 import type { MapPointInput } from '@/admin/lib/adminApi'
 import { AdminPointLocationMap } from '@/admin/components/AdminPointLocationMap'
+import { AiAssistPanel } from '@/admin/components/AiAssistPanel'
 import { useCoordinateHistory } from '@/admin/hooks/useCoordinateHistory'
 import { useUndoRedoHotkeys } from '@/admin/hooks/useUndoRedoHotkeys'
 import { getUndoRedoShortcuts } from '@/utils/platformShortcuts'
@@ -40,6 +41,7 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel, children }
     const [flagDisabled, setFlagDisabled] = useState(initial.flag_disabled)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const titleInputRef = useRef<HTMLInputElement | null>(null)
 
     const {
         reset: resetCoordHistory,
@@ -165,6 +167,7 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel, children }
                     <div>
                         <label className="mb-1 block text-xs font-medium text-neutral-700">Название</label>
                         <input
+                            ref={titleInputRef}
                             value={title}
                             onChange={(event) => {
                                 setTitle(event.target.value)
@@ -291,6 +294,27 @@ export function PointForm({ initial, submitLabel, onSubmit, onCancel, children }
                     )}
                 </div>
                 {children}
+                <AiAssistPanel
+                    entity={{
+                        kind: 'point',
+                        pointType: type,
+                        title,
+                        description,
+                        coordinates: [
+                            parseCoordInput(lng, initial.coordinates[0]),
+                            parseCoordInput(lat, initial.coordinates[1]),
+                        ],
+                        flagIsMeeting: type === 'point' && flagIsMeeting,
+                        flagHasSocket: type === 'socket' || flagHasSocket,
+                        flagErlan,
+                    }}
+                    onApply={(suggestion) => {
+                        setTitle(suggestion.title)
+                        setDescription(suggestion.description)
+                        // Поля наверху формы, панель внизу — показать админу, что значения подставились.
+                        titleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }}
+                />
             </form>
 
             <div className="flex min-h-[280px] min-w-0 flex-col gap-2 lg:min-h-0">

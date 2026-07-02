@@ -39,6 +39,8 @@ jobs:
           supabase db push
           # --no-verify-jwt: webhook Telegram без заголовка Authorization; --use-api: сборка на стороне API без Docker на раннере
           supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
+          # --no-verify-jwt: OPTIONS-preflight браузера идёт без Authorization; авторизация — внутри (JWT + map_admin_users)
+          supabase functions deploy ai-assist --no-verify-jwt --use-api
 
   deploy:
     # Не зависит от supabase: миграции БД/edge-функций и сборка статики Pages независимы —
