@@ -73,19 +73,31 @@ Lazy-loaded раздел SPA. Доступ: Supabase Auth (email/пароль) +
 
 ## Компоненты (`src/admin/components/`)
 
-| Компонент                                                                                               | Роль                                                                 |
-| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `PointForm`                                                                                             | Форма точки (тип, флаги, координаты с парсингом строки, undo)        |
-| `PhotoManager`                                                                                          | Фото точки: drag&drop, Ctrl+V, сортировка, lightbox (16 unit-тестов) |
-| `AdminPointLocationMap`                                                                                 | Мини-карта с перетаскиваемым маркером точки                          |
-| `AdminRoutePolylineMap`                                                                                 | Интерактивная полилиния маршрута                                     |
-| `AdminGeoMap`                                                                                           | Треки райдеров; разрыв сегмента при > 1 км или > 5 мин               |
-| `RouteVertexEditorList`                                                                                 | Таблица вершин с автопрокруткой к подсвеченной                       |
-| `ConfirmDialog`                                                                                         | Подтверждение (danger/обычный)                                       |
-| `EventForm`, `EventDatesManager`, `EventPhotoManager`, `EventAnnounceModal`, `AnnouncementMessagesList` | События                                                              |
-| `NewsPhotoManager`, `NewsAnnounceManager`, `NewsMessagesList`                                           | Новости                                                              |
+| Компонент                                                                                               | Роль                                                                                  |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `PointForm`                                                                                             | Форма точки (тип, флаги, координаты с парсингом строки, undo)                         |
+| `PhotoManager`                                                                                          | Фото точки: drag&drop, Ctrl+V, сортировка, lightbox (16 unit-тестов)                  |
+| `AdminPointLocationMap`                                                                                 | Мини-карта с перетаскиваемым маркером точки                                           |
+| `AdminRoutePolylineMap`                                                                                 | Интерактивная полилиния маршрута                                                      |
+| `AdminGeoMap`                                                                                           | Треки райдеров; разрыв сегмента при > 1 км или > 5 мин                                |
+| `RouteVertexEditorList`                                                                                 | Таблица вершин с автопрокруткой к подсвеченной                                        |
+| `ConfirmDialog`                                                                                         | Подтверждение (danger/обычный)                                                        |
+| `AiAssistPanel`                                                                                         | Read-only промпт для улучшения названия/описания через внешний ИИ, кнопка копирования |
+| `EventForm`, `EventDatesManager`, `EventPhotoManager`, `EventAnnounceModal`, `AnnouncementMessagesList` | События                                                                               |
+| `NewsPhotoManager`, `NewsAnnounceManager`, `NewsMessagesList`                                           | Новости                                                                               |
 
 `useAdminListLoader<T>` — универсальная загрузка списков (items/loading/error/reload) для всех list-страниц.
+
+### ИИ-помощник (`AiAssistPanel`)
+
+Внизу форм редактирования точки (`PointForm`) и маршрута (`RouteEditPage`) — панель с автоматически собранным промптом для улучшения `title`/`description`: живые значения полей + контекст (тип, координаты, флаги) и требование ответа строгим JSON `{"title", "description", "pois"}` (`pois` — 2–3 точки интереса рядом, информационно для админа). Два сценария:
+
+- **«Скопировать промпт»** — админ вставляет промпт в ChatGPT/Claude вручную;
+- **«Улучшить с ИИ»** — вызов edge-функции `ai-assist` (`improveWithAi` в `src/admin/lib/adminApi/aiAssist.ts` через `functions.invoke`); предложение показывается в панели, «Применить» подставляет `title`/`description` в форму, скроллит к полю «Название» и показывает подсказку «не забудьте Сохранить». Чекбокс «Искать в интернете» (по умолчанию включён) управляет флагом `webSearch`: с ним модель проверяет факты и ищет точки интереса через web-поиск (медленнее, ~45 с), без него — быстрый вызов без POI.
+
+Билдер — чистая функция `buildAiAssistPrompt` в `src/admin/utils/aiAssistPrompt.ts`, намеренно без импортов: её копия живёт в `supabase/functions/ai-assist/_pure.ts` (Deno не импортирует из `src/`), правки синхронизировать в обеих копиях.
+
+Edge-функция `supabase/functions/ai-assist/`: авторизация — JWT админа + `map_admin_users` (как announce-сабруты бота), CORS для браузера, вызов OpenAI **Responses API** с инструментом `web_search` — модель проверяет факты и ищет точки интереса в интернете; JSON-формат не форсируется (конфликтует с поиском), парсер устойчив к markdown-ограждениям. Секреты: `OPENAI_API_KEY` (обязателен), `OPENAI_MODEL` (опционален, по умолчанию `gpt-5-mini`) — заполняются в `.env.local` и заливаются командой `npm run secrets:sync` (`scripts/set-supabase-secrets.sh`, заливает все заполненные секреты edge-функций). Деплой — отдельной строкой в `.github/workflows/deploy.yml` с `--no-verify-jwt` (preflight браузера идёт без Authorization). Валидация входа/ответа — `parseAiAssistEntity`/`parseAiSuggestion`/`extractResponsesOutputText` в `_pure.ts` (deno-тесты `_pure.test.ts`).
 
 ## Первичная настройка администратора
 
