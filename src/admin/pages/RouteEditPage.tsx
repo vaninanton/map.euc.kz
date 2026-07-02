@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCoordinateHistory } from '@/admin/hooks/useCoordinateHistory'
 import { useUndoRedoHotkeys } from '@/admin/hooks/useUndoRedoHotkeys'
 import { createRoute, deleteRoute, getRoute, updateRoute, type AdminMapRoute } from '@/admin/lib/adminApi'
+import { AiAssistPanel } from '@/admin/components/AiAssistPanel'
 import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { AdminRoutePolylineMap } from '@/admin/components/AdminRoutePolylineMap'
 import type { RouteEditorCoordinates } from '@/admin/route-editor/routeGeometry'
@@ -84,6 +85,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
     const routeId = mode === 'edit' && Number.isFinite(routeIdRaw) ? routeIdRaw : null
 
     const [value, setValue] = useState<FormValue | null>(mode === 'create' ? DEFAULT_VALUE : null)
+    const titleInputRef = useRef<HTMLInputElement | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
     const [deleting, setDeleting] = useState(false)
@@ -297,6 +299,7 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                         <div>
                             <label className="mb-1 block text-xs font-medium text-neutral-700">Название</label>
                             <input
+                                ref={titleInputRef}
                                 value={value.title}
                                 onChange={(event) => {
                                     setValue({ ...value, title: event.target.value })
@@ -399,6 +402,26 @@ export function RouteEditPage({ mode }: RouteEditPageProps) {
                                 Отмена
                             </button>
                         </div>
+
+                        <AiAssistPanel
+                            entity={{
+                                kind: 'route',
+                                title: value.title,
+                                description: value.description,
+                                startCoordinates: [value.coordinates[0][0], value.coordinates[0][1]],
+                                endCoordinates: [
+                                    value.coordinates[value.coordinates.length - 1][0],
+                                    value.coordinates[value.coordinates.length - 1][1],
+                                ],
+                                vertexCount: value.coordinates.length,
+                                flagErlan: value.flagErlan,
+                            }}
+                            onApply={(suggestion) => {
+                                setValue({ ...value, title: suggestion.title, description: suggestion.description })
+                                // Поля наверху формы, панель внизу — показать админу, что значения подставились.
+                                titleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            }}
+                        />
                     </form>
 
                     <div className="flex min-h-70 min-w-0 flex-col gap-2 lg:min-h-0">

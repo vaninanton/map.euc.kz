@@ -105,3 +105,5 @@ export {
 } from '@/admin/lib/adminApi/newsAnnouncements'
 
 export { getDashboardStats } from '@/admin/lib/adminApi/dashboard'
+
+export { improveWithAi, type AiSuggestion } from '@/admin/lib/adminApi/aiAssist'

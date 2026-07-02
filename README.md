@@ -241,6 +241,7 @@ SPA на GitHub Pages: в `dist/` появляется `404.html` (копия `i
       TELEGRAM_BACKFILL_SECRET=<другой_секрет_только_для_backfill>
     ```
     Опционально: `TELEGRAM_BACKFILL_MAX_PROFILES` — лимит профилей за один вызов backfill (по умолчанию 500).
+    Альтернатива: заполнить эти переменные в `.env.local` и выполнить `npm run secrets:sync` — скрипт зальёт все заполненные секреты edge-функций разом.
 2. Задеплойте функцию (на проде при каждом push в `main` это делает GitHub Actions; вручную — например для первого запуска или отладки):
     ```bash
     supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
@@ -276,6 +277,22 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-location-b
 - **`callback_query`**: нажатие «Участвую» в любом чате — toggle участия по `telegram_user_id` (повторный тап убирает запись), счётчик в подписи кнопки обновляется. Профиль участника при необходимости создаётся в `telegram_profiles` (без аватара — его добьёт backfill).
 
 Список чатов для рассылки хранится в таблице `telegram_chats` (управляется в админке `/admin/telegram-chats`, не через env). Участники — в `map_event_participants`, отправленные сообщения — в `telegram_outbound_messages` (общая таблица для анонсов событий и новостей проекта). Новых секретов не требуется: используются существующие `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Подробно: [docs/telegram-bot.md](docs/telegram-bot.md).
+
+## ИИ-помощник в админке (ai-assist)
+
+Edge Function `ai-assist` улучшает название/описание точек и маршрутов через OpenAI (Responses API + web-поиск) — кнопка «Улучшить с ИИ» на страницах редактирования в админке. Авторизация — JWT администратора + `map_admin_users`. Подробно: [docs/admin.md](docs/admin.md).
+
+Настройка:
+
+1. Впишите `OPENAI_API_KEY` (и опционально `OPENAI_MODEL`, по умолчанию `gpt-5-mini`) в `.env.local`.
+2. Залейте секреты в Supabase (скрипт заливает все заполненные секреты edge-функций из `.env.local`, включая `TELEGRAM_*`):
+    ```bash
+    npm run secrets:sync
+    ```
+3. Деплой функции — автоматически при push в `main`; вручную:
+    ```bash
+    supabase functions deploy ai-assist --no-verify-jwt --use-api
+    ```
 
 ## Отладка
 

@@ -104,7 +104,7 @@ src/
     └── route-editor/  # routeGeometry.ts, routeValidation.ts (геометрия и валидация маршрута)
 supabase/
 ├── migrations/    # 16 PostgreSQL-миграций (все таблицы + RLS + индексы)
-├── functions/     # telegram-location-bot (Deno, webhook-обработчик)
+├── functions/     # telegram-location-bot (webhook бота), ai-assist (OpenAI-помощник админки)
 └── schema.sql     # Полный экспорт схемы БД
 ```
 
@@ -197,6 +197,10 @@ map.setFeatureState({ source, id }, { selected: true })
 ### Telegram Bot (Edge Function)
 
 `supabase/functions/telegram-location-bot/index.ts` — Deno runtime. Принимает webhook `POST`, валидирует secret-токен, сохраняет геопозицию в `telegram_locations`, кеширует аватар в `telegram_profiles` + Storage. URL аватара санируется (bot-токен вырезается перед записью).
+
+### AI Assist (Edge Function)
+
+`supabase/functions/ai-assist/` — улучшение названия/описания точек и маршрутов через OpenAI Responses API + `web_search` (см. [docs/admin.md](docs/admin.md), раздел «ИИ-помощник»). Билдер промпта в `_pure.ts` — копия `src/admin/utils/aiAssistPrompt.ts`, правки синхронизировать. Секреты: `OPENAI_API_KEY`, `OPENAI_MODEL` (опционально).
 
 ### Admin Section (`/admin`)
 
