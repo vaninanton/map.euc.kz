@@ -14,6 +14,11 @@
 
 - `/admin` больше не редиректит на `/admin/submissions` — там дашборд
 
+### Performance
+
+- Ускорена загрузка дашборда: RPC `get_admin_dashboard_stats` читает 30-дневное окно `telegram_locations` одним сканом (CTE `recent AS MATERIALIZED`) вместо четырёх — 5 сканов таблицы → 2; добавлен индекс `(created_at, telegram_user_id)` (узкий Index Only Scan, сортировка `count(DISTINCT)` ушла с диска в память); миграция `20260702130000`
+- `useAdminAuth`: единый источник проверки прав через `onAuthStateChange` + кэш по `user.id` — вместо дублирующегося запроса `map_admin_users` (2 → 1)
+
 ## [Unreleased] — 2026-07-02
 
 ### Added
