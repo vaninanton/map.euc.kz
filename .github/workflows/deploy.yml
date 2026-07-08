@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Установить Supabase CLI
-        uses: supabase/setup-cli@v2
+        uses: supabase/setup-cli@v3
 
       - name: Миграции и деплой Edge Functions
         env:
