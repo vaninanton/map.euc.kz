@@ -2,6 +2,10 @@
 
 ## [Unreleased] — 2026-07-13
 
+### Added
+
+- Скилл `/supabase-clone-prod` — локальный Supabase-стек из миграций + данные с прода в `supabase/seed.sql` (gitignored, содержит PII)
+
 ### Changed
 
 - `supabase/config.toml`: секция `[inbucket]` переименована в `[local_smtp]` (новое имя в актуальных версиях Supabase CLI)
