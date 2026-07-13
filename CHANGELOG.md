@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] — 2026-07-13
+
+### Changed
+
+- `supabase/config.toml`: секция `[inbucket]` переименована в `[local_smtp]` (новое имя в актуальных версиях Supabase CLI)
+
 ## [Unreleased] — 2026-07-02 (дашборд)
 
 ### Added
