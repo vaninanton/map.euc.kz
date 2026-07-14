@@ -165,6 +165,16 @@
     }
 }
 
+/* Маркеры геопозиции (GeolocateControl) не должны перехватывать касания:
+   на телефоне жест, начатый на маркере/круге точности, доставался DOM-элементу маркера,
+   и точку можно было «сдвинуть» пальцем. Маркер неинтерактивен — пропускаем события в карту.
+   !important обязателен: Marker в mapbox-gl выставляет inline style.pointerEvents='auto'
+   при каждом обновлении occluded-opacity. */
+.mapboxgl-user-location,
+.mapboxgl-user-location-accuracy-circle {
+    pointer-events: none !important;
+}
+
 /* Safe-area для попапов Mapbox (контейнер позиционируется у краёв экрана) */
 .mapboxgl-popup {
     margin-top: max(8px, env(safe-area-inset-top));

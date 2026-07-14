@@ -74,3 +74,23 @@ test.describe('map smoke flow', () => {
         expect(insertRequest?.body).toHaveProperty('coordinates')
     })
 })
+
+test.describe('маркер геопозиции', () => {
+    test.use({
+        geolocation: { latitude: 43.238, longitude: 76.945, accuracy: 10 },
+        permissions: ['geolocation'],
+    })
+
+    test('маркер и круг точности не перехватывают касания — жест уходит карте', async ({ page }) => {
+        await mockExternalServices(page)
+        await page.goto('/')
+
+        await page.locator('.mapboxgl-ctrl-geolocate').click()
+
+        const dot = page.locator('.mapboxgl-user-location')
+        await expect(dot).toBeVisible()
+        // Иначе на телефоне тач, начатый на маркере, «таскал» маркер вместо панорамирования карты
+        await expect(dot).toHaveCSS('pointer-events', 'none')
+        await expect(page.locator('.mapboxgl-user-location-accuracy-circle')).toHaveCSS('pointer-events', 'none')
+    })
+})
