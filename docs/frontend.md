@@ -127,6 +127,6 @@ React 19 + TypeScript (strict) + Vite 8 + Tailwind CSS 4 + Mapbox GL JS 3 + reac
 - телеметрия Mapbox блокируется в `transformRequest` (`events.mapbox.com` → пустой ответ);
 - устаревшие версии кешей чистятся при активации новой SW.
 
-Регистрация: `sw.js?v=${__APP_VERSION__}` в `main.tsx`. Manifest: fullscreen/standalone, `start_url: /?homescreen=1`, тема `#0f172a`. Иконки/сплэши: `npm run generate:pwa-icons` / `generate:pwa-startup`.
+Регистрация: `sw.js?v=${__APP_VERSION__}` в `main.tsx`; в dev SW не регистрируется (и разрегистрируется, если остался) — иначе cache-first отдавал устаревшие `/src/*`-модули до перезапуска dev-сервера. Manifest: fullscreen/standalone, `start_url: /?homescreen=1`, тема `#0f172a`. Иконки/сплэши: `npm run generate:pwa-icons` / `generate:pwa-startup`.
 
 Цель `pwa_launch_standalone` — единственный сигнал установленной PWA на iOS (`appinstalled` там не срабатывает).
