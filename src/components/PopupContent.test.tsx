@@ -162,6 +162,22 @@ describe('PopupContent', () => {
         expect(screen.queryByRole('dialog', { name: /просмотр фотографии/i })).not.toBeInTheDocument()
     })
 
+    it('Escape в лайтбоксе не доходит до других window-обработчиков (карточка не закрывается)', async () => {
+        const photos = [{ id: 'ph1', url: 'https://example.com/1.jpg', alt: 'Фото 1' }]
+        render(<PopupContent feature={makePoint({ photos })} />)
+        // Имитируем bubble-обработчик закрытия сайдбара из EucMap
+        const sidebarEscape = vi.fn()
+        window.addEventListener('keydown', sidebarEscape)
+        try {
+            await user.click(screen.getAllByRole('button')[0])
+            await user.keyboard('{Escape}')
+            expect(screen.queryByRole('dialog', { name: /просмотр фотографии/i })).not.toBeInTheDocument()
+            expect(sidebarEscape).not.toHaveBeenCalled()
+        } finally {
+            window.removeEventListener('keydown', sidebarEscape)
+        }
+    })
+
     it('навигация по фото стрелками в лайтбоксе', async () => {
         const photos = [
             { id: 'ph1', url: 'https://example.com/1.jpg', alt: 'Фото 1' },

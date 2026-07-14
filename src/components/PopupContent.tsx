@@ -52,25 +52,30 @@ export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }:
         if (lightboxIndex === null) return
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
+                // Гасим событие: иначе window-обработчик в EucMap тем же нажатием закрывал и карточку
+                event.stopPropagation()
                 setLightboxIndex(null)
                 return
             }
             if (event.key === 'ArrowLeft') {
+                event.stopPropagation()
                 setLightboxIndex((prev) => {
                     if (prev === null || photos.length === 0) return null
                     return (prev - 1 + photos.length) % photos.length
                 })
             }
             if (event.key === 'ArrowRight') {
+                event.stopPropagation()
                 setLightboxIndex((prev) => {
                     if (prev === null || photos.length === 0) return null
                     return (prev + 1) % photos.length
                 })
             }
         }
-        window.addEventListener('keydown', onKeyDown)
+        // capture-фаза: перехватываем раньше bubble-обработчиков (сайдбар, карта)
+        window.addEventListener('keydown', onKeyDown, true)
         return () => {
-            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('keydown', onKeyDown, true)
         }
     }, [lightboxIndex, photos.length])
 
