@@ -121,7 +121,7 @@ React 19 + TypeScript (strict) + Vite 8 + Tailwind CSS 4 + Mapbox GL JS 3 + reac
 `public/sw.js`, версия кеша `map-euc-${__APP_VERSION__}` (`GITHUB_SHA` при сборке):
 
 - **static** — app shell + `assets/`, `icons/`, `.css/.js/.svg/.png` — cache-first;
-- **runtime** — навигационные запросы — network-first с fallback на главную, лимит 120 записей;
+- **runtime** — навигационные запросы — network-first с fallback на кэш посещённых URL → главную → app shell (`index.html` из static-кэша, чтобы офлайн-переход на непосещённый URL открывал SPA, а не браузерную ошибку), лимит 120 записей;
 - **tiles** — тайлы/спрайты Mapbox — cache-first, лимит 500 записей;
 - Supabase API (`/rest`, `/realtime`, `/auth`, `/storage`) — **не** кешируется;
 - телеметрия Mapbox блокируется в `transformRequest` (`events.mapbox.com` → пустой ответ);

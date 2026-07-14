@@ -90,7 +90,16 @@ async function handleNavigationRequest(request) {
     return response;
   } catch {
     const cache = await caches.open(RUNTIME_CACHE);
-    return (await cache.match(request)) || (await cache.match(HOME_FALLBACK)) || Response.error();
+    const cached = (await cache.match(request)) || (await cache.match(HOME_FALLBACK));
+    if (cached) return cached;
+    // App shell закэширован при install в STATIC_ASSET_CACHE: без этого фолбэка
+    // офлайн-переход на ещё не посещённый URL давал браузерную страницу ошибки.
+    const staticCache = await caches.open(STATIC_ASSET_CACHE);
+    return (
+      (await staticCache.match(`${BASE_PATH}index.html`)) ||
+      (await staticCache.match(HOME_FALLBACK)) ||
+      Response.error()
+    );
   }
 }
 
