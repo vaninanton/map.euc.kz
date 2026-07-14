@@ -59,16 +59,21 @@ function sleep(ms: number): Promise<void> {
     })
 }
 
-function isTransientError(error: unknown): boolean {
+/**
+ * Временная ошибка (таймаут/сеть/429/5xx) — запрос имеет смысл повторить.
+ * Коды статусов ищем как отдельные числа: голое includes('5') считало временной
+ * любую ошибку с цифрой «5» в тексте и зря ретраило невосстановимые (403, RLS и т.п.).
+ */
+export function isTransientError(error: unknown): boolean {
     if (!(error instanceof Error)) return false
     const message = error.message.toLowerCase()
     return (
         message.includes('timeout') ||
+        message.includes('превышено время ожидания') ||
         message.includes('network') ||
         message.includes('failed to fetch') ||
         message.includes('temporar') ||
-        message.includes('429') ||
-        message.includes('5')
+        /\b(?:429|5\d{2})\b/.test(message)
     )
 }
 

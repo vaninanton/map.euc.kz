@@ -199,3 +199,32 @@ describe('lib/supabase data access', () => {
         })
     })
 })
+
+describe('isTransientError', () => {
+    it('считает временными таймауты, сетевые ошибки, 429 и 5xx', async () => {
+        const { isTransientError } = await import('./supabase')
+
+        expect(isTransientError(new Error('Request timeout'))).toBe(true)
+        expect(isTransientError(new Error('Загрузка точек: превышено время ожидания запроса'))).toBe(true)
+        expect(isTransientError(new Error('NetworkError when attempting to fetch resource'))).toBe(true)
+        expect(isTransientError(new Error('Failed to fetch'))).toBe(true)
+        expect(isTransientError(new Error('Service temporarily unavailable'))).toBe(true)
+        expect(isTransientError(new Error('HTTP 429 Too Many Requests'))).toBe(true)
+        expect(isTransientError(new Error('server responded with 500'))).toBe(true)
+        expect(isTransientError(new Error('Bad gateway (502)'))).toBe(true)
+    })
+
+    it('не считает временными невосстановимые ошибки и просто цифру «5» в тексте', async () => {
+        const { isTransientError } = await import('./supabase')
+
+        expect(isTransientError(new Error('permission denied for table map_points'))).toBe(false)
+        expect(isTransientError(new Error('HTTP 403 Forbidden'))).toBe(false)
+        expect(isTransientError(new Error('JWT expired'))).toBe(false)
+        // Регресс: includes('5') ловил любой текст с цифрой 5
+        expect(isTransientError(new Error('загружено 15 записей'))).toBe(false)
+        expect(isTransientError(new Error('ошибка в строке 45'))).toBe(false)
+        expect(isTransientError(new Error('id 5001 не найден'))).toBe(false)
+        expect(isTransientError('строка, не Error')).toBe(false)
+        expect(isTransientError(null)).toBe(false)
+    })
+})
