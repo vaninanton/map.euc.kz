@@ -30,7 +30,7 @@ jobs:
         run: echo "TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)" >> "$GITHUB_ENV"
 
       - name: Установить Supabase CLI
-        uses: supabase/setup-cli@v2
+        uses: supabase/setup-cli@v3
 
       - name: Установить pg_dump 17 (сервер на PG 17, раннер по умолчанию — 16)
         run: |
