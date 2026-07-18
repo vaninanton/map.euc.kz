@@ -12,9 +12,10 @@ import {
     handleAnnounceNews,
     handleEditNews,
     handleDeleteNews,
+    handleLocationUpdate,
     isAdminRequest,
 } from './_handlers.ts'
-import type { TelegramCallbackQuery } from './_pure.ts'
+import type { TelegramCallbackQuery, TelegramMessage } from './_pure.ts'
 
 // ───────────────────────────── fetch-мок для Telegram API ─────────────────────────────
 
@@ -133,6 +134,10 @@ function makeFakeSupabase(
             },
             is(col: string, val: unknown) {
                 state.filters.push({ kind: 'is', col, val })
+                return builder
+            },
+            gte(col: string, val: unknown) {
+                state.filters.push({ kind: 'gte', col, val })
                 return builder
             },
             order() {
@@ -402,6 +407,228 @@ Deno.test('handleCallbackQuery: уже участвует → delete + тост 
         )
         const answer = calls.find((c) => methodOf(c.url) === 'answerCallbackQuery')!
         assertEquals((answer.body as { text: string }).text, 'Вы больше не участвуете')
+    } finally {
+        restore()
+    }
+})
+
+// ───────────────────────────── handleCallbackQuery (эфемерное подтверждение) ─────────────────────────────
+
+/** Handler'ы даты с присоединённым событием (нужно для эфемерной карточки). */
+function rsvpDateWithEvent(): TableHandler {
+    return () => ({
+        data: {
+            id: VALID_UUID,
+            cancelled: false,
+            event_id: 7,
+            starts_at: '2026-07-14T14:00:00Z',
+            map_events: { id: 7, type: 'group_ride', title: 'Вечерняя', location_text: null },
+        },
+        error: null,
+    })
+}
+
+Deno.test('handleCallbackQuery: новый участник + известное событие → эфемерка receiver_user_id', async () => {
+    const { client } = makeFakeSupabase({
+        map_event_dates: rsvpDateWithEvent(),
+        telegram_profiles: () => ({ data: null, error: null }),
+        map_event_participants: (op) => {
+            if (op === 'select') return { data: null, error: null }
+            if (op === 'insert') return { data: null, error: null }
+            return { count: 1, error: null }
+        },
+        telegram_outbound_messages: () => ({ data: [], error: null }),
+    })
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleCallbackQuery(client, makeCb(`rsvp:${VALID_UUID}`), 'TOKEN', 'https://map.euc.kz')
+        const ephemeral = calls.find(
+            (c) => methodOf(c.url) === 'sendMessage' && (c.body as { receiver_user_id?: number }).receiver_user_id,
+        )!
+        assertEquals((ephemeral.body as { receiver_user_id: number }).receiver_user_id, 100)
+        assertEquals((ephemeral.body as { chat_id: number }).chat_id, -200)
+        assertEquals((ephemeral.body as { text: string }).text.startsWith('Ты в списке участников! 🛞'), true)
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleCallbackQuery: выход из участия + событие → эфемерка «больше не участвуешь»', async () => {
+    const { client } = makeFakeSupabase({
+        map_event_dates: rsvpDateWithEvent(),
+        telegram_profiles: () => ({ data: null, error: null }),
+        map_event_participants: (op) => {
+            if (op === 'select') return { data: { id: 'part-1' }, error: null }
+            return { count: 0, error: null }
+        },
+        telegram_outbound_messages: () => ({ data: [], error: null }),
+    })
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleCallbackQuery(client, makeCb(`rsvp:${VALID_UUID}`), 'TOKEN', 'https://map.euc.kz')
+        const ephemeral = calls.find(
+            (c) => methodOf(c.url) === 'sendMessage' && (c.body as { receiver_user_id?: number }).receiver_user_id,
+        )!
+        assertEquals((ephemeral.body as { text: string }).text.startsWith('Ты больше не участвуешь.'), true)
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleCallbackQuery: событие не подгрузилось (map_events=null) → эфемерку не шлём', async () => {
+    const { client } = makeFakeSupabase({
+        map_event_dates: () => ({
+            data: {
+                id: VALID_UUID,
+                cancelled: false,
+                event_id: 7,
+                starts_at: '2026-07-14T14:00:00Z',
+                map_events: null,
+            },
+            error: null,
+        }),
+        telegram_profiles: () => ({ data: null, error: null }),
+        map_event_participants: (op) => {
+            if (op === 'select') return { data: null, error: null }
+            if (op === 'insert') return { data: null, error: null }
+            return { count: 1, error: null }
+        },
+        telegram_outbound_messages: () => ({ data: [], error: null }),
+    })
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleCallbackQuery(client, makeCb(`rsvp:${VALID_UUID}`), 'TOKEN', 'https://map.euc.kz')
+        const ephemeral = calls.find(
+            (c) => methodOf(c.url) === 'sendMessage' && (c.body as { receiver_user_id?: number }).receiver_user_id,
+        )
+        assertEquals(ephemeral, undefined)
+    } finally {
+        restore()
+    }
+})
+
+// ───────────────────────────── handleLocationUpdate (эфемерный онбординг) ─────────────────────────────
+
+/** Live-геолокация в чате; профиль уже есть (safe avatar) — без запросов аватара/апдейта профиля. */
+function locationMessage(opts: { chatType?: string; live_period?: number } = {}): TelegramMessage {
+    return {
+        message_id: 10,
+        chat: { id: -500, type: opts.chatType ?? 'supergroup' },
+        from: { id: 777, username: 'rider', first_name: 'R' },
+        location: { longitude: 76.9, latitude: 43.2, live_period: opts.live_period ?? 900 },
+    }
+}
+
+/**
+ * Supabase-фейк для handleLocationUpdate: существующий профиль совпадает → без upsert/аватара.
+ * telegram_locations: upsert (сохранение) → ok; select (сбор статистики) → переданные строки.
+ * map_points → переданные точки-ориентиры.
+ */
+function locationSupabase(
+    opts: {
+        otherRiders?: Array<{ telegram_user_id: number; username: string | null; longitude: number; latitude: number }>
+        points?: Array<{ title: string; coordinates: number[] }>
+    } = {},
+) {
+    return makeFakeSupabase({
+        telegram_profiles: () => ({
+            data: {
+                telegram_user_id: 777,
+                username: 'rider',
+                first_name: 'R',
+                last_name: null,
+                avatar_url: 'https://cdn/telegram-avatars/777/avatar.jpg',
+            },
+            error: null,
+        }),
+        telegram_locations: (op) =>
+            op === 'select'
+                ? {
+                      data: (opts.otherRiders ?? []).map((r) => ({ ...r, first_name: null })),
+                      error: null,
+                  }
+                : { error: null },
+        map_points: () => ({ data: opts.points ?? [], error: null }),
+    })
+}
+
+Deno.test('handleLocationUpdate: старт live в группе → эфемерная карточка со статистикой', async () => {
+    const { client } = locationSupabase({
+        otherRiders: [
+            { telegram_user_id: 111, username: 'far', longitude: 76.95, latitude: 43.25 },
+            { telegram_user_id: 222, username: 'vanton', longitude: 76.9013, latitude: 43.2 },
+        ],
+        points: [{ title: 'КБТУ', coordinates: [76.9012, 43.2] }],
+    })
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        const res = await handleLocationUpdate(
+            client,
+            { update_id: 1 },
+            locationMessage(),
+            'TOKEN',
+            'https://map.euc.kz',
+            true,
+        )
+        assertEquals(res.status, 200)
+        const ephemeral = calls.find(
+            (c) => methodOf(c.url) === 'sendMessage' && (c.body as { receiver_user_id?: number }).receiver_user_id,
+        )!
+        assertEquals((ephemeral.body as { receiver_user_id: number }).receiver_user_id, 777)
+        assertEquals((ephemeral.body as { chat_id: number }).chat_id, -500)
+        const text = (ephemeral.body as { text: string }).text
+        assertEquals(text.includes('Кроме тебя катают: 2 райдера'), true)
+        assertEquals(text.includes('Ближайший к тебе райдер: @vanton'), true)
+        assertEquals(text.includes('у КБТУ'), true)
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleLocationUpdate: старт live без других райдеров → «катаешь один»', async () => {
+    const { client } = locationSupabase()
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleLocationUpdate(client, { update_id: 4 }, locationMessage(), 'TOKEN', 'https://map.euc.kz', true)
+        const ephemeral = calls.find(
+            (c) => methodOf(c.url) === 'sendMessage' && (c.body as { receiver_user_id?: number }).receiver_user_id,
+        )!
+        assertEquals((ephemeral.body as { text: string }).text.includes('Пока ты катаешь один'), true)
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleLocationUpdate: апдейт движения (isLiveStart=false) → без онбординга', async () => {
+    const { client } = locationSupabase()
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleLocationUpdate(client, { update_id: 2 }, locationMessage(), 'TOKEN', 'https://map.euc.kz', false)
+        assertEquals(
+            calls.some((c) => methodOf(c.url) === 'sendMessage'),
+            false,
+        )
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleLocationUpdate: старт live в личке → без онбординга (эфемерка только в группе)', async () => {
+    const { client } = locationSupabase()
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleLocationUpdate(
+            client,
+            { update_id: 3 },
+            locationMessage({ chatType: 'private' }),
+            'TOKEN',
+            'https://map.euc.kz',
+            true,
+        )
+        assertEquals(
+            calls.some((c) => methodOf(c.url) === 'sendMessage'),
+            false,
+        )
     } finally {
         restore()
     }

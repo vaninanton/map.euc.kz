@@ -31,6 +31,9 @@ export type TelegramMessage = {
     chat: TelegramChat
     text?: string
     location?: TelegramLocation
+    // Эфемерные (приватные внутри чата) сообщения: кому адресовано и id внутри чата.
+    receiver_user?: TelegramUser
+    ephemeral_message_id?: number
 }
 
 export type TelegramInlineQuery = {
@@ -334,4 +337,154 @@ export function buildCancelledAnnouncementText(messageText: string): string {
  */
 export function buildNewsText(body: string): string {
     return escapeHtml(body.trim())
+}
+
+/** Окно «сейчас катает»: райдер активен, если его последняя геопозиция не старше стольких минут. */
+export const ACTIVE_RIDER_WINDOW_MINUTES = 60
+/** Порог «райдер на точке»: если ближайшая точка не дальше — показываем её как ориентир. */
+export const RIDER_AT_POINT_THRESHOLD_METERS = 500
+
+/** Активный райдер (последняя live-геопозиция) — для подсчёта «кроме тебя катают» и ближайшего. */
+export type ActiveRider = {
+    telegramUserId: number
+    username: string | null
+    firstName: string | null
+    longitude: number
+    latitude: number
+}
+
+/** Именованная точка карты (для ориентира «у <точка>»). */
+export type NamedPoint = {
+    title: string
+    longitude: number
+    latitude: number
+}
+
+/** Ближайший к пользователю райдер + опциональный ориентир-точка. */
+export type NearestRider = {
+    name: string
+    distanceMeters: number
+    atPointTitle: string | null
+}
+
+/** Расстояние по дуге большого круга в метрах (WGS84). */
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const earthRadiusM = 6_371_000
+    const toRad = (d: number) => (d * Math.PI) / 180
+    const dLat = toRad(lat2 - lat1)
+    const dLon = toRad(lon2 - lon1)
+    const h =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    return 2 * earthRadiusM * Math.asin(Math.sqrt(h))
+}
+
+/** «130 м» (округление до 10 м) для дистанций < 1 км, иначе «1.2 км». */
+export function formatDistance(meters: number): string {
+    if (!Number.isFinite(meters)) return ''
+    if (meters < 1000) {
+        const rounded = Math.max(0, Math.round(meters / 10) * 10)
+        // 995–999 м округлились бы до «1000 м» — красивее показать «1.0 км».
+        if (rounded < 1000) return `${String(rounded)} м`
+    }
+    return `${(meters / 1000).toFixed(1)} км`
+}
+
+/** Русское склонение: «1 райдер», «2 райдера», «5 райдеров». */
+export function pluralizeRiders(n: number): string {
+    const mod10 = n % 10
+    const mod100 = n % 100
+    if (mod10 === 1 && mod100 !== 11) return `${String(n)} райдер`
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${String(n)} райдера`
+    return `${String(n)} райдеров`
+}
+
+/** Отображаемое имя райдера: @username либо экранированное имя, иначе «райдер». */
+function riderDisplayName(rider: ActiveRider): string {
+    if (rider.username) return `@${rider.username}`
+    const first = rider.firstName?.trim()
+    return first ? escapeHtml(first) : 'райдер'
+}
+
+/**
+ * Ближайший к (userLon, userLat) райдер: имя, дистанция от пользователя и — если райдер
+ * не дальше RIDER_AT_POINT_THRESHOLD_METERS от какой-либо точки — её название как ориентир.
+ * Возвращает null, если активных райдеров нет. Чистая (haversine, без I/O).
+ */
+export function selectNearestRider(
+    userLon: number,
+    userLat: number,
+    riders: ActiveRider[],
+    points: NamedPoint[],
+): NearestRider | null {
+    let best: { rider: ActiveRider; distanceMeters: number } | null = null
+    for (const rider of riders) {
+        const distanceMeters = haversineMeters(userLat, userLon, rider.latitude, rider.longitude)
+        if (!best || distanceMeters < best.distanceMeters) best = { rider, distanceMeters }
+    }
+    if (!best) return null
+
+    // Ближайшая к самому райдеру точка — ориентир, только если он реально рядом с ней.
+    let atPointTitle: string | null = null
+    let bestPointMeters = Number.POSITIVE_INFINITY
+    for (const point of points) {
+        const d = haversineMeters(best.rider.latitude, best.rider.longitude, point.latitude, point.longitude)
+        if (d < bestPointMeters) {
+            bestPointMeters = d
+            if (d <= RIDER_AT_POINT_THRESHOLD_METERS) atPointTitle = escapeHtml(point.title)
+            else atPointTitle = null
+        }
+    }
+
+    return { name: riderDisplayName(best.rider), distanceMeters: best.distanceMeters, atPointTitle }
+}
+
+/**
+ * Эфемерная (видна только автору внутри чата) карточка при СТАРТЕ live-геопозиции:
+ * ссылка на себя на карте, сколько ещё райдеров онлайн и ближайший из них (с ориентиром),
+ * призыв делиться чаще. Deep-link на свою метку — /m/telegramuser/<id>.
+ */
+export function buildLiveLocationEphemeralText(input: {
+    mapBaseUrl: string
+    telegramUserId: number
+    otherRidersCount: number
+    nearest: NearestRider | null
+}): string {
+    const selfUrl = `${input.mapBaseUrl}/m/telegramuser/${String(input.telegramUserId)}`
+    const lines = [`📍 Твоя геопозиция отображается на <a href="${selfUrl}">map.euc.kz</a>`]
+
+    if (input.otherRidersCount <= 0 || !input.nearest) {
+        lines.push('Пока ты катаешь один — зови остальных!')
+    } else {
+        lines.push(`Кроме тебя катают: ${pluralizeRiders(input.otherRidersCount)}`)
+        const at = input.nearest.atPointTitle ? `, у ${input.nearest.atPointTitle}` : ''
+        lines.push(
+            `Ближайший к тебе райдер: ${input.nearest.name} (${formatDistance(input.nearest.distanceMeters)}${at})`,
+        )
+    }
+
+    lines.push('')
+    lines.push(
+        'Делитесь геопозицией чаще — в конце сезона подведём классную статистику по самым популярным маршрутам города 🛞',
+    )
+    return lines.join('\n')
+}
+
+/**
+ * Эфемерная (видна только нажавшему кнопку внутри чата) карточка-подтверждение RSVP:
+ * при записи — «ты в списке» + шапка события (тип · название · дата) + ссылка на страницу;
+ * при выходе — «ты больше не участвуешь» + шапка. Ссылка — /events/:id (не /m/event/:id).
+ */
+export function buildRsvpEphemeralText(
+    event: AnnouncementEvent,
+    startsAtIso: string,
+    joined: boolean,
+    mapBaseUrl: string,
+): string {
+    const header = buildAnnouncementHeader(event, startsAtIso)
+    if (!joined) {
+        return `Ты больше не участвуешь.\n\n${header}`
+    }
+    const eventUrl = `${mapBaseUrl}/events/${String(event.id)}`
+    return `Ты в списке участников! 🛞\n\n${header}\n\n<a href="${eventUrl}">Открыть событие на карте</a>`
 }
