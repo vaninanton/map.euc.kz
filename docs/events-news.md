@@ -68,7 +68,9 @@ map_event_participants → пересчёт счётчика на кнопке �
 
 - `NewsPage` — список (превью = первая непустая строка body, `newsTitlePreview()`), мягкое удаление.
 - `NewsEditPage` — textarea `body` (единственный источник истины) + `NewsPhotoManager` (бакет `map-news-photos`) + `NewsAnnounceManager`.
-- `NewsAnnounceManager` — выбор чатов и отправка (`news-announce`), синхронизация текста во все живые сообщения (`news-announce-edit` — берёт актуальный body из БД), удаление из Telegram (`news-announce-delete`); предупреждает о несохранённых изменениях перед синхронизацией.
+- `NewsAnnounceManager` — выбор чатов и отправка (`news-announce`), синхронизация текста и заменённого фото во все живые сообщения (`news-announce-edit` — берёт актуальные body и photo_path из БД), удаление из Telegram (`news-announce-delete`); предупреждает о несохранённых изменениях перед синхронизацией.
+
+Замена фото у отправленных сообщений (`news-announce-edit`) — только «фото → другое фото» через `editMessageMedia`; при успехе `photo_path` строки обновляется. Добавить фото к сообщению без него или убрать фото из сообщения с ним нельзя — Telegram не конвертирует медиа-сообщение в текстовое и наоборот, такая правка ограничивается подписью/текстом.
 
 adminApi: `news.ts`, `newsAnnouncements.ts`; утилиты — `src/utils/newsAnnounce.ts` (`isLiveNewsAnnouncement`, `pendingNewsChats`, `newsTitlePreview`).
 
@@ -83,6 +85,6 @@ adminApi: `news.ts`, `newsAnnouncements.ts`; утилиты — `src/utils/newsA
 1. Ссылка на событие — только `/events/:id` (`buildEventDetailPath`); это касается и текстов бота (`EVENTS_PATH_PREFIX`).
 2. `telegram_outbound_messages` полиморфна: ровно один из `event_date_id` / `news_id` (CHECK).
 3. «Живое» сообщение = отправлено, без ошибки, не отменено, не удалено — только такие правятся/удаляются.
-4. `body_text` (события) и `map_news.body` (новости) — сырые тела для повторной правки; `message_text` — снапшот отправленного.
+4. `body_text` (события) и `map_news.body` (новости) — сырые тела для повторной правки; `message_text` и `photo_path` строки — снапшот отправленного (`photo_path` меняется только при реальной замене фото через `editMessageMedia`).
 5. Шапка анонса строится в `_pure.ts` бота и в `eventAnnounce.ts` фронта — менять синхронно.
 6. Отменённая дата (`cancelled`) не участвует в расписании (`validOccurrences`) и отклоняет RSVP.

@@ -24,18 +24,18 @@ Deno-функция `supabase/functions/telegram-location-bot/` — единая
 
 ## Карта маршрутов
 
-| Маршрут                      | Аутентификация               | Назначение                                             |
-| ---------------------------- | ---------------------------- | ------------------------------------------------------ |
-| `POST /` (webhook)           | secret-token заголовок       | update от Telegram: локации, inline, callback, команды |
-| `POST /backfill`             | `x-telegram-backfill-secret` | Переобновление аватаров профилей                       |
-| `POST /announce`             | JWT администратора           | Рассылка анонса даты события                           |
-| `POST /announce-edit`        | JWT администратора           | Правка текста всех живых анонсов даты                  |
-| `POST /announce-cancel`      | JWT администратора           | «❌ ОТМЕНЕНО» во всех живых анонсах даты               |
-| `POST /announce-delete`      | JWT администратора           | Удаление сообщений анонса из Telegram                  |
-| `POST /announce-pin`         | JWT администратора           | Закрепить/открепить одно сообщение                     |
-| `POST /news-announce`        | JWT администратора           | Рассылка новости                                       |
-| `POST /news-announce-edit`   | JWT администратора           | Синхронизация текста новости (body из `map_news`)      |
-| `POST /news-announce-delete` | JWT администратора           | Удаление сообщений новости из Telegram                 |
+| Маршрут                      | Аутентификация               | Назначение                                                      |
+| ---------------------------- | ---------------------------- | --------------------------------------------------------------- |
+| `POST /` (webhook)           | secret-token заголовок       | update от Telegram: локации, inline, callback, команды          |
+| `POST /backfill`             | `x-telegram-backfill-secret` | Переобновление аватаров профилей                                |
+| `POST /announce`             | JWT администратора           | Рассылка анонса даты события                                    |
+| `POST /announce-edit`        | JWT администратора           | Правка текста всех живых анонсов даты                           |
+| `POST /announce-cancel`      | JWT администратора           | «❌ ОТМЕНЕНО» во всех живых анонсах даты                        |
+| `POST /announce-delete`      | JWT администратора           | Удаление сообщений анонса из Telegram                           |
+| `POST /announce-pin`         | JWT администратора           | Закрепить/открепить одно сообщение                              |
+| `POST /news-announce`        | JWT администратора           | Рассылка новости                                                |
+| `POST /news-announce-edit`   | JWT администратора           | Синхронизация текста и заменённого фото новости (из `map_news`) |
+| `POST /news-announce-delete` | JWT администратора           | Удаление сообщений новости из Telegram                          |
 
 JWT администратора проверяется по наличию в `map_admin_users`; из фронтенда сабруты вызываются через `supabase.functions.invoke('telegram-location-bot/<subroute>', …)` (`src/admin/lib/adminApi/announceClient.ts`).
 

@@ -986,8 +986,10 @@ export async function handleAnnounceNews(
 }
 
 /**
- * Сабрут /news-announce-edit: меняет текст во ВСЕХ живых сообщениях новости.
- * Берёт актуальное тело из map_news (источник истины). Body: { news_id: uuid }.
+ * Сабрут /news-announce-edit: синхронизирует текст (и заменённое фото) во ВСЕХ живых
+ * сообщениях новости. Берёт актуальные тело и фото из map_news (источник истины).
+ * Фото обновляется только «фото → другое фото» (editMessageMedia); добавить/убрать фото
+ * у отправленного сообщения Telegram не позволяет. Body: { news_id: uuid }.
  */
 export async function handleEditNews(
     supabase: SupabaseClient,
@@ -1002,17 +1004,34 @@ export async function handleEditNews(
     if (!ctx) return jsonWithCors({ error: 'news_not_found' }, 404)
 
     const text = buildNewsText(ctx.body)
+    const newPhotoUrl = ctx.photoPath ? newsPhotoPublicUrl(supabase, ctx.photoPath) : null
     const rows = await listLiveAnnouncements(supabase, 'news_id', newsId)
 
     let edited = 0
     const failed: Array<{ chat_id: number; error: string }> = []
     for (const r of rows) {
-        const editResult = await editAnnouncementContent(r, text, token)
+        // Фото у отправленного сообщения меняем только «фото → другое фото»: Telegram
+        // (editMessageMedia) не умеет превращать медиа-сообщение в текстовое и наоборот.
+        // Смена наличия фото (было ↔ не было) остаётся вне синхронизации — текст/подпись правим как обычно.
+        const photoReplaced = ctx.photoPath !== null && r.photo_path !== null && ctx.photoPath !== r.photo_path
+        const editResult = photoReplaced
+            ? await callTelegramApi(
+                  'editMessageMedia',
+                  {
+                      chat_id: r.telegram_chat_id,
+                      message_id: r.telegram_message_id,
+                      media: { type: 'photo', media: newPhotoUrl, caption: text, parse_mode: 'HTML' },
+                  },
+                  token,
+              )
+            : await editAnnouncementContent(r, text, token)
         if (editResult.ok) {
-            await supabase
-                .from('telegram_outbound_messages')
-                .update({ message_text: text, body_text: ctx.body })
-                .eq('id', r.id)
+            // photo_path обновляем только при реальной замене фото — иначе снапшот разойдётся
+            // с тем, что реально в сообщении, и следующая правка выберет неверный метод.
+            const patch = photoReplaced
+                ? { message_text: text, body_text: ctx.body, photo_path: ctx.photoPath }
+                : { message_text: text, body_text: ctx.body }
+            await supabase.from('telegram_outbound_messages').update(patch).eq('id', r.id)
             edited += 1
         } else {
             failed.push({ chat_id: r.telegram_chat_id, error: editResult.description ?? 'edit_failed' })
