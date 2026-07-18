@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
+import type { Feature, FeatureCollection } from 'geojson'
 import { haversineKm } from '@/utils/geoMath'
 import type { RiderTrack } from '@/admin/lib/adminApi/geo'
 import { MAP_CENTER, MAP_ZOOM_DEFAULT } from '@/constants'
@@ -19,8 +20,8 @@ interface AdminGeoMapProps {
 const MAX_SEGMENT_KM = 1
 const MAX_SEGMENT_MS = 5 * 60 * 1000
 
-function buildTracksGeojson(tracks: RiderTrack[]): GeoJSON.FeatureCollection {
-    const features: GeoJSON.Feature[] = []
+function buildTracksGeojson(tracks: RiderTrack[]): FeatureCollection {
+    const features: Feature[] = []
 
     for (const track of tracks) {
         if (track.locations.length < 2) continue
