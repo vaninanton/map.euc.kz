@@ -74,6 +74,12 @@ export function NewsEditPage({ mode }: NewsEditPageProps) {
             <div className="flex flex-col gap-6">
                 <div className="rounded-xl border border-neutral-200 bg-white p-4">
                     <label className="block text-xs font-medium text-neutral-700">Текст новости</label>
+                    {mode === 'create' && (
+                        <p className="mt-1 text-xs text-neutral-500">
+                            Новость сохранится как черновик — отправка в чаты не произойдёт. Разослать её можно будет
+                            после создания, вручную.
+                        </p>
+                    )}
                     <textarea
                         value={body}
                         onChange={(e) => {
