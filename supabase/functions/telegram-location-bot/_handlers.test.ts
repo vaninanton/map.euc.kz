@@ -1118,6 +1118,98 @@ Deno.test('handleEditNews: editMessageText во всех живых + обнов
     }
 })
 
+Deno.test('handleEditNews: другое фото → editMessageMedia + обновление photo_path', async () => {
+    const { client, opsLog } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            // Текущее фото новости — 'p2'; отправлено было с 'p1' → фото заменено.
+            map_news: () => ({ data: { body: 'Текст', photo_path: 'p2', deleted_at: null }, error: null }),
+            telegram_outbound_messages: (op) =>
+                op === 'select'
+                    ? {
+                          data: [{ id: 'a1', telegram_chat_id: -200, telegram_message_id: 11, photo_path: 'p1' }],
+                          error: null,
+                      }
+                    : { error: null },
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        const res = await handleEditNews(client, newsReq({ news_id: VALID_UUID }), 'TOKEN')
+        assertEquals(((await res.json()) as { edited: number }).edited, 1)
+        const mediaCalls = calls.filter((c) => methodOf(c.url) === 'editMessageMedia')
+        assertEquals(mediaCalls.length, 1)
+        assertEquals(calls.filter((c) => methodOf(c.url) === 'editMessageCaption').length, 0)
+        // Новый публичный URL фото уходит в media.media.
+        const media = (mediaCalls[0].body as { media: { media: string } }).media
+        assertEquals(media.media, 'https://cdn/p2')
+        // photo_path в строке обновляется до нового значения.
+        const update = opsLog.find((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
+        assertEquals((update?.payload as { photo_path: string }).photo_path, 'p2')
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleEditNews: то же фото → editMessageCaption, photo_path не трогаем', async () => {
+    const { client, opsLog } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            // Фото не менялось ('p1' = 'p1') — только подпись.
+            map_news: () => ({ data: { body: 'Новый текст', photo_path: 'p1', deleted_at: null }, error: null }),
+            telegram_outbound_messages: (op) =>
+                op === 'select'
+                    ? {
+                          data: [{ id: 'a1', telegram_chat_id: -200, telegram_message_id: 11, photo_path: 'p1' }],
+                          error: null,
+                      }
+                    : { error: null },
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleEditNews(client, newsReq({ news_id: VALID_UUID }), 'TOKEN')
+        assertEquals(calls.filter((c) => methodOf(c.url) === 'editMessageCaption').length, 1)
+        assertEquals(calls.filter((c) => methodOf(c.url) === 'editMessageMedia').length, 0)
+        const update = opsLog.find((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
+        // photo_path не входит в патч — снапшот сообщения не меняется.
+        assertEquals(Object.prototype.hasOwnProperty.call(update?.payload, 'photo_path'), false)
+    } finally {
+        restore()
+    }
+})
+
+Deno.test('handleEditNews: убрать фото (было фото, стало нет) → editMessageCaption, фото остаётся', async () => {
+    const { client, opsLog } = makeFakeSupabase(
+        {
+            map_admin_users: () => ({ data: { user_id: 'admin-1' }, error: null }),
+            // Фото удалили из новости, но сообщение отправлено с фото — конвертация в текст невозможна.
+            map_news: () => ({ data: { body: 'Текст', photo_path: null, deleted_at: null }, error: null }),
+            telegram_outbound_messages: (op) =>
+                op === 'select'
+                    ? {
+                          data: [{ id: 'a1', telegram_chat_id: -200, telegram_message_id: 11, photo_path: 'p1' }],
+                          error: null,
+                      }
+                    : { error: null },
+        },
+        { adminUserId: 'admin-1' },
+    )
+    const { calls, restore } = installFetchMock(() => tgOk())
+    try {
+        await handleEditNews(client, newsReq({ news_id: VALID_UUID }), 'TOKEN')
+        // photoReplaced=false (нет нового фото) → правим подпись, фото не трогаем.
+        assertEquals(calls.filter((c) => methodOf(c.url) === 'editMessageCaption').length, 1)
+        assertEquals(calls.filter((c) => methodOf(c.url) === 'editMessageMedia').length, 0)
+        const update = opsLog.find((o) => o.table === 'telegram_outbound_messages' && o.op === 'update')
+        assertEquals(Object.prototype.hasOwnProperty.call(update?.payload, 'photo_path'), false)
+    } finally {
+        restore()
+    }
+})
+
 Deno.test('handleDeleteNews: deleteMessage + пометка deleted_at для каждого живого', async () => {
     const { client, opsLog } = makeFakeSupabase(
         {
