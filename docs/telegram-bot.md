@@ -41,18 +41,19 @@ JWT администратора проверяется по наличию в `
 
 ## Webhook: что обрабатывает
 
-1. **Live-геопозиции** — `message.location` с `live_period > 0` (одиночные «поделиться местом» пропускаются): INSERT в `telegram_locations` (идемпотентно по `telegram_update_id`), upsert `telegram_profiles`, при наличии токена — кэширование аватара.
+1. **Live-геопозиции** — `message.location` с `live_period > 0` (одиночные «поделиться местом» пропускаются): INSERT в `telegram_locations` (идемпотентно по `telegram_update_id`), upsert `telegram_profiles`, при наличии токена — кэширование аватара. На **старте** трансляции в группе автору шлётся эфемерный онбординг (см. «Эфемерные сообщения»).
 2. **Inline queries** (`@бот <запрос>` в любом чате) — поиск по title в `map_points`/`map_routes`, до 50 результатов, приоритет: места встреч → точки → маршруты; ссылки с UTM; `cache_time=60` (новые точки появляются в inline не мгновенно).
 3. **Callback queries** — кнопка «Участвую», `callback_data = rsvp:<event_date_uuid>` (см. ниже).
 4. **Команды** — `/start`, `/help` в личке.
 
 ## RSVP «Участвую»
 
-1. Валидация UUID; отменённая дата (`cancelled = true`) отклоняется.
+1. Валидация UUID; отменённая дата (`cancelled = true`) отклоняется. Дата подгружается вместе с событием (`starts_at`, `map_events`) — для эфемерной карточки.
 2. `ensureTelegramProfile` — upsert профиля **без** аватара (окно ответа callback узкое; аватар добьёт backfill).
 3. Toggle в `map_event_participants`: есть строка → DELETE, нет → INSERT (конфликт 23505 = идемпотентный успех).
-4. Пересчёт счётчика и `editMessageReplyMarkup` во **всех** живых анонсах этой даты во всех чатах (ошибки отдельных чатов не блокируют).
-5. `answerCallbackQuery` — toast пользователю.
+4. `answerCallbackQuery` — короткий toast пользователю.
+5. Эфемерная карточка-подтверждение в том же чате (см. «Эфемерные сообщения») — best-effort, только если событие подгрузилось и есть `chat_id`.
+6. Пересчёт счётчика и `editMessageReplyMarkup` во **всех** живых анонсах этой даты во всех чатах (ошибки отдельных чатов не блокируют).
 
 ## Анонсы
 
@@ -87,6 +88,28 @@ curl -X POST "https://api.telegram.org/bot<bot_token>/setWebhook" \
 ```
 
 Локально: `supabase functions serve telegram-location-bot` (для реального webhook нужен туннель ngrok/cloudflared).
+
+## Эфемерные сообщения (ephemeral)
+
+**Что это.** Бот отправляет **приватный ответ прямо внутри группового чата, видимый только одному пользователю** (и боту) — не засоряя общую ленту. Решает дилемму «спам в общий чат ↔ личка (требует Start)»: приватный ответ в контексте того же чата, без обоих минусов.
+
+**API** (сверять при расширении с [core.telegram.org/bots/api](https://core.telegram.org/bots/api) — фича свежая):
+
+- Отправка — существующие методы (`sendMessage`, `sendPhoto`…) + новый параметр `receiver_user_id` (кому показать; `chat_id` остаётся обязательным). Альтернатива для ответа на нажатие кнопки — `callback_query_id`.
+- `Message` получает поля `receiver_user` и `ephemeral_message_id` (id эфемерного сообщения внутри чата) — добавлены в тип `TelegramMessage` (`_pure.ts`).
+- Правка/удаление — отдельные методы `editEphemeralMessage*` / `deleteEphemeralMessage` (пока не используем — шлём свежую эфемерку на каждое событие).
+
+**Общий примитив** — `sendEphemeralMessage(chatId, receiverUserId, text, botToken)` в `_handlers.ts`: `sendMessage` + `receiver_user_id`, `parse_mode=HTML`. **Best-effort**: ошибка (в т.ч. если фича ещё недоступна боту) только логируется и **не влияет** на основной поток (запись RSVP/геопозиции). Возвращает `ephemeral_message_id` (для будущей правки) либо `null`.
+
+**Внедрено:**
+
+1. **RSVP-подтверждение** (`handleCallbackQuery`) — поверх короткого `answerCallbackQuery`-тоста шлём приватную карточку: при записи — «Ты в списке участников» + шапка события (тип · название · дата) + deep-link `/events/:id`; при выходе — «Ты больше не участвуешь» + шапка. Текст строит `buildRsvpEphemeralText` (`_pure.ts`), адресат — `receiver_user_id = cb.from.id` в `cb.message.chat.id`. Шлётся только если событие подгрузилось и `chat_id` известен.
+2. **Онбординг live-геопозиции** (`handleLocationUpdate`) — при **старте** трансляции (update как `message`, а не `edited_message`; флаг `isLiveStart` из `index.ts`) в **группе** приватно показываем автору карточку: он на карте (deep-link `/m/telegramuser/<id>`), сколько ещё райдеров онлайн и кто ближайший из них. В личке не шлём (эфемерка — про группы). Данные собирает `gatherLiveLocationStats` (последняя геопозиция каждого юзера в окне `ACTIVE_RIDER_WINDOW_MINUTES`, ближайший — `selectNearestRider` по `haversineMeters`; если он ближе `RIDER_AT_POINT_THRESHOLD_METERS` к любой точке `map_points` — показываем её как ориентир). Текст — `buildLiveLocationEphemeralText`; при 0 других райдеров — «катаешь один».
+
+**Потенциал (ещё не внедрено):**
+
+- **Приватная выдача по команде в группе** — `/спот`, `/розетки рядом`, `/маршрут N`, `/кто онлайн`: ответ виден только спросившему; при ephemeral-команде скрыт и сам вопрос.
+- **Персональные ответы на валидацию** — объяснить только автору, что нужна именно _live_-геопозиция, а не статичная (сейчас такой update молча пропускается).
 
 ## Инварианты
 

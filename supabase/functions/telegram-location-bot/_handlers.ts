@@ -7,19 +7,26 @@
  */
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
+    ACTIVE_RIDER_WINDOW_MINUTES,
     BACKFILL_ERROR_SAMPLE_LIMIT,
     DEFAULT_BACKFILL_MAX_PROFILES_PER_RUN,
     TELEGRAM_AVATARS_BUCKET,
     UUID_RE,
     buildAnnouncementText,
     buildCancelledAnnouncementText,
+    buildLiveLocationEphemeralText,
     buildNewsText,
+    buildRsvpEphemeralText,
     buildRsvpKeyboard,
     isAvatarUrlSafe,
     parsePositiveIntEnv,
     parseRsvpCallbackData,
+    selectNearestRider,
+    type ActiveRider,
     type AnnouncementEvent,
     type EventTypeValue,
+    type NamedPoint,
+    type NearestRider,
     type TelegramCallbackQuery,
     type TelegramInlineQuery,
     type TelegramInlineQueryResultArticle,
@@ -230,6 +237,43 @@ export async function callTelegramApi(
     }
 }
 
+/**
+ * Best-effort приватный (эфемерный) ответ внутри группового чата — виден только
+ * receiverUserId (и боту), без спама в общую ленту. Отправка через sendMessage +
+ * receiver_user_id. Ошибка не влияет на основной поток (в т.ч. если фича ещё недоступна
+ * боту) — только логируется. Возвращает id эфемерного сообщения (для правки/удаления) либо null.
+ */
+export async function sendEphemeralMessage(
+    chatId: number,
+    receiverUserId: number,
+    text: string,
+    botToken: string,
+): Promise<number | null> {
+    const result = await callTelegramApi(
+        'sendMessage',
+        {
+            chat_id: chatId,
+            receiver_user_id: receiverUserId,
+            text,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+        },
+        botToken,
+    )
+    if (!result.ok) {
+        console.info('[telegram-location-bot] Эфемерное сообщение не отправлено', {
+            chat_id: chatId,
+            receiver_user_id: receiverUserId,
+            description: result.description,
+        })
+        return null
+    }
+    const res = result.result
+    return res && typeof res === 'object'
+        ? ((res as { ephemeral_message_id?: number }).ephemeral_message_id ?? null)
+        : null
+}
+
 // ───────────────────────────── Анонсы событий + RSVP ─────────────────────────────
 
 /** Текущее число участников даты. */
@@ -283,12 +327,24 @@ export async function handleCallbackQuery(
     }
     const eventDateId = parsed.eventDateId
 
-    // Дата должна существовать и быть не отменённой.
+    // Дата должна существовать и быть не отменённой. starts_at + map_events нужны для
+    // эфемерной карточки-подтверждения (шапка «тип · название · дата»).
     const { data: dateRow, error: dateError } = await supabase
         .from('map_event_dates')
-        .select('id, cancelled, event_id')
+        .select('id, cancelled, event_id, starts_at, map_events(id, type, title, location_text)')
         .eq('id', eventDateId)
-        .maybeSingle<{ id: string; cancelled: boolean; event_id: number }>()
+        .maybeSingle<{
+            id: string
+            cancelled: boolean
+            event_id: number
+            starts_at: string
+            map_events: {
+                id: number
+                type: EventTypeValue
+                title: string
+                location_text: string | null
+            } | null
+        }>()
     if (dateError || !dateRow || dateRow.cancelled) {
         await callTelegramApi(
             'answerCallbackQuery',
@@ -318,22 +374,43 @@ export async function handleCallbackQuery(
         .maybeSingle<{ id: string }>()
 
     let toastText: string
+    // joined: true — записался, false — вышел, null — операция не удалась (эфемерку не шлём).
+    let joined: boolean | null
     if (existing) {
         await supabase.from('map_event_participants').delete().eq('id', existing.id)
         toastText = 'Вы больше не участвуете'
+        joined = false
     } else {
         const { error: insertError } = await supabase
             .from('map_event_participants')
             .insert({ event_date_id: eventDateId, telegram_user_id: cb.from.id })
         // 23505 — гонка: уже записан, считаем идемпотентным успехом.
-        toastText =
-            insertError && insertError.code !== '23505'
-                ? 'Не удалось записаться, попробуйте позже'
-                : 'Вы участвуете! 🛞'
+        if (insertError && insertError.code !== '23505') {
+            toastText = 'Не удалось записаться, попробуйте позже'
+            joined = null
+        } else {
+            toastText = 'Вы участвуете! 🛞'
+            joined = true
+        }
     }
 
     const count = await countEventParticipants(supabase, eventDateId)
     await callTelegramApi('answerCallbackQuery', { callback_query_id: cb.id, text: toastText }, botToken)
+
+    // Приватная (эфемерная) карточка-подтверждение в том же чате поверх куцего тоста:
+    // «ты в списке / вышел» + шапка события + ссылка на страницу. Best-effort — на запись
+    // участника не влияет; шлём только при известном событии и доступном chat_id.
+    const ev = dateRow.map_events
+    const chatId = cb.message?.chat.id
+    if (joined !== null && ev && typeof chatId === 'number') {
+        const text = buildRsvpEphemeralText(
+            { id: ev.id, type: ev.type, title: ev.title, location_text: ev.location_text },
+            dateRow.starts_at,
+            joined,
+            mapBaseUrl,
+        )
+        await sendEphemeralMessage(chatId, cb.from.id, text, botToken)
+    }
 
     // Счётчик участников привязан к дате, а не к одному сообщению: дата могла быть
     // разослана в несколько чатов. Обновляем клавиатуру во ВСЕХ живых анонсах даты,
@@ -1449,6 +1526,62 @@ export async function handleAvatarBackfill(
 }
 
 /**
+ * Собирает данные для эфемерной карточки старта live-геопозиции: сколько ДРУГИХ райдеров
+ * сейчас онлайн (последняя геопозиция в окне ACTIVE_RIDER_WINDOW_MINUTES) и ближайший из них.
+ * telegram_locations читаем окном по created_at, дедуплицируем до последней записи на юзера,
+ * исключаем самого автора. Точки — все включённые (для ориентира «у <точка>»).
+ * Ошибки чтения не критичны — деградируем в «катаешь один».
+ */
+async function gatherLiveLocationStats(
+    supabase: SupabaseClient,
+    selfUserId: number,
+    userLon: number,
+    userLat: number,
+): Promise<{ otherRidersCount: number; nearest: NearestRider | null }> {
+    const windowStartIso = new Date(Date.now() - ACTIVE_RIDER_WINDOW_MINUTES * 60_000).toISOString()
+
+    const { data: locationRows } = await supabase
+        .from('telegram_locations')
+        .select('telegram_user_id, username, first_name, longitude, latitude')
+        .gte('created_at', windowStartIso)
+        .order('created_at', { ascending: false })
+        .limit(1000)
+
+    const seen = new Set<number>()
+    const riders: ActiveRider[] = []
+    for (const row of (locationRows ?? []) as Array<{
+        telegram_user_id: number
+        username: string | null
+        first_name: string | null
+        longitude: number
+        latitude: number
+    }>) {
+        if (row.telegram_user_id === selfUserId || seen.has(row.telegram_user_id)) continue
+        seen.add(row.telegram_user_id)
+        riders.push({
+            telegramUserId: row.telegram_user_id,
+            username: row.username,
+            firstName: row.first_name,
+            longitude: row.longitude,
+            latitude: row.latitude,
+        })
+    }
+
+    if (riders.length === 0) return { otherRidersCount: 0, nearest: null }
+
+    const { data: pointRows } = await supabase
+        .from('map_points')
+        .select('title, coordinates')
+        .eq('flag_disabled', false)
+
+    const points: NamedPoint[] = ((pointRows ?? []) as Array<{ title: string; coordinates: number[] }>)
+        .filter((p) => Array.isArray(p.coordinates) && p.coordinates.length >= 2)
+        .map((p) => ({ title: p.title, longitude: p.coordinates[0]!, latitude: p.coordinates[1]! }))
+
+    return { otherRidersCount: riders.length, nearest: selectNearestRider(userLon, userLat, riders, points) }
+}
+
+/**
  * Сохраняет live-геопозицию из сообщения: обновляет профиль (с аватаром при необходимости)
  * и вставляет строку в telegram_locations. Возвращает HTTP Response для вебхука.
  */
@@ -1457,6 +1590,10 @@ export async function handleLocationUpdate(
     update: { update_id: number },
     message: TelegramMessage,
     botToken: string | undefined,
+    mapBaseUrl: string,
+    // true — это стартовое сообщение live-трансляции (а не апдейт движения): только тогда
+    // шлём онбординг-подсказку, иначе спамили бы на каждое перемещение.
+    isLiveStart: boolean,
 ): Promise<Response> {
     const location = message.location!
     const from = message.from!
@@ -1567,6 +1704,20 @@ export async function handleLocationUpdate(
             error,
         })
         return new Response('Internal Server Error', { status: 500 })
+    }
+
+    // Онбординг: при СТАРТЕ live-трансляции в группе приватно (эфемерно) показываем автору
+    // карточку — он на карте, сколько ещё райдеров онлайн и кто ближайший. Только в группе
+    // (в личке смысла нет), best-effort: на сохранение геопозиции не влияет, ошибка логируется.
+    if (isLiveStart && botToken && message.chat.type && message.chat.type !== 'private') {
+        const stats = await gatherLiveLocationStats(supabase, telegramUserId, location.longitude, location.latitude)
+        const text = buildLiveLocationEphemeralText({
+            mapBaseUrl,
+            telegramUserId,
+            otherRidersCount: stats.otherRidersCount,
+            nearest: stats.nearest,
+        })
+        await sendEphemeralMessage(message.chat.id, telegramUserId, text, botToken)
     }
 
     return new Response('ok', { status: 200 })

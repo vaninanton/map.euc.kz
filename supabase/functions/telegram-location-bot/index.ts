@@ -172,5 +172,8 @@ Deno.serve(async (req) => {
         return new Response('ok', { status: 200 })
     }
 
-    return handleLocationUpdate(supabase, update, message, botToken)
+    // Стартовое сообщение live-трансляции приходит как update.message; апдейты движения — как
+    // edited_message. Онбординг-подсказку шлём только на старте (см. handleLocationUpdate).
+    const isLiveStart = message === update.message
+    return handleLocationUpdate(supabase, update, message, botToken, mapBaseUrl, isLiveStart)
 })
