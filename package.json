@@ -40,7 +40,7 @@
         "@mapbox/point-geometry": "^1.1.0",
         "@playwright/test": "^1.61.1",
         "@tailwindcss/vite": "^4.3.3",
-        "@testing-library/jest-dom": "^6.9.1",
+        "@testing-library/jest-dom": "^7.0.0",
         "@testing-library/react": "^16.3.2",
         "@testing-library/user-event": "^14.6.1",
         "@types/geojson": "^7946.0.16",
