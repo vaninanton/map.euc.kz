@@ -19,6 +19,10 @@ export default defineConfig([
         files: ['public/sw.js'],
         languageOptions: { globals: globals.serviceworker },
     },
+    {
+        files: ['scripts/*.js'],
+        languageOptions: { globals: globals.node },
+    },
     js.configs.recommended,
     ...tseslint.configs.strictTypeChecked.map((config) => ({
         ...config,
