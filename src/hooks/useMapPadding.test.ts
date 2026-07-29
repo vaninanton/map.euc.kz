@@ -3,12 +3,18 @@ import { renderHook } from '@testing-library/react'
 import type { Map as MapboxMap } from 'mapbox-gl'
 import { computeMapPadding, useMapPadding } from './useMapPadding'
 
+/**
+ * Мок карты. Возвращает объект с моками (не intersection с MapboxMap) — иначе
+ * @typescript-eslint/unbound-method ругается на `map.setPadding` в ассертах.
+ * Приводим к MapboxMap точечно, в месте передачи в хук.
+ */
 function makeMap(padding = { top: 0, right: 0, bottom: 0, left: 0 }) {
-    return {
+    const map = {
         getPadding: vi.fn(() => padding),
         setPadding: vi.fn(),
         easeTo: vi.fn(),
-    } as unknown as MapboxMap & { setPadding: ReturnType<typeof vi.fn>; easeTo: ReturnType<typeof vi.fn> }
+    }
+    return { map, asMapbox: map as unknown as MapboxMap }
 }
 
 describe('computeMapPadding', () => {
@@ -27,18 +33,18 @@ describe('computeMapPadding', () => {
 
 describe('useMapPadding', () => {
     it('выставляет padding мгновенно через setPadding, без анимации easeTo', () => {
-        const map = makeMap()
+        const { map, asMapbox } = makeMap()
         renderHook(() => {
-            useMapPadding({ map, isDesktop: true, hasFeatureSidebar: false, hasListSidebar: true })
+            useMapPadding({ map: asMapbox, isDesktop: true, hasFeatureSidebar: false, hasListSidebar: true })
         })
         expect(map.setPadding).toHaveBeenCalledWith({ top: 0, right: 0, bottom: 0, left: 360 })
         expect(map.easeTo).not.toHaveBeenCalled()
     })
 
     it('не трогает padding, если он уже совпадает с целевым', () => {
-        const map = makeMap({ top: 0, right: 0, bottom: 0, left: 360 })
+        const { map, asMapbox } = makeMap({ top: 0, right: 0, bottom: 0, left: 360 })
         renderHook(() => {
-            useMapPadding({ map, isDesktop: true, hasFeatureSidebar: false, hasListSidebar: true })
+            useMapPadding({ map: asMapbox, isDesktop: true, hasFeatureSidebar: false, hasListSidebar: true })
         })
         expect(map.setPadding).not.toHaveBeenCalled()
     })
