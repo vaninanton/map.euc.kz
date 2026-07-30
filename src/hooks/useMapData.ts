@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import type { Feature, FeatureCollection, BikeLaneFeature } from '@/types/geojson'
+import type { Feature, FeatureCollection } from '@/types/geojson'
 import type { TelegramLocationRow } from '@/types/supabase'
 import type { VelojolSegment } from '@/types/velojol'
 import {
@@ -18,28 +18,7 @@ import {
 import type { LayerKey } from '@/constants'
 import { useFeatureIndexes } from '@/hooks/useFeatureIndexes'
 import { useTelegramRealtime } from '@/hooks/useTelegramRealtime'
-
-/** ID велодорожек, которые не показываем на карте. */
-const EXCLUDED_BIKE_LANE_IDS = new Set(['alm84', 'alm85', 'alm86', 'alm89'])
-
-function velojolToFeatureCollection(segments: VelojolSegment[]): FeatureCollection {
-    const features: BikeLaneFeature[] = segments.map((seg) => ({
-        type: 'Feature' as const,
-        geometry: {
-            type: 'LineString' as const,
-            coordinates: seg.coordinates,
-        },
-        properties: {
-            id: seg.id,
-            name: seg.name,
-            description: seg.description ?? null,
-            distance: seg.distance,
-            safetyLevel: seg.safetyLevel,
-            type: 'bikeLane' as const,
-        },
-    }))
-    return { type: 'FeatureCollection', features }
-}
+import { velojolToFeatureCollection } from '@/utils/velojolToGeojson'
 
 function buildUsersAndTracksGeo(latestRows: TelegramLocationRow[], allRows: TelegramLocationRow[]): FeatureCollection {
     const usersGeo = telegramLocationsToUsersFeatureCollection(latestRows)
@@ -136,8 +115,7 @@ export function useMapData() {
                 if (bikeLanesModule.status === 'fulfilled') {
                     const raw = bikeLanesModule.value.default
                     if (Array.isArray(raw) && raw.length > 0) {
-                        const segments = (raw as VelojolSegment[]).filter((seg) => !EXCLUDED_BIKE_LANE_IDS.has(seg.id))
-                        setBikeLanesGeo(velojolToFeatureCollection(segments))
+                        setBikeLanesGeo(velojolToFeatureCollection(raw as VelojolSegment[]))
                     } else {
                         setBikeLanesGeo(null)
                     }

@@ -88,7 +88,7 @@ React 19 + TypeScript (strict) + Vite 8 + Tailwind CSS 4 + Mapbox GL JS 3 + reac
 | Группа        | Файлы                                                                                                                                                                                                                                                 |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Геоматематика | `geoMath.ts` (haversineKm, bearingDegrees, шкалы радара), `bounds.ts` (bbox/центр фичи)                                                                                                                                                               |
-| GeoJSON       | `supabaseToGeojson.ts` (rows → FeatureCollection, включая телеграм-треки), `mapFeatureGuards.ts` (гварды)                                                                                                                                             |
+| GeoJSON       | `supabaseToGeojson.ts` (rows → FeatureCollection, включая телеграм-треки), `velojolToGeojson.ts` (датасет велодорожек → FeatureCollection), `mapFeatureGuards.ts` (гварды)                                                                            |
 | Маршруты      | `routeStats.ts` (дистанция/набор/уклоны), `routeFilters.ts`, `routeVertexElevationStats.ts`, `fetchMissingRouteElevations.ts`, `simplifyRouteCollinear.ts`                                                                                            |
 | Навигация     | `hashNav.ts` (deep links + легаси-hash), `eventLinks.ts` (`/events/:id`)                                                                                                                                                                              |
 | Шаринг        | `shareLinks.ts` (Яндекс, 2ГИС, Guru, ORS, Telegram, ссылка приложения, copyToClipboard)                                                                                                                                                               |
@@ -115,6 +115,17 @@ React 19 + TypeScript (strict) + Vite 8 + Tailwind CSS 4 + Mapbox GL JS 3 + reac
 | `PopupContent`                                                                              | React-контент Mapbox-попапа                                                                  |
 | `AppErrorBoundary`                                                                          | Глобальный error boundary с кнопкой сброса кеша                                              |
 | `YandexMetrika`                                                                             | Инициализация Метрики + `useMetrikaPageViews`; не рендерится в `/admin/*`                    |
+
+## Велодорожки (`src/data/almaty.json`)
+
+Единственный слой карты без Supabase: статичный дамп велодорожек Алматы с **velojol.kz**, лежит в репозитории и подгружается динамическим `import()` в `useMapData`.
+
+- **Обновление** — `node scripts/fetch-velojol-bike-lanes.js`: скачивает `velojol.kz/city/almaty`, вырезает из HTML массив `window.bikelanesData` (данных-эндпоинта у сайта нет), фильтрует, чистит и **полностью перезаписывает** файл. Подробности и грабли — в скилле `.claude/skills/update-bike-paths/SKILL.md`.
+- **Что попадает в файл**: только `city: almaty` и только велоинфраструктура — автобусные полосы (`is_bus_lane`, около половины датасета velojol) отбрасываются, плюс точечно скрытые дорожки из `HIDDEN_IDS` в скрипте. Поля: `id`, `name`, `laneType`/`laneTypeLabel`, `distance` (км), `description`, `quality`/`qualityLabel` (оценка покрытия, отсутствует если не указана), `coordinates`.
+- **Названия чинятся при сборке**: в velojol одно поле `title` без языковых вариантов, поэтому скрипт переводит казахские названия по словарю `NAME_ALIASES` и приводит формат к «улица X» / «проспект X». Куски одной дорожки склеиваются по `MERGE_GROUPS` (id первого куска становится id склейки). Обе функции покрыты тестами — `scripts/fetch-velojol-bike-lanes.test.js`.
+- **Схема записи** — `src/types/velojol.ts`; преобразование в GeoJSON — `src/utils/velojolToGeojson.ts` (числовой id → строка под `promoteId` и deep-link `/m/bikelane/:id`).
+- **В карточке** (`PopupContent`) для велодорожки выводятся строка «‹тип полосы› · покрытие: ‹оценка›» и длина из velojol; набор/сброс высоты не показываем — в геометрии velojol нет высот.
+- Файл — в `.prettierignore` (координатные пары форматируются скриптом по одной паре в строке, иначе дифф на десятки тысяч строк).
 
 ## PWA / Service Worker
 

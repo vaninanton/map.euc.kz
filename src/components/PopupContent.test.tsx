@@ -58,6 +58,30 @@ function makeRoute(): Feature {
     }
 }
 
+function makeBikeLane(overrides: Record<string, unknown> = {}): Feature {
+    return {
+        type: 'Feature',
+        geometry: {
+            type: 'LineString',
+            coordinates: [
+                [76.9, 43.2],
+                [76.95, 43.25],
+            ],
+        },
+        properties: {
+            id: '58',
+            type: 'bikeLane',
+            name: 'улица Сатпаева',
+            description: null,
+            distance: 3.18,
+            laneTypeLabel: 'Обособленная велодорожка',
+            quality: 4,
+            qualityLabel: 'Хорошо',
+            ...overrides,
+        },
+    }
+}
+
 function makeTelegramUser(overrides: Record<string, unknown> = {}): Feature {
     return {
         type: 'Feature',
@@ -117,6 +141,22 @@ describe('PopupContent', () => {
     it('показывает статистику для маршрута', () => {
         render(<PopupContent feature={makeRoute()} />)
         expect(screen.getByText(/5\.2 км/i)).toBeInTheDocument()
+    })
+
+    it('показывает тип полосы, покрытие и длину для велодорожки', () => {
+        render(<PopupContent feature={makeBikeLane()} />)
+        expect(screen.getByText('Обособленная велодорожка · покрытие: хорошо')).toBeInTheDocument()
+        expect(screen.getByText(/3\.2 км/i)).toBeInTheDocument()
+    })
+
+    it('для велодорожки без оценки покрытия показывает только тип полосы', () => {
+        render(<PopupContent feature={makeBikeLane({ quality: undefined, qualityLabel: undefined })} />)
+        expect(screen.getByText('Обособленная велодорожка')).toBeInTheDocument()
+    })
+
+    it('не показывает набор и сброс высоты для велодорожки', () => {
+        render(<PopupContent feature={makeBikeLane()} />)
+        expect(screen.queryByText(/\sм$/)).not.toBeInTheDocument()
     })
 
     it('показывает время последней геопозиции для telegramUser', () => {
