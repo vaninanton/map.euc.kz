@@ -27,7 +27,7 @@
 
 ## Домены системы
 
-1. **Карта** — точки (`map_points`), маршруты (`map_routes`), велодорожки (статический датасет Velojol `src/data/almaty.json`), live-геопозиции Telegram. Подробно: [frontend.md](frontend.md).
+1. **Карта** — точки (`map_points`), маршруты (`map_routes`), велодорожки (статический датасет velojol.kz `src/data/almaty.json`), live-геопозиции Telegram. Подробно: [frontend.md](frontend.md).
 2. **Пользовательские заявки** — анонимная форма «Добавить точку» → `map_points_submissions` → модерация в админке.
 3. **События** — `map_events` + даты (`map_event_dates`) + участники RSVP (`map_event_participants`), публичная лента `/events`. Подробно: [events-news.md](events-news.md).
 4. **Новости** — `map_news`, только админка + рассылка в Telegram.

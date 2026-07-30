@@ -99,6 +99,19 @@ export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }:
         stats = { distanceKm, ascentM: s.ascentM, descentM: s.descentM }
     }
 
+    // Велодорожка: тип полосы и оценка покрытия из velojol.kz, длина — оттуда же
+    // (в геометрии velojol нет высот, поэтому набор/сброс не считаем).
+    const bikeLane = feature.properties.type === 'bikeLane' ? feature.properties : null
+    const bikeLaneDetails =
+        bikeLane === null
+            ? null
+            : [bikeLane.laneTypeLabel, bikeLane.qualityLabel && `покрытие: ${bikeLane.qualityLabel.toLowerCase()}`]
+                  .filter((part) => typeof part === 'string' && part.length > 0)
+                  .join(' · ')
+    const distanceKm =
+        stats?.distanceKm ??
+        (bikeLane?.distance != null && Number.isFinite(bikeLane.distance) ? bikeLane.distance : null)
+
     return (
         <div className="text-left">
             <div className="p-2 pb-0">
@@ -141,6 +154,7 @@ export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }:
                         dangerouslySetInnerHTML={{ __html: applyTypography(description) }}
                     />
                 )}
+                {bikeLaneDetails && <p className="text-xs text-neutral-500 mt-1.5">{bikeLaneDetails}</p>}
                 {feature.properties.type === 'telegramUser' && (
                     <>
                         <p className="text-xs text-neutral-500 mt-1">
@@ -178,7 +192,7 @@ export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }:
                         </div>
                     </div>
                 )}
-                {stats && (
+                {distanceKm !== null && (
                     <div className="flex flex-nowrap gap-2 mt-3 text-xs text-neutral-500">
                         <span className="inline-flex items-center gap-1 shrink-0">
                             <svg
@@ -192,36 +206,40 @@ export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }:
                             >
                                 <path d="M5 12h14M12 5l7 7-7 7" />
                             </svg>
-                            {stats.distanceKm.toFixed(1)} км
+                            {distanceKm.toFixed(1)} км
                         </span>
-                        <span className="inline-flex items-center gap-1 shrink-0">
-                            <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                aria-hidden
-                            >
-                                <path d="M12 19V5M5 12l7-7 7 7" />
-                            </svg>
-                            {Math.round(stats.ascentM)} м
-                        </span>
-                        <span className="inline-flex items-center gap-1 shrink-0">
-                            <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                aria-hidden
-                            >
-                                <path d="M12 5v14M5 12l7 7 7-7" />
-                            </svg>
-                            {Math.round(stats.descentM)} м
-                        </span>
+                        {stats && (
+                            <>
+                                <span className="inline-flex items-center gap-1 shrink-0">
+                                    <svg
+                                        width="12"
+                                        height="12"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        aria-hidden
+                                    >
+                                        <path d="M12 19V5M5 12l7-7 7 7" />
+                                    </svg>
+                                    {Math.round(stats.ascentM)} м
+                                </span>
+                                <span className="inline-flex items-center gap-1 shrink-0">
+                                    <svg
+                                        width="12"
+                                        height="12"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        aria-hidden
+                                    >
+                                        <path d="M12 5v14M5 12l7 7 7-7" />
+                                    </svg>
+                                    {Math.round(stats.descentM)} м
+                                </span>
+                            </>
+                        )}
                     </div>
                 )}
                 {relatedEvents && relatedEvents.length > 0 && (
