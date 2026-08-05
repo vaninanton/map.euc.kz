@@ -48,7 +48,7 @@ describe('index.html — метатеги по умолчанию', () => {
     }
 
     it('og:url и og:image абсолютные — краулеры не резолвят относительные пути', () => {
-        for (const key of ['og:url', 'og:image']) {
+        for (const key of ['og:url', 'og:image', 'og:logo']) {
             expect(metaContent('property', key), `${key} должен быть абсолютным`).toMatch(/^https:\/\/map\.euc\.kz\//)
         }
         expect(metaContent('name', 'twitter:image')).toMatch(/^https:\/\/map\.euc\.kz\//)

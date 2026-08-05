@@ -20,7 +20,16 @@ interface PointRow {
     title?: string
     description?: string | null
     type?: string
+    coordinates?: unknown
     map_point_photos?: { bucket_name?: string; storage_path?: string; sort_order?: number }[]
+}
+
+/** Координаты точки из БД хранятся как [lon, lat]. */
+function asCoordinates(value: unknown): { lon: number; lat: number } | null {
+    if (!Array.isArray(value) || value.length < 2) return null
+    const [lon, lat] = value as unknown[]
+    if (typeof lon !== 'number' || typeof lat !== 'number') return null
+    return { lon, lat }
 }
 
 interface RouteRow {
@@ -80,9 +89,44 @@ async function fitsPreviewLimit(url: string): Promise<boolean> {
  * (RLS сам отсекает скрытые), велодорожки — из статического датасета velojol.
  * Для райдеров (`telegramUser`) метатеги не строим: это персональные данные.
  */
+/**
+ * Сколько держать данные сущности в edge-кэше. Кэшируем именно данные, а не
+ * готовый HTML: разметка всегда берётся из свежего деплоя, поэтому после выката
+ * никто не получит index.html со ссылками на удалённые бандлы.
+ */
+const ENTITY_CACHE_TTL_SECONDS = 300
+
+/**
+ * Данные сущности с edge-кэшем: без него каждый заход на /m/... стоил бы
+ * запроса в Supabase плюс HEAD за весом фото (~150–200 мс сверх статики).
+ */
+export async function resolveEntityCached(
+    type: string,
+    id: string,
+    env: OgEnv,
+    waitUntil: (promise: Promise<unknown>) => void,
+): Promise<MapEntity | null> {
+    // Ключ — синтетический URL: Cache API принимает только http(s)-адреса.
+    const cacheKey = new Request(`https://og-cache.map.euc.kz/entity/${type}/${encodeURIComponent(id)}`)
+    const cache = caches.default
+
+    const hit = await cache.match(cacheKey)
+    if (hit) return await hit.json<MapEntity | null>()
+
+    const entity = await resolveEntity(type, id, env)
+    const cached = new Response(JSON.stringify(entity), {
+        headers: {
+            'content-type': 'application/json',
+            'cache-control': `public, max-age=${String(ENTITY_CACHE_TTL_SECONDS)}`,
+        },
+    })
+    waitUntil(cache.put(cacheKey, cached))
+    return entity
+}
+
 export async function resolveEntity(type: string, id: string, env: OgEnv): Promise<MapEntity | null> {
     if (type === 'point' || type === 'socket') {
-        const select = 'title,description,type,map_point_photos(bucket_name,storage_path,sort_order)'
+        const select = 'title,description,type,coordinates,map_point_photos(bucket_name,storage_path,sort_order)'
         const rows = await fetchFromSupabase<PointRow[]>(
             env,
             `map_points?id=eq.${encodeURIComponent(id)}&select=${select}&limit=1`,
@@ -97,6 +141,7 @@ export async function resolveEntity(type: string, id: string, env: OgEnv): Promi
             name: row.title,
             description: row.description,
             image: photo && (await fitsPreviewLimit(photo)) ? photo : null,
+            geo: asCoordinates(row.coordinates),
         }
     }
 
