@@ -1,6 +1,6 @@
 # Админка (`/admin`)
 
-Lazy-loaded раздел SPA. Доступ: Supabase Auth (email/пароль) + запись в `map_admin_users`. Яндекс.Метрика в `/admin/*` отключена полностью (`isAdminPath`).
+Lazy-loaded раздел SPA. Доступ: Supabase Auth (пасскей — по умолчанию, email/пароль — резервный способ) + запись в `map_admin_users`. Яндекс.Метрика в `/admin/*` отключена полностью (`isAdminPath`).
 
 ## Каркас
 
@@ -10,6 +10,19 @@ Lazy-loaded раздел SPA. Доступ: Supabase Auth (email/пароль) +
 - `lazyAdminPages.ts` — `React.lazy()` для всех страниц.
 
 `useAdminAuth` слушает `onAuthStateChange` и проверяет `SELECT user_id FROM map_admin_users WHERE user_id = auth.uid()`. Сессия — в localStorage (SDK), service-role ключ в браузер не попадает.
+
+### Пасскеи (WebAuthn)
+
+Основной способ входа. Клиент создаётся с опт-ином `auth.experimental.passkey: true` (`src/lib/supabase.ts`) — без него методы пасскея бросают ошибку. Обёртки — `src/admin/lib/passkeys.ts`:
+
+- `signInWithPasskey()` — `auth.signInWithPasskey()`: challenge → `navigator.credentials.get()` → verify; SDK сам сохраняет сессию и эмитит `SIGNED_IN`, поэтому `AdminAuthGate` перерисовывается сам (редирект не нужен). Пасскей discoverable — email вводить не надо;
+- `listPasskeys()` / `registerPasskey(name?)` / `renamePasskey(id, name)` / `deletePasskey(id)` — `auth.passkey.*`. Имя при регистрации SDK не принимает, поэтому непустое имя применяется вторым запросом (`passkey.update`);
+- `isPasskeySupported()` — проверка `PublicKeyCredential` + `navigator.credentials`; без поддержки UI показывает подсказку вместо кнопок;
+- `passkeyErrorMessage()` — русские тексты по кодам `WebAuthnError` (`ERROR_CEREMONY_ABORTED` и т.п.).
+
+Страница входа (`AdminLoginPage`): кнопка «Войти по пасскею» — по умолчанию, форма email+пароль разворачивается ссылкой «Войти по email и паролю». Кнопка входа через Telegram временно убрана — провайдер не работает; возвращать вместе с рабочей настройкой в Supabase Auth.
+
+Управление пасскеями — `/admin/settings` (`SettingsPage`): список (название, создан, последний вход), добавление, переименование, удаление.
 
 ## Маршруты
 
@@ -23,6 +36,7 @@ Lazy-loaded раздел SPA. Доступ: Supabase Auth (email/пароль) +
 | `/admin/news`, `/new`, `/:id`  | `NewsPage`, `NewsEditPage`    | Новости + рассылка                                                                                                                    |
 | `/admin/telegram-chats`        | `TelegramChatsPage`           | Чаты/темы для рассылки (enabled, sort_order, thread)                                                                                  |
 | `/admin/geo`                   | `GeoPage`                     | Треки райдеров за период (30 мин…всё), `AdminGeoMap`                                                                                  |
+| `/admin/settings`              | `SettingsPage`                | Пасскеи текущего админа: список, добавление, переименование, удаление                                                                 |
 
 Кнопка «Открыть на сайте» в edit-страницах: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}`.
 
@@ -103,4 +117,5 @@ Edge-функция `supabase/functions/ai-assist/`: авторизация — 
 
 1. Supabase → Authentication → включить Email-провайдер, создать пользователя.
 2. `INSERT INTO public.map_admin_users (user_id) VALUES ('<uuid>') ON CONFLICT DO NOTHING;`
-3. Войти на `/admin`.
+3. Войти на `/admin` по email и паролю (ссылка «Войти по email и паролю»).
+4. Supabase → Authentication → включить Passkeys (WebAuthn); в админке открыть «Настройки» → «Добавить пасскей». Дальше вход — по пасскею.

@@ -29,7 +29,12 @@ if (!url || !key) {
     console.warn('Supabase URL or key missing. Map data will be empty.')
 }
 
-export const supabase = typeof url === 'string' && typeof key === 'string' ? createClient(url, key) : null
+export const supabase =
+    typeof url === 'string' && typeof key === 'string'
+        ? // experimental.passkey — обязательный опт-ин для auth.signInWithPasskey() /
+          // registerPasskey() / auth.passkey.* (иначе SDK бросает ошибку при вызове).
+          createClient(url, key, { auth: { experimental: { passkey: true } } })
+        : null
 
 /** Клиент с сессией Auth (нужен для админки). */
 export function requireSupabase() {
