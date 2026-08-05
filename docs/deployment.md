@@ -77,8 +77,11 @@ for p in / /radar /events /m/point/1 /help /admin /no-such-page; do
 done
 curl -sI $BASE/assets/…js | grep -i cache-control   # immutable
 curl -sI $BASE/sw.js      | grep -i cache-control   # no-cache
-curl -sI https://map-euc.pages.dev/radar | head -3  # 301 на map.euc.kz
 ```
+
+Если `sw.js` вдруг отдаётся не с `no-cache`, а с `max-age=14400` — в зоне включён фиксированный **Browser Cache TTL**, он перебивает заголовки origin для файлов с кэшируемым расширением. Лечится настройкой зоны `browser_cache_ttl = 0` («Respect Existing Headers»); иначе обновление PWA у пользователей задерживается на срок этого TTL.
+
+Технический адрес `map-euc.pages.dev` отдаёт ту же production-сборку и **не** канонизируется: в `_redirects` source обязан быть путём, правила с полным URL игнорируются молча. Увести его на `map.euc.kz` сможет только Pages Function по имени хоста.
 
 Отдельно на устройстве с установленной PWA: приходит обновление сервис-воркера, в Cache Storage остаются только кеши с новым sha, и офлайн-переход на не посещённый ранее путь отдаёт app shell без ошибки `a redirected response was used…` в консоли.
 

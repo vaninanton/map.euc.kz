@@ -17,6 +17,7 @@
 ### Fixed
 
 - Сервис-воркер больше не кэширует `/index.html` по прямому адресу: Cloudflare Pages отдаёт на него 308, а redirected-ответ на navigation-запрос ломал офлайн-фолбэк с `TypeError`
+- Из `_redirects` убрано правило канонизации `map-euc.pages.dev` — оно не работало: source в Cloudflare Pages обязан быть путём, правила с полным URL игнорируются молча. Тест теперь это проверяет; сама канонизация переезжает в PR с Pages Functions
 
 ## [Unreleased] — 2026-07-18
 
