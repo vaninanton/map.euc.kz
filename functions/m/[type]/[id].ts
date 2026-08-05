@@ -12,6 +12,11 @@ const NORMALIZED_TYPE: Record<string, string> = {
 
 const FALLBACK_DESCRIPTION = 'Планируй поездки, смотри маршруты и розетки'
 
+/** MIME фотографии по расширению — часть парсеров смотрит на og:image:type. */
+function imageMimeType(url: string): string {
+    return /\.png(\?|$)/i.test(url) ? 'image/png' : 'image/jpeg'
+}
+
 /** Подменяет содержимое тега: у <meta> — атрибут content, у <title> — текст. */
 function setContent(value: string) {
     return {
@@ -65,6 +70,8 @@ export const onRequestGet: PagesFunction<OgEnv> = async (context) => {
         const image = meta.image
         rewriter = rewriter
             .on('meta[property="og:image"]', setContent(image))
+            .on('meta[property="og:image:secure_url"]', setContent(image))
+            .on('meta[property="og:image:type"]', setContent(imageMimeType(image)))
             .on('meta[name="twitter:image"]', setContent(image))
             // Размеры дефолтной картинки к фото точки не относятся: краулер,
             // поверивший 1200×630, обрежет превью не по делу.

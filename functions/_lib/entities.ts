@@ -47,12 +47,32 @@ async function fetchFromSupabase<T>(env: OgEnv, path: string): Promise<T | null>
     }
 }
 
+/**
+ * Порог веса превью. WhatsApp на картинках тяжелее ~600 КБ часто не показывает
+ * превью вообще, а фото точек загружаются как есть (трансформация Supabase Storage
+ * — платная фича, на текущем плане отдаёт 403). Тяжёлое фото хуже, чем баннер
+ * проекта на 120 КБ, поэтому в таком случае откатываемся на дефолтную картинку.
+ */
+const MAX_PREVIEW_BYTES = 600_000
+
 /** Первое фото точки по sort_order — оно же главное в карточке на сайте. */
 function firstPhotoUrl(supabaseUrl: string, row: PointRow): string | null {
     const photos = [...(row.map_point_photos ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     const photo = photos.find((item) => item.bucket_name && item.storage_path)
     if (!photo?.bucket_name || !photo.storage_path) return null
     return storagePublicUrl(supabaseUrl, photo.bucket_name, photo.storage_path)
+}
+
+/** Влезает ли картинка в лимит превью: HEAD-запрос, при любой заминке — «нет». */
+async function fitsPreviewLimit(url: string): Promise<boolean> {
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+        if (!response.ok) return false
+        const size = Number(response.headers.get('content-length'))
+        return Number.isFinite(size) && size > 0 && size <= MAX_PREVIEW_BYTES
+    } catch {
+        return false
+    }
 }
 
 /**
@@ -69,13 +89,14 @@ export async function resolveEntity(type: string, id: string, env: OgEnv): Promi
         )
         const row = rows?.[0]
         if (!row?.title) return null
+        const photo = env.SUPABASE_URL ? firstPhotoUrl(env.SUPABASE_URL, row) : null
         return {
             // Тип берём из БД: /m/point/… и /m/socket/… ведут в одну таблицу,
             // и розетка, открытая по ссылке на точку, должна остаться розеткой.
             type: row.type === 'socket' ? 'socket' : 'point',
             name: row.title,
             description: row.description,
-            image: env.SUPABASE_URL ? firstPhotoUrl(env.SUPABASE_URL, row) : null,
+            image: photo && (await fitsPreviewLimit(photo)) ? photo : null,
         }
     }
 

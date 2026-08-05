@@ -59,6 +59,23 @@ describe('index.html — метатеги по умолчанию', () => {
         expect(metaContent('property', 'og:image:height')).toBe('630')
     })
 
+    it('есть og:image:secure_url и og:image:type — на них смотрят парсеры WhatsApp', () => {
+        expect(metaContent('property', 'og:image:secure_url')).toBe(metaContent('property', 'og:image'))
+        expect(metaContent('property', 'og:image:type')).toBe('image/png')
+    })
+
+    it('теги, которые подменяет функция, присутствуют в разметке', () => {
+        // HTMLRewriter правит существующие теги, а не добавляет новые: если тег
+        // пропадёт из index.html, подмена для /m/... молча перестанет работать.
+        for (const key of ['og:title', 'og:description', 'og:url', 'og:type', 'og:image', 'og:image:alt']) {
+            expect(metaContent('property', key), `нет тега ${key}`).toBeDefined()
+        }
+        for (const key of ['twitter:title', 'twitter:description', 'twitter:image']) {
+            expect(metaContent('name', key), `нет тега ${key}`).toBeDefined()
+        }
+        expect(html).toMatch(/<title>[^<]+<\/title>/)
+    })
+
     it('плейсхолдера %BASE_URL% не осталось — плагин base-url-meta удалён', () => {
         expect(html).not.toContain('%BASE_URL%')
     })
