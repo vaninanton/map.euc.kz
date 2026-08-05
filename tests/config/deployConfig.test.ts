@@ -27,18 +27,10 @@ describe('public/_redirects', () => {
         expect(lines.at(-1)).toBe('/* /index.html 200')
     })
 
-    it('канонизация pages.dev идёт раньше SPA-фолбэка', () => {
-        const canonical = lines.findIndex((line) => line.startsWith('https://map-euc.pages.dev/*'))
-        const fallback = lines.indexOf('/* /index.html 200')
-        expect(canonical).toBeGreaterThanOrEqual(0)
-        expect(canonical).toBeLessThan(fallback)
-    })
-
-    it('имя Pages-проекта совпадает с --project-name в deploy.yml', () => {
-        const workflow = readRepoFile('.github/workflows/deploy.yml')
-        const projectName = /--project-name=([\w-]+)/.exec(workflow)?.[1]
-        expect(projectName).toBeDefined()
-        expect(lines.some((line) => line.includes(`https://${String(projectName)}.pages.dev/*`))).toBe(true)
+    it('source у всех правил — путь: правила с полным URL Cloudflare игнорирует молча', () => {
+        for (const line of lines) {
+            expect(line.startsWith('/'), `правило «${line}» начинается не с пути`).toBe(true)
+        }
     })
 
     it('динамических правил не больше лимита Cloudflare (100)', () => {
