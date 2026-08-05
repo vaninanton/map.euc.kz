@@ -158,7 +158,7 @@ map.setFeatureState({ source, id }, { selected: true })
 - **События — отдельный маршрут `/events/:id`** (не `/m/event/:id`!). Строить только через `buildEventDetailPath` из `src/utils/eventLinks.ts`; `event` НЕ входит в `HashFeatureType`, поэтому `buildMapDeepLinkPath`/`/m/...` для события даст битую ссылку (маршрут `/m/:type/:id` не распознает тип и откроет пустую карту). Это касается и edge-функций (Telegram-бот): сегмент `events` стабилен (`EVENTS_PATH_PREFIX`), вписывать строкой.
 - При добавлении нового вида сущности со своей страницей — завести парный `build*Path`/`parse*Pathname` и маршрут в `src/App.tsx`; не переиспользовать `/m/...` вслепую.
 - Старый hash `#point=11` → автоматически редиректит на путь.
-- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — иначе сломается в prod (`base = /map.euc/`).
+- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — `BASE_URL` остаётся единой точкой, если base когда-нибудь снова станет непустым.
 
 ### Constants (`src/constants/index.ts`)
 
@@ -213,8 +213,8 @@ Lazy-loaded, доступ — Supabase Auth + запись в `map_admin_users`.
 
 ### Deployment
 
-- **GitHub Pages** (`map.euc.kz`) — static SPA; `GITHUB_PAGES=true` → Vite `base = /map.euc/`
-- **CI/CD**: `.github/workflows/deploy.yml` — Supabase migrate → build → deploy → Telegram notification
+- **Cloudflare Pages** (`map.euc.kz`, проект `map-euc`) — static SPA, Vite `base = /`; SPA-фолбэк — `public/_redirects`, заголовки кэша — `public/_headers`
+- **CI/CD**: `.github/workflows/deploy.yml` — Supabase migrate → build → `wrangler pages deploy` → Telegram notification
 - **Локально**: Valet proxy `map.euc.test` → `localhost:5173`
 
 ### PWA

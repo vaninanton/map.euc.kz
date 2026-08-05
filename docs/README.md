@@ -8,16 +8,16 @@ PWA-карта для райдеров на моноколёсах (EUC) в Ал
 
 ## Карта документации
 
-| Файл                               | Содержание                                                                                    |
-| ---------------------------------- | --------------------------------------------------------------------------------------------- |
-| [architecture.md](architecture.md) | Общая архитектура: топология, потоки данных, ключевые паттерны, структура репозитория         |
-| [frontend.md](frontend.md)         | SPA: маршруты, компоненты, хуки, константы, `lib/`, `utils/`, PWA/Service Worker, аналитика   |
-| [database.md](database.md)         | Supabase: все таблицы, RLS-политики, enums, RPC, Storage-бакеты, правила работы с миграциями  |
-| [telegram-bot.md](telegram-bot.md) | Edge Function `telegram-location-bot`: webhook, inline-режим, RSVP, анонсы, backfill, секреты |
-| [events-news.md](events-news.md)   | Подсистема событий и новостей: публичный UI, админка, рассылка анонсов в Telegram             |
-| [admin.md](admin.md)               | Админка `/admin`: аутентификация, маршруты, adminApi, редактор маршрутов, компоненты          |
-| [testing.md](testing.md)           | Тестирование: Vitest, Playwright (моки), Deno-тесты edge-функции, pre-commit                  |
-| [deployment.md](deployment.md)     | CI/CD: deploy/test/backup workflows, переменные и секреты, локальный Supabase, GitHub Pages   |
+| Файл                               | Содержание                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [architecture.md](architecture.md) | Общая архитектура: топология, потоки данных, ключевые паттерны, структура репозитория           |
+| [frontend.md](frontend.md)         | SPA: маршруты, компоненты, хуки, константы, `lib/`, `utils/`, PWA/Service Worker, аналитика     |
+| [database.md](database.md)         | Supabase: все таблицы, RLS-политики, enums, RPC, Storage-бакеты, правила работы с миграциями    |
+| [telegram-bot.md](telegram-bot.md) | Edge Function `telegram-location-bot`: webhook, inline-режим, RSVP, анонсы, backfill, секреты   |
+| [events-news.md](events-news.md)   | Подсистема событий и новостей: публичный UI, админка, рассылка анонсов в Telegram               |
+| [admin.md](admin.md)               | Админка `/admin`: аутентификация, маршруты, adminApi, редактор маршрутов, компоненты            |
+| [testing.md](testing.md)           | Тестирование: Vitest, Playwright (моки), Deno-тесты edge-функции, pre-commit                    |
+| [deployment.md](deployment.md)     | CI/CD: deploy/test/backup workflows, переменные и секреты, локальный Supabase, Cloudflare Pages |
 
 ## Правила разработки
 

@@ -25,7 +25,7 @@ React 19 + TypeScript (strict) + Vite 8 + Tailwind CSS 4 + Mapbox GL JS 3 + reac
 - `buildMapDeepLinkPath(type, id)` / `parseMapDeepLinkPathname()` — `src/utils/hashNav.ts`. Тип ограничен union `HashFeatureType`.
 - Событие — **отдельный** маршрут: `buildEventDetailPath(id)` из `src/utils/eventLinks.ts` (`event` не входит в `HashFeatureType`; `/m/event/5` откроет пустую карту).
 - Старый формат `#point=11` автоматически редиректится на путь (`useMapSelectionSync`, `replaceState`).
-- При построении абсолютных ссылок обязательно `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}` — в prod `base = /map.euc/`.
+- При построении абсолютных ссылок обязательно `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}` — сейчас `base = /`, но `BASE_URL` остаётся единой точкой на случай смены префикса.
 - Новая сущность со своей страницей ⇒ парный `build*Path`/`parse*Pathname` + маршрут в `App.tsx`; не переиспользовать `/m/...` вслепую.
 
 ## EucMap — оркестратор
@@ -132,11 +132,13 @@ React 19 + TypeScript (strict) + Vite 8 + Tailwind CSS 4 + Mapbox GL JS 3 + reac
 `public/sw.js`, версия кеша `map-euc-${__APP_VERSION__}` (`GITHUB_SHA` при сборке):
 
 - **static** — app shell + `assets/`, `icons/`, `.css/.js/.svg/.png` — cache-first;
-- **runtime** — навигационные запросы — network-first с fallback на кэш посещённых URL → главную → app shell (`index.html` из static-кэша, чтобы офлайн-переход на непосещённый URL открывал SPA, а не браузерную ошибку), лимит 120 записей;
+- **runtime** — навигационные запросы — network-first с fallback на кэш посещённых URL → app shell из static-кэша (чтобы офлайн-переход на непосещённый URL открывал SPA, а не браузерную ошибку), лимит 120 записей;
 - **tiles** — тайлы/спрайты Mapbox — cache-first, лимит 500 записей;
 - Supabase API (`/rest`, `/realtime`, `/auth`, `/storage`) — **не** кешируется;
 - телеметрия Mapbox блокируется в `transformRequest` (`events.mapbox.com` → пустой ответ);
 - устаревшие версии кешей чистятся при активации новой SW.
+
+**Не добавлять `/index.html` в app shell.** Cloudflare Pages нормализует HTML-адреса и отдаёт на `/index.html` редирект 308 на `/`; redirected-ответ, возвращённый на navigation-запрос, роняет страницу с `TypeError`. App shell кэшируется по корневому пути (`BASE_PATH`), офлайн-фолбэк берёт оттуда же.
 
 Регистрация: `sw.js?v=${__APP_VERSION__}` в `main.tsx`; в dev SW не регистрируется (и разрегистрируется, если остался) — иначе cache-first отдавал устаревшие `/src/*`-модули до перезапуска dev-сервера. Manifest: fullscreen/standalone, `start_url: /?homescreen=1`, тема `#0f172a`. Иконки/сплэши: `npm run generate:pwa-icons` / `generate:pwa-startup`.
 

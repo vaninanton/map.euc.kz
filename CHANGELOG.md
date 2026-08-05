@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased] — 2026-08-05
+
+### Changed
+
+- Хостинг переехал с GitHub Pages на Cloudflare Pages (проект `map-euc`, direct upload через `wrangler` из GitHub Actions). Домен `map.euc.kz` и origin не меняются, так что PWA у пользователей переживает переезд без переустановки
+- SPA-фолбэк теперь `public/_redirects` (`/* /index.html 200`) вместо копии `index.html` → `404.html`: прямой заход на `/m/point/11` и `/events/5` отдаёт 200, а не 404 с телом приложения
+- `base` в Vite зафиксирован в `/`; ветка `GITHUB_PAGES` с префиксом `/map.euc/` удалена — в прод-сборку она никогда не попадала
+
+### Added
+
+- `public/_headers`: `immutable`-кэш для хешированных бандлов, недельный для иконок, `no-cache` для `sw.js`, обязательная ревалидация HTML
+- Тесты конфигурации деплоя (`src/test/deployConfig.test.ts`) и контракта SPA-роутинга по HTTP-статусам (`tests/e2e/routing.e2e.ts`)
+- Мета-тег `yandex-verification` как дубль файловой верификации — Cloudflare Pages редиректит `.html`-адреса
+
+### Fixed
+
+- Сервис-воркер больше не кэширует `/index.html` по прямому адресу: Cloudflare Pages отдаёт на него 308, а redirected-ответ на navigation-запрос ломал офлайн-фолбэк с `TypeError`
+
 ## [Unreleased] — 2026-07-18
 
 ### Added

@@ -2,11 +2,11 @@
 
 ## Обзор
 
-**map.euc.kz** — одностраничное PWA-приложение (React 19 + Mapbox GL JS 3) со статическим хостингом на GitHub Pages и бэкендом на Supabase (PostgreSQL + RLS + Realtime + Storage + Deno Edge Functions). Система read-heavy: почти все данные читаются анонимно через RLS-защищённый anon-ключ; запись возможна только администраторам (Supabase Auth + таблица `map_admin_users`) и Edge Function (service role).
+**map.euc.kz** — одностраничное PWA-приложение (React 19 + Mapbox GL JS 3) со статическим хостингом на Cloudflare Pages и бэкендом на Supabase (PostgreSQL + RLS + Realtime + Storage + Deno Edge Functions). Система read-heavy: почти все данные читаются анонимно через RLS-защищённый anon-ключ; запись возможна только администраторам (Supabase Auth + таблица `map_admin_users`) и Edge Function (service role).
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│ Браузер (SPA, GitHub Pages, map.euc.kz)                       │
+│ Браузер (SPA, Cloudflare Pages, map.euc.kz)                       │
 │ React 19 + Mapbox GL JS 3 + Tailwind 4 + Service Worker (PWA) │
 │  ├── EucMap — оркестратор карты (20+ хуков)                   │
 │  ├── /events, /radar, /help — экраны поверх карты             │
@@ -116,4 +116,4 @@ docs/                 эта документация
 
 ## Деплой в двух словах
 
-Push в `main` → GitHub Actions: `supabase db push` + деплой edge-функции → сборка Vite (`base=/map.euc/`) → GitHub Pages → уведомление в Telegram. Ежедневный бэкап БД и Storage в Selectel S3. Подробно: [deployment.md](deployment.md).
+Push в `main` → GitHub Actions: `supabase db push` + деплой edge-функции → сборка Vite (`base=/`) → `wrangler pages deploy` → Cloudflare Pages → уведомление в Telegram. Ежедневный бэкап БД и Storage в Selectel S3. Подробно: [deployment.md](deployment.md).

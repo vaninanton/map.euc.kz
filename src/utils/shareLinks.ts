@@ -137,7 +137,7 @@ export function buildTelegramPointMessage(pointName: string): string {
 
 /**
  * Абсолютная ссылка на событие: `${origin}${base}events/:id`.
- * Учитывает BASE_URL (в prod — `/map.euc/`).
+ * Учитывает BASE_URL (сейчас `/`).
  */
 export function buildEventShareLink(id: string): string {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
