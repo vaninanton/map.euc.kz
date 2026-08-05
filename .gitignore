@@ -35,3 +35,6 @@ test-results
 *.njsproj
 *.sln
 *.sw?
+
+# Локальный кэш wrangler (pages dev, сборки functions)
+.wrangler

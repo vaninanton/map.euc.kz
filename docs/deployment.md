@@ -25,6 +25,25 @@
 - **Preview-деплои выключены**: собирались бы с боевыми `VITE_SUPABASE_*`, то есть админка из превью писала бы в прод-БД. Включать только вместе с изолированным Supabase-проектом.
 - **`wrangler` не в devDependencies** намеренно: тянет платформенные бинари workerd (~40–50 МБ) всем разработчикам ради одной команды в CI.
 
+### Pages Functions (динамические OG-теги)
+
+Директория `functions/` в корне репозитория; wrangler компилирует её при деплое (`wrangler pages functions build` — то же самое локально) и сам генерирует `_routes.json`.
+
+- `functions/m/[type]/[id].ts` — подменяет `<title>` и OG/twitter-теги для ссылок `/m/point/11`, `/m/route/5`, `/m/bikelane/62`. Страница остаётся тем же SPA-бандлом: `next()` отдаёт `index.html`, а `HTMLRewriter` правит только теги в `<head>`.
+- **`_routes.json` включает только `/m/*`** — ассеты, `/`, `/events/*` и админка идут мимо воркера и не тратят его вызовы.
+- Данные: точки и маршруты — Supabase REST (RLS сам отсекает скрытые), велодорожки — статический `src/data/almaty.json`, вшитый в бандл функции. Для райдеров (`/m/telegramuser/…`) мета не строится: персональные данные.
+- Запрос к Supabase ограничен таймаутом 2.5 с; не уложились или сущность не найдена — отдаётся разметка с дефолтными тегами, страница не ломается.
+- **Переменные окружения функции** задаются в Pages-проекте (Settings → Environment variables), а не в GitHub: `SUPABASE_URL`, `SUPABASE_ANON_KEY`. Значения те же, что `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY`; anon-ключ и так публичен, поэтому plain text.
+
+Локальная проверка — тот же рантайм, что в проде:
+
+```bash
+npm run build
+npx wrangler@4 pages dev dist --port 8788 \
+  --binding SUPABASE_URL="$VITE_SUPABASE_URL" --binding SUPABASE_ANON_KEY="$VITE_SUPABASE_PUBLISHABLE_KEY"
+curl -s http://localhost:8788/m/point/11 | grep -oE '<meta property="og:[^"]*" content="[^"]*"'
+```
+
 ### `test.yml` — PR и push в `main`
 
 `paths-ignore`: `**/*.md`, LICENSE, `.editorconfig`, `.gitignore`, `.vscode/**`. Jobs: `checks` (lint, format:check, tsc, vitest, deno) + `e2e` (Playwright chromium) параллельно; `notify` при падении.

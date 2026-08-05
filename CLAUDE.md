@@ -102,6 +102,9 @@ src/
     ├── hooks/         # useAdminAuth, useCoordinateHistory, useUndoRedoHotkeys, useAdminListLoader
     ├── lib/adminApi/  # CRUD: points, routes, photos, submissions, geo; types, parsers, query
     └── route-editor/  # routeGeometry.ts, routeValidation.ts (геометрия и валидация маршрута)
+functions/         # Cloudflare Pages Functions (не путать с supabase/functions)
+├── _lib/          # ogMeta.ts (сборка метатегов), entities.ts (данные точки/маршрута/велодорожки)
+└── m/[type]/[id].ts  # динамические OG-теги для deep-links
 supabase/
 ├── migrations/    # 16 PostgreSQL-миграций (все таблицы + RLS + индексы)
 ├── functions/     # telegram-location-bot (webhook бота), ai-assist (OpenAI-помощник админки)
@@ -214,6 +217,7 @@ Lazy-loaded, доступ — Supabase Auth + запись в `map_admin_users`.
 ### Deployment
 
 - **Cloudflare Pages** (`map.euc.kz`, проект `map-euc`) — static SPA, Vite `base = /`; SPA-фолбэк — `public/_redirects`, заголовки кэша — `public/_headers`
+- **Pages Functions** (`functions/`) — `m/[type]/[id].ts` подменяет OG-теги для `/m/point|socket|route|bikelane/:id` через `HTMLRewriter` (краулеры не исполняют JS). `_routes.json` генерируется wrangler'ом и включает только `/m/*`. Переменные `SUPABASE_URL`/`SUPABASE_ANON_KEY` живут в настройках Pages-проекта, не в GitHub. Импорты из `src/` — относительным путём: alias `@/` знает Vite, но не esbuild
 - **CI/CD**: `.github/workflows/deploy.yml` — Supabase migrate → build → `wrangler pages deploy` → Telegram notification
 - **Локально**: Valet proxy `map.euc.test` → `localhost:5173`
 

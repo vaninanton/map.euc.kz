@@ -38,6 +38,32 @@ describe('public/_redirects', () => {
     })
 })
 
+describe('index.html — метатеги по умолчанию', () => {
+    const html = readRepoFile('index.html')
+
+    /** Значение content у тега с указанным property/name. */
+    function metaContent(attribute: 'property' | 'name', key: string): string | undefined {
+        const pattern = new RegExp(`<meta ${attribute}="${key}" content="([^"]*)"`)
+        return pattern.exec(html)?.[1]
+    }
+
+    it('og:url и og:image абсолютные — краулеры не резолвят относительные пути', () => {
+        for (const key of ['og:url', 'og:image']) {
+            expect(metaContent('property', key), `${key} должен быть абсолютным`).toMatch(/^https:\/\/map\.euc\.kz\//)
+        }
+        expect(metaContent('name', 'twitter:image')).toMatch(/^https:\/\/map\.euc\.kz\//)
+    })
+
+    it('размеры картинки совпадают со стандартом карточки 1200×630', () => {
+        expect(metaContent('property', 'og:image:width')).toBe('1200')
+        expect(metaContent('property', 'og:image:height')).toBe('630')
+    })
+
+    it('плейсхолдера %BASE_URL% не осталось — плагин base-url-meta удалён', () => {
+        expect(html).not.toContain('%BASE_URL%')
+    })
+})
+
 describe('public/_headers', () => {
     const content = readRepoFile('public/_headers')
     const lines = meaningfulLines(content)

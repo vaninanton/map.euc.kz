@@ -36,6 +36,7 @@
         "typograf": "^7.7.0"
     },
     "devDependencies": {
+        "@cloudflare/workers-types": "^5.20260804.1",
         "@eslint/js": "^10.0.1",
         "@mapbox/point-geometry": "^1.1.0",
         "@playwright/test": "^1.62.0",

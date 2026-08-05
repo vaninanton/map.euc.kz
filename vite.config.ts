@@ -1,25 +1,15 @@
 import path from 'node:path'
-import { defineConfig, type Plugin, type ResolvedConfig } from 'vite'
+import { defineConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-/** Подставляет base в %BASE_URL% в index.html для og:image, og:url, twitter:image */
-function baseUrlMetaPlugin(): Plugin {
-    let base = '/'
-    return {
-        name: 'base-url-meta',
-        configResolved(config: ResolvedConfig) {
-            base = config.base
-        },
-        transformIndexHtml(html: string) {
-            return html.replace(/%BASE_URL%/g, base)
-        },
-    }
-}
-
 // SPA-фолбэк на Cloudflare Pages делает public/_redirects (/* /index.html 200),
 // поэтому копия index.html как 404.html (нужная GitHub Pages) больше не собирается.
+//
+// Плагина base-url-meta здесь тоже больше нет: OG-теги в index.html теперь содержат
+// абсолютные URL (краулеры не резолвят относительные), а для ссылок на конкретную
+// сущность их подменяет Pages Function — functions/m/[type]/[id].ts.
 
 // https://vite.dev/config/
 export default defineConfig(() => {
@@ -27,7 +17,7 @@ export default defineConfig(() => {
         define: {
             __APP_VERSION__: JSON.stringify(process.env.GITHUB_SHA ?? String(Date.now())),
         },
-        plugins: [baseUrlMetaPlugin(), react(), tailwindcss()],
+        plugins: [react(), tailwindcss()],
         resolve: {
             alias: { '@': path.resolve(__dirname, 'src') },
         },
