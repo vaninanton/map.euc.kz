@@ -1,4 +1,4 @@
-name: Deploy static content to Pages
+name: Deploy static content to Cloudflare Pages
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
 
   workflow_dispatch:
 
+# pages: write и id-token: write были нужны только actions/deploy-pages (OIDC-обмен).
+# Деплой через wrangler авторизуется своим API-токеном, прав GitHub ему не требуется.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: 'pages'
+  group: 'deploy-production'
   cancel-in-progress: true
 
 env:
@@ -43,15 +43,17 @@ jobs:
           supabase functions deploy ai-assist --no-verify-jwt --use-api
 
   deploy:
-    # Не зависит от supabase: миграции БД/edge-функций и сборка статики Pages независимы —
+    name: Cloudflare Pages
+    # Не зависит от supabase: миграции БД/edge-функций и сборка статики независимы —
     # идут параллельно. Итоговый wall-clock ≈ max(supabase, deploy) вместо суммы.
     environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: production
+      url: https://map.euc.kz
     runs-on: ubuntu-latest
-    # Прокидываем URL страницы наружу, чтобы job notify мог вставить его в сообщение.
+    # Прокидываем URL конкретного деплоя наружу: по нему job notify даёт ссылку,
+    # а в дашборде Cloudflare по этому же адресу находится сборка для отката.
     outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
+      deployment_url: ${{ steps.deployment.outputs.deployment-url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -74,16 +76,19 @@ jobs:
           VITE_TELEGRAM_GEO_TTL_MINUTES: ${{ vars.VITE_TELEGRAM_GEO_TTL_MINUTES }}
           VITE_TELEGRAM_TRACK_TAIL_MINUTES: ${{ vars.VITE_TELEGRAM_TRACK_TAIL_MINUTES }}
           VITE_TELEGRAM_MAX_ACCURACY_METERS: ${{ vars.VITE_TELEGRAM_MAX_ACCURACY_METERS }}
-          # В dist/404.html дублируется index.html (vite-плагин spa-fallback-404) для SPA на GitHub Pages.
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: './dist'
-      - name: Deploy to GitHub Pages
+          # SPA-фолбэк даёт public/_redirects (/* /index.html 200), заголовки кэша —
+          # public/_headers. Оба файла Vite копирует в dist/ как есть.
+      - name: Deploy to Cloudflare Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          # --branch=main — production-ветка проекта: только такой деплой попадает на
+          # кастомный домен map.euc.kz. --commit-dirty: не падать из-за артефактов сборки
+          # в рабочей копии раннера.
+          command: pages deploy dist --project-name=map-euc --branch=main --commit-dirty=true
 
   notify:
     name: Уведомление в Telegram
@@ -104,7 +109,7 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d parse_mode="HTML" \
             -d disable_web_page_preview="true" \
-            -d text="✅ <b>map.euc.kz</b>%0AДеплой map.euc.kz завершен успешно.%0A🔗 ${{ needs.deploy.outputs.page_url }}"
+            -d text="✅ <b>map.euc.kz</b>%0AДеплой map.euc.kz завершен успешно.%0A🔗 https://map.euc.kz%0A📦 ${{ needs.deploy.outputs.deployment_url }}"
       - name: Notify Telegram on failure
         # Любой исход кроме общего успеха: падение или отмена в supabase/deploy.
         if: ${{ needs.supabase.result != 'success' || needs.deploy.result != 'success' }}
@@ -116,4 +121,4 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d parse_mode="HTML" \
             -d disable_web_page_preview="true" \
-            -d text="❌ <b>map.euc.kz</b>%0AДеплой map.euc.kz завершился ошибкой.%0ASupabase: ${{ needs.supabase.result }} · Pages: ${{ needs.deploy.result }}%0A🧾 Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -d text="❌ <b>map.euc.kz</b>%0AДеплой map.euc.kz завершился ошибкой.%0ASupabase: ${{ needs.supabase.result }} · Cloudflare Pages: ${{ needs.deploy.result }}%0A🧾 Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

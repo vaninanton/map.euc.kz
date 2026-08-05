@@ -1,11 +1,10 @@
-import { copyFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-/** Подставляет base (например /map.euc/) в %BASE_URL% в index.html для og:image, og:url, twitter:image */
+/** Подставляет base в %BASE_URL% в index.html для og:image, og:url, twitter:image */
 function baseUrlMetaPlugin(): Plugin {
     let base = '/'
     return {
@@ -19,27 +18,8 @@ function baseUrlMetaPlugin(): Plugin {
     }
 }
 
-/**
- * SPA-fallback для GitHub Pages: при production-сборке кладёт копию index.html как 404.html,
- * чтобы прямой заход на любой путь возвращал тот же бандл, а React Router сам решал, что показать.
- */
-function spaFallback404Plugin(): Plugin {
-    let outDir = 'dist'
-    return {
-        name: 'spa-fallback-404',
-        apply: 'build',
-        configResolved(config: ResolvedConfig) {
-            outDir = config.build.outDir
-        },
-        closeBundle() {
-            const indexPath = path.resolve(outDir, 'index.html')
-            const fallbackPath = path.resolve(outDir, '404.html')
-            if (existsSync(indexPath)) {
-                copyFileSync(indexPath, fallbackPath)
-            }
-        },
-    }
-}
+// SPA-фолбэк на Cloudflare Pages делает public/_redirects (/* /index.html 200),
+// поэтому копия index.html как 404.html (нужная GitHub Pages) больше не собирается.
 
 // https://vite.dev/config/
 export default defineConfig(() => {
@@ -47,7 +27,7 @@ export default defineConfig(() => {
         define: {
             __APP_VERSION__: JSON.stringify(process.env.GITHUB_SHA ?? String(Date.now())),
         },
-        plugins: [baseUrlMetaPlugin(), spaFallback404Plugin(), react(), tailwindcss()],
+        plugins: [baseUrlMetaPlugin(), react(), tailwindcss()],
         resolve: {
             alias: { '@': path.resolve(__dirname, 'src') },
         },
@@ -58,7 +38,9 @@ export default defineConfig(() => {
             // Edge Functions (Deno, https://-импорты) тестируются через `deno test`, не Vitest.
             exclude: [...configDefaults.exclude, 'supabase/functions/**'],
         },
-        base: process.env.GITHUB_PAGES === 'true' ? '/map.euc/' : '/',
+        // Сайт живёт в корне домена map.euc.kz (Cloudflare Pages). Префикс /map.euc/
+        // был нужен только для github.io и в прод-сборку никогда не попадал.
+        base: '/',
         server: {
             host: true,
             allowedHosts: ['map.euc.test', 'test.euc.kz'],

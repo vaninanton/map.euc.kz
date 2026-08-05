@@ -2,12 +2,10 @@ const SW_URL = new URL(self.location.href);
 const APP_VERSION = SW_URL.searchParams.get('v') || 'dev';
 const CACHE_VERSION = `map-euc-${APP_VERSION}`;
 const BASE_PATH = new URL(self.registration.scope).pathname;
-const APP_SHELL = [
-  BASE_PATH,
-  `${BASE_PATH}index.html`,
-  `${BASE_PATH}manifest.webmanifest`,
-  `${BASE_PATH}favicon.svg`,
-];
+// index.html намеренно НЕ кэшируем по прямому адресу: Cloudflare Pages нормализует
+// HTML-URL и отдаёт на /index.html редирект 308 на /. Redirected-ответ, отданный на
+// navigation-запрос, роняет страницу с TypeError, поэтому app shell держим по BASE_PATH.
+const APP_SHELL = [BASE_PATH, `${BASE_PATH}manifest.webmanifest`, `${BASE_PATH}favicon.svg`];
 const HOME_FALLBACK = `${BASE_PATH}`;
 const STATIC_ASSET_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
@@ -95,11 +93,7 @@ async function handleNavigationRequest(request) {
     // App shell закэширован при install в STATIC_ASSET_CACHE: без этого фолбэка
     // офлайн-переход на ещё не посещённый URL давал браузерную страницу ошибки.
     const staticCache = await caches.open(STATIC_ASSET_CACHE);
-    return (
-      (await staticCache.match(`${BASE_PATH}index.html`)) ||
-      (await staticCache.match(HOME_FALLBACK)) ||
-      Response.error()
-    );
+    return (await staticCache.match(HOME_FALLBACK)) || Response.error();
   }
 }
 

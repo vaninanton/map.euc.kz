@@ -57,7 +57,7 @@ admin/       lazy-loaded админка со своим adminApi
 
 ## Жёсткие инварианты (нарушение = баг)
 
-1. **Deep links**: фичи карты — `/m/:type/:id` (`buildMapDeepLinkPath`, union `HashFeatureType`); события — **только** `/events/:id` (`buildEventDetailPath` из `src/utils/eventLinks.ts`). `/m/event/...` — битая ссылка. В prod ссылки строить с `${import.meta.env.BASE_URL}` (base = `/map.euc/`). Новая сущность со страницей ⇒ свой `build*Path`/`parse*Pathname` + маршрут в `App.tsx`.
+1. **Deep links**: фичи карты — `/m/:type/:id` (`buildMapDeepLinkPath`, union `HashFeatureType`); события — **только** `/events/:id` (`buildEventDetailPath` из `src/utils/eventLinks.ts`). `/m/event/...` — битая ссылка. В prod ссылки строить с `${import.meta.env.BASE_URL}` (base = `/`). Новая сущность со страницей ⇒ свой `build*Path`/`parse*Pathname` + маршрут в `App.tsx`.
 2. **Константы**: строковые ID слоёв/источников и цвета — только из `src/constants/index.ts`. Новый слой — регистрировать в `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`, `LAYER_ID_TO_SOURCE`, `mapLayerRegistry.ts`, `layerVisibility.ts`.
 3. **Миграции** — только файлы в `supabase/migrations/` + `supabase db push` (или CI). **Никогда** через MCP `apply_migration`/`execute_sql` (ломает историю миграций; чинить `supabase migration repair`). Каждая новая таблица — сразу с RLS-политиками.
 4. **Секреты**: service-role ключ и bot-токен — только в Edge Function/Supabase secrets, никогда в браузере, БД, URL или логах. Avatar-URL с `/file/bot` — запрещены (санировать). Не коммитить `.env.local`.

@@ -62,7 +62,7 @@ Edge Function `telegram-location-bot` — webhook для Telegram-бота:
 - **Backend / БД:** Supabase (PostgreSQL + Row Level Security + Storage + Edge Functions на Deno).
 - **Аналитика:** Яндекс.Метрика (опционально).
 - **Качество кода:** ESLint, Prettier, Vitest для unit-тестов.
-- **Деплой:** GitHub Pages с кастомным доменом `map.euc.kz` (см. `CNAME`).
+- **Деплой:** Cloudflare Pages (direct upload из GitHub Actions), домен `map.euc.kz`.
 
 ## Структура проекта
 
@@ -226,7 +226,7 @@ Telegram-вебхуку нужен публичный HTTPS-URL, поэтому 
 
 Загрузка фото в Storage разрешена только администраторам (RLS на `storage.objects` и таблицы данных). Публичная анонимная загрузка в бакет точек отключена миграцией.
 
-SPA на GitHub Pages: в `dist/` появляется `404.html` (копия `index.html`), чтобы прямые переходы по путям отдавали приложение и React Router обрабатывал маршруты.
+SPA на Cloudflare Pages: правило `/* /index.html 200` в `public/_redirects` отдаёт бандл на любой путь (именно rewrite со статусом 200, адрес в строке браузера сохраняется), а маршрут дальше разбирает React Router.
 
 ## Telegram-бот для сбора геопозиций
 
@@ -434,13 +434,15 @@ const [pointsResult, routesResult, telegramResult, bikeLanesResult]
 
 ## Деплой
 
-Сборка для GitHub Pages:
+Прод — Cloudflare Pages, проект `map-euc`. Сборка идёт в GitHub Actions, готовый `dist/` заливается direct upload'ом:
 
 ```bash
-GITHUB_PAGES=true npm run build
+npm run build
+CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… \
+  npx wrangler@4 pages deploy dist --project-name=map-euc --branch=main
 ```
 
-При сборке в режиме GitHub Pages `vite.config.ts` подменяет `base` на `/map.euc/`, а плагин `baseUrlMetaPlugin` подставляет корректные абсолютные URL в OG-метатеги `index.html`. Кастомный домен закреплён файлом `CNAME`.
+Сайт живёт в корне домена (`base = /`). Плагин `baseUrlMetaPlugin` подставляет base в OG-метатеги `index.html`; SPA-роутинг и заголовки кэша задаются файлами `public/_redirects` и `public/_headers`, которые Vite копирует в `dist/` как есть. Подробности и чеклист после деплоя — в [docs/deployment.md](docs/deployment.md).
 
 ### CI: Supabase (миграции и Edge Functions)
 
