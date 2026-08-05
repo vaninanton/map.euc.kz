@@ -17,6 +17,7 @@ import {
     AdminTelegramChatsPage,
     AdminNewsPage,
     AdminNewsEditPage,
+    AdminSettingsPage,
 } from '@/admin/lazyAdminPages'
 
 export default function App() {
@@ -47,6 +48,7 @@ export default function App() {
                     <Route path="news/:id" element={<AdminNewsEditPage mode="edit" />} />
                     <Route path="telegram-chats" element={<AdminTelegramChatsPage />} />
                     <Route path="geo" element={<AdminGeoPage />} />
+                    <Route path="settings" element={<AdminSettingsPage />} />
                     <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />

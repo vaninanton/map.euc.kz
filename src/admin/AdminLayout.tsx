@@ -12,6 +12,7 @@ const NAV_ITEMS = [
     { to: '/admin/news', label: 'Новости', end: false },
     { to: '/admin/telegram-chats', label: 'Telegram-чаты', end: false },
     { to: '/admin/geo', label: 'Гео', end: false },
+    { to: '/admin/settings', label: 'Настройки', end: false },
 ] as const
 
 export function AdminLayout() {
