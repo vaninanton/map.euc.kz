@@ -20,6 +20,8 @@ export interface MapEntity {
     image?: string | null
     /** Дополнительные детали для описания: «3.4 км», «Обособленная велодорожка». */
     details?: string[]
+    /** Координаты точки — попадают в JSON-LD как GeoCoordinates. */
+    geo?: { lon: number; lat: number } | null
 }
 
 const MAX_DESCRIPTION = 200
@@ -48,15 +50,33 @@ export function buildTitle(entity: MapEntity): string {
 }
 
 /**
+ * Хвост, которым дополняются короткие описания. Поисковики показывают 110–160
+ * символов, а карточки вроде «Вид на город» столько не дают — контекст проекта
+ * делает сниппет осмысленным, не выдумывая фактов про сам объект.
+ */
+const PROJECT_SUFFIX =
+    'Мономаршруты — карта для райдеров на моноколёсах в Алматы: маршруты, розетки, места встреч и живые геопозиции.'
+
+/** Ниже этой длины описание считаем слишком коротким для сниппета. */
+const MIN_DESCRIPTION = 110
+
+/**
  * Описание: текст из карточки, иначе — собранное из деталей,
  * иначе — общая подпись проекта (пустая мета хуже дефолтной).
+ * Короткий текст дополняется контекстом проекта.
  */
 export function buildDescription(entity: MapEntity, fallback: string): string {
     const own = entity.description?.trim()
-    if (own) return truncate(own)
+    if (own) return truncate(withProjectContext(own))
     const details = (entity.details ?? []).filter((part) => part.trim().length > 0)
-    if (details.length > 0) return truncate(details.join(' · '))
+    if (details.length > 0) return truncate(withProjectContext(details.join(' · ')))
     return fallback
+}
+
+/** Дополняет текст подписью проекта, если он короче порога. */
+function withProjectContext(text: string): string {
+    if (text.length >= MIN_DESCRIPTION) return text
+    return `${text.replace(/[.\s]+$/, '')}. ${PROJECT_SUFFIX}`
 }
 
 export function buildOgMeta(entity: MapEntity, fallbackDescription: string): OgMeta {
@@ -65,6 +85,26 @@ export function buildOgMeta(entity: MapEntity, fallbackDescription: string): OgM
         description: buildDescription(entity, fallbackDescription),
         image: entity.image ?? undefined,
     }
+}
+
+/**
+ * JSON-LD страницы: у точки есть координаты — это schema.org/Place, у остальных
+ * сущностей описывать нечего сверх WebPage. Возвращает готовый JSON-текст.
+ * `<` экранируется, чтобы название с угловой скобкой не закрыло тег script.
+ */
+export function buildJsonLd(entity: MapEntity, meta: OgMeta, pageUrl: string): string {
+    const base = {
+        '@context': 'https://schema.org',
+        '@type': entity.geo ? 'Place' : 'WebPage',
+        name: meta.title,
+        description: meta.description,
+        url: pageUrl,
+        ...(meta.image ? { image: meta.image } : {}),
+        ...(entity.geo
+            ? { geo: { '@type': 'GeoCoordinates', latitude: entity.geo.lat, longitude: entity.geo.lon } }
+            : {}),
+    }
+    return JSON.stringify(base).replace(/</g, '\\u003c')
 }
 
 /** Публичный URL файла в Supabase Storage. */
