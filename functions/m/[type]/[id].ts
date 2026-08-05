@@ -1,4 +1,4 @@
-import { resolveEntityCached, type OgEnv } from '../../_lib/entities'
+import { resolveEntity, type OgEnv } from '../../_lib/entities'
 import { buildJsonLd, buildOgMeta } from '../../_lib/ogMeta'
 
 /** Нормализация типа из deep-link в тип сущности (как в src/utils/hashNav.ts). */
@@ -45,7 +45,7 @@ export const onRequestGet: PagesFunction<OgEnv> = async (context) => {
     // Райдеры и неизвестные типы — оставляем дефолтную мету из index.html.
     if (!type || type === 'telegramUser') return response
 
-    const entity = await resolveEntityCached(type, id, context.env, (promise) => {
+    const entity = await resolveEntity(type, id, context.env, (promise) => {
         context.waitUntil(promise)
     })
     if (!entity) return response

@@ -14,6 +14,8 @@ export default defineConfig([
         'supabase/functions/**',
         'playwright-report',
         'test-results',
+        // Временные бандлы wrangler (pages dev, functions build) — не наш код.
+        '.wrangler',
     ]),
     {
         files: ['public/sw.js'],
