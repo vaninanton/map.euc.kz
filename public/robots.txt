@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Админка — закрытый раздел, индексировать нечего.
+Disallow: /admin
+
+# Страницы райдеров: живые геопозиции из Telegram, персональные данные.
+Disallow: /m/telegramuser/
+
+Sitemap: https://map.euc.kz/sitemap.xml

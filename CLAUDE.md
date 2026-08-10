@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PWA-карта для райдеров на моноколёсах (EUC) в Алматы — live at **map.euc.kz**. Точки встреч, розетки, маршруты, велодорожки и live-геопозиции из Telegram-чатов.
+PWA-карта для райдеров на моноколёсах (EUC) в Алматы — live at **map.euc.kz**. Точки встреч, розетки, маршруты, велодорожки и live-геопозиции из Telegram-чатов. Плюс события (анонсы поездок с RSVP через Telegram) и новости проекта.
 
 **Полная документация — в [docs/](docs/README.md)**: архитектура, фронтенд, схема БД и RLS, Telegram-бот, события/новости, админка, тесты, деплой. Перед изменением подсистемы читать профильный файл; при изменении поведения — обновлять docs/ в том же коммите. Правила для агентов продублированы в [AGENTS.md](AGENTS.md).
 
@@ -13,15 +13,19 @@ PWA-карта для райдеров на моноколёсах (EUC) в Ал
 - **React 19** + **TypeScript 6** (strict) + **Vite 8** + **Tailwind CSS 4** (`@tailwindcss/vite`)
 - **Mapbox GL JS 3** — карта; **react-router-dom 7** — SPA-роутинг; **Font Awesome 7** — иконки
 - **Supabase** — PostgreSQL + RLS + Realtime + Storage + Deno Edge Functions
-- **Vitest 4** + **RTL 16** + **jsdom** — unit-тесты; **Playwright** — e2e
+- **Vitest 4** + **RTL 16** + **jsdom** — unit-тесты; **Playwright** — e2e; **Deno test** — Edge Functions
 - **Husky 9** — pre-commit хук; **ESLint 10** + **Prettier** — качество кода
+- **typograf** — типографика русских текстов (см. `src/utils/typograf.ts`)
 
 ## Commands
 
 ```bash
 npm run dev          # Vite dev server (localhost:5173; host: true — доступен по сети)
-npm run build        # tsc -b && vite build (type-check + bundle)
+npm run build        # vite build (только бандл, БЕЗ type-check)
+npm run build:check  # tsc -b && vite build (type-check + bundle)
 npm run lint         # ESLint (TypeScript strict + React hooks)
+npm run format       # prettier --write .
+npm run format:check # prettier --check . (то, что проверяет CI и хук)
 npm run test         # Vitest (run once)
 npm run preview      # Preview production build locally
 ```
@@ -32,9 +36,11 @@ npm run preview      # Preview production build locally
 npx vitest run src/utils/hashNav.test.ts
 ```
 
-**Pre-commit хук** (`.husky/pre-commit`) запускает автоматически: `lint → format:check → tsc --noEmit → test → test:functions (если есть deno) → build → test:e2e`.
+E2E тесты: `npm run test:e2e` / `npm run test:e2e:ui` (перед запуском авто-`build:e2e` со stub-env).
+Тесты Edge Functions (Deno): `npm run test:functions` (`deno test --allow-net supabase/functions/`).
 
-E2E тесты: `npm run test:e2e` / `npm run test:e2e:ui`
+**Pre-commit хук** (`.husky/pre-commit`) запускает автоматически: `lint → format:check → tsc -b --noEmit → test → test:functions (если есть deno) → build → test:e2e`.
+**CI** (`.github/workflows/test.yml`) дублирует те же гейты: lint, format:check, type-check, unit, Deno-функции, e2e.
 
 ## Environment
 
@@ -59,7 +65,7 @@ VITE_TELEGRAM_MAX_ACCURACY_METERS=100
 
 ## Language
 
-UI-тексты, сообщения пользователю, комментарии в коде — **русский**.
+UI-тексты, сообщения пользователю, комментарии в коде — **русский**. Пользовательские длинные тексты (описания событий/новостей и т.п.) прогонять через типографику — `src/utils/typograf.ts`.
 
 ## Code Style
 
@@ -88,26 +94,32 @@ UI-тексты, сообщения пользователю, комментар
 
 ```
 src/
+├── app/           # Роутовые оболочки: MapShell (lazy-грузит EucMap), NotFound
 ├── components/    # UI только — никакой бизнес-логики
+│   ├── ui/            # Примитивы: Badge, FilterChips, SearchInput, ToggleSwitch
+│   └── icons/         # Кастомные SVG-иконки (IconTelegram)
 ├── hooks/         # Состояние, эффекты, загрузка данных
-├── lib/           # env.ts, supabase.ts, mapLayers.ts
+├── lib/           # env.ts, supabase.ts, mapLayers.ts, analytics.ts
 ├── utils/         # Чистые функции без React/Mapbox (все покрыты тестами)
-├── constants/     # Единственный источник LAYER_IDS, SOURCE_IDS, COLORS, MAP_CENTER
+├── constants/     # LAYER_IDS/SOURCE_IDS/COLORS/MAP_CENTER (index.ts), layerVisibility.ts, mapLayerRegistry.ts
 ├── types/         # geojson.ts, supabase.ts, velojol.ts — реэкспорт через index.ts
 ├── data/          # almaty.json — статичный GeoJSON велодорожек (Velojol)
 ├── test/          # setup.ts для Vitest + jsdom
 └── admin/         # Lazy-loaded по /admin, Supabase Auth + map_admin_users
-    ├── pages/         # PointEditPage, RouteEditPage, SubmissionsPage, GeoPage, PointsPage, RoutesPage
-    ├── components/    # PointForm, PhotoManager, AdminRoutePolylineMap, ConfirmDialog, ...
+    ├── pages/         # Point/Route/Submissions/Geo + Events, News, TelegramChats (+ AdminLoginPage)
+    ├── components/    # PointForm, PhotoManager, EventForm, EventDatesManager, EventAnnounceModal,
+    │                  #   NewsAnnounceManager, AnnouncementMessagesList, ConfirmDialog, ...
     ├── hooks/         # useAdminAuth, useCoordinateHistory, useUndoRedoHotkeys, useAdminListLoader
-    ├── lib/adminApi/  # CRUD: points, routes, photos, submissions, geo; types, parsers, query
+    ├── lib/adminApi/  # CRUD: points, routes, photos, submissions, geo, events, news, telegramChats;
+    │                  #   eventAnnouncements, newsAnnouncements, announceClient; types, parsers, query
+    ├── utils/         # formatAdminDate
     └── route-editor/  # routeGeometry.ts, routeValidation.ts (геометрия и валидация маршрута)
 functions/         # Cloudflare Pages Functions (не путать с supabase/functions)
 ├── _lib/          # ogMeta.ts (сборка метатегов), entities.ts (данные точки/маршрута/велодорожки)
 └── m/[type]/[id].ts  # динамические OG-теги для deep-links
 supabase/
-├── migrations/    # 16 PostgreSQL-миграций (все таблицы + RLS + индексы)
-├── functions/     # telegram-location-bot (webhook бота), ai-assist (OpenAI-помощник админки)
+├── migrations/    # 28 PostgreSQL-миграций (все таблицы + RLS + индексы + RPC)
+├── functions/     # telegram-location-bot (index.ts + _handlers.ts + _pure.ts), ai-assist (OpenAI-помощник админки)
 └── schema.sql     # Полный экспорт схемы БД
 ```
 
@@ -143,8 +155,17 @@ Telegram realtime:
 5. `useMapSelectionSync` — синхронизирует URL ↔ выбранная фича
 6. `useMapPopup` — управляет Mapbox popup
 7. `useGeolocateControl`, `useUserGeolocation`, `useDeviceCompassHeading` — геолокация
+8. `useEvents`, `useTelegramAvatars`, `useMapPadding`, `useDraftPointFlow` — события, аватары, паддинг под сайдбары, флоу добавления точки
 
-Рендерит: `LayerControls`, `FeatureSidebar`, `PopupContent`, `AddPointPanel`, `MapOverlayButtons`, `MapNotificationModals`, `PwaPrompts`.
+Рендерит: `LayerControls`, `BottomTabBar`, `LiveActivityBar`, `PointListSidebar`, `RouteListSidebar`, `PopupContent`, `AddPointPanel`, `MapFeatureInfoModal`, `ProjectInfoModal`, `MapNotificationModals`, `RadarModal`, `EventsScreen`, `EventDetailScreen`. `PwaPrompts` рендерится в `App.tsx`.
+
+### Routing & Screens (`src/App.tsx`, `src/app/`)
+
+- `BrowserRouter basename={import.meta.env.BASE_URL}` — все пути реальные (не hash).
+- Публичные пути `/`, `/radar`, `/events`, `/events/:eventId`, `/help`, `/m/:type/:id` рендерят один и тот же `MapShell` (lazy-грузит `EucMap`). Экраны/модалки (радар, события, помощь) — оверлеи над картой; `EucMap` читает `useLocation()` и показывает нужный экран, чтобы карта не размонтировалась при навигации.
+- **Нижняя навигация** — `BottomTabBar`: Точки / Маршруты / Добавить / События / Радар / Помощь. Бейджи (непрочитанные события) — через `useEvents` + `eventsReadStore`.
+- `/admin/*` — отдельная ветка под `AdminShell` с lazy-страницами (`src/admin/lazyAdminPages.ts`): submissions, point(s), route(s), event(s), news, telegram-chats, geo.
+- Неизвестный путь вне `/admin` → `NotFound` (`src/app/NotFound.tsx`).
 
 ### Feature State (нет DOM-ререндеров)
 
@@ -172,6 +193,8 @@ map.setFeatureState({ source, id }, { selected: true })
 - `FEATURE_TYPE_LABELS`, `POINT_FLAG_LABELS` — русские подписи
 - `MAPBOX_STYLES` (`streets`, `satellite`), тип `BaseMapStyle`, тип `LayerKey`
 - `MAP_CENTER` (`[76.904848, 43.226807]`), `MAP_ZOOM_DEFAULT` (12), `MAP_ZOOM_FOCUS` (15)
+- `layerVisibility.ts` — тип `LayerVisibility` и дефолты видимости слоёв (стор `useLayerVisibilityStore`)
+- `mapLayerRegistry.ts` — `LAYER_KEY_TO_MAP_LAYER_IDS` + `applyVisibilityToMapLayers(map, visibility)` (у telegram два слоя — треки + маркеры — под одной кнопкой)
 
 ### GeoJSON & Types (`src/types/`)
 
@@ -199,7 +222,14 @@ map.setFeatureState({ source, id }, { selected: true })
 
 ### Telegram Bot (Edge Function)
 
-`supabase/functions/telegram-location-bot/index.ts` — Deno runtime. Принимает webhook `POST`, валидирует secret-токен, сохраняет геопозицию в `telegram_locations`, кеширует аватар в `telegram_profiles` + Storage. URL аватара санируется (bot-токен вырезается перед записью).
+`supabase/functions/telegram-location-bot/` — Deno runtime. `index.ts` — роутинг webhook'ов; `_handlers.ts` — обработчики (I/O с Telegram/Supabase); `_pure.ts` — чистые хелперы (легко тестируются). Отдельные тесты `_handlers.test.ts` / `_pure.test.ts` (`npm run test:functions`).
+
+Функционал бота вырос за пределы геолокации:
+
+- **Геопозиция**: webhook `POST`, валидация secret-токена, запись в `telegram_locations`, кеш аватара в `telegram_profiles` + Storage (URL санируется — bot-токен вырезается перед записью).
+- **RSVP событий**: `handleCallbackQuery` — inline-кнопки записи на дату события → `map_event_participants`, `answerCallbackQuery` в коротком окне (аватар не запрашиваем, добьёт `/backfill`).
+- **Анонсы/новости**: сабруты рассылки, правки, удаления, отмены и пина сообщений (`handleAnnounceEventDate`, `handleAnnounceNews`, `handleEdit*`, `handleDelete*`, `handleCancelAnnouncements`, `handlePinAnnouncement`) — пишут в `telegram_outbound_messages`. Админ-действия защищены `isAdminRequest`.
+- Ссылка на событие в анонсе — строго `/events/:id` (сегмент `EVENTS_PATH_PREFIX`), НЕ `/m/event/:id`.
 
 ### AI Assist (Edge Function)
 
@@ -207,18 +237,22 @@ map.setFeatureState({ source, id }, { selected: true })
 
 ### Admin Section (`/admin`)
 
-Lazy-loaded, доступ — Supabase Auth + запись в `map_admin_users`. Структура:
+Lazy-loaded (`lazyAdminPages.ts`), доступ — Supabase Auth + запись в `map_admin_users`. Структура:
 
-- **adminApi**: `listPoints/getPoint/createPoint/updatePoint/togglePointDisabled/deletePoint`, аналогично для routes; `listSubmissions/approveSubmission/rejectSubmission`; `getAdminGeoData`; `uploadPhoto/deletePhoto`
-- **route-editor**: геометрия и валидация вершин маршрута
-- Undo/redo координат: `useCoordinateHistory` + `useUndoRedoHotkeys`
-- Кнопка «Открыть на сайте» в edit-страницах: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}`
+- **adminApi**: CRUD для points, routes, events, news; `listSubmissions/approveSubmission/rejectSubmission`; `getAdminGeoData`; `uploadPhoto/deletePhoto`; `telegramChats`; `eventAnnouncements`/`newsAnnouncements` + `announceClient` (вызов Edge-сабрутов рассылки).
+- **События**: `EventForm`, `EventDatesManager` (даты поездки), `EventAnnounceModal` + `AnnouncementMessagesList` (рассылка анонса в чаты, счётчик RSVP, правка/удаление/пин).
+- **Новости**: `NewsAnnounceManager` + `NewsMessagesList` (рассылка новости в выбранные чаты).
+- **route-editor**: геометрия и валидация вершин маршрута. Undo/redo координат: `useCoordinateHistory` + `useUndoRedoHotkeys`.
+- Кнопка «Открыть на сайте» в edit-страницах: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}` (для события — `buildEventDetailPath`).
 
 ### Deployment
 
 - **Cloudflare Pages** (`map.euc.kz`, проект `map-euc`) — static SPA, Vite `base = /`; SPA-фолбэк — `public/_redirects`, заголовки кэша — `public/_headers`
-- **Pages Functions** (`functions/`) — `m/[type]/[id].ts` подменяет OG-теги для `/m/point|socket|route|bikelane/:id` через `HTMLRewriter` (краулеры не исполняют JS). `_routes.json` генерируется wrangler'ом и включает только `/m/*`. Переменные `SUPABASE_URL`/`SUPABASE_ANON_KEY` живут в настройках Pages-проекта, не в GitHub. Импорты из `src/` — относительным путём: alias `@/` знает Vite, но не esbuild
-- **CI/CD**: `.github/workflows/deploy.yml` — Supabase migrate → build → `wrangler pages deploy` → Telegram notification
+- **Pages Functions** (`functions/`) — `m/[type]/[id].ts` подменяет OG-теги для `/m/point|socket|route|bikelane/:id` через `HTMLRewriter` (краулеры не исполняют JS); `sitemap.xml.ts` отдаёт карту сайта. `_routes.json` генерируется wrangler'ом. Переменные `SUPABASE_URL`/`SUPABASE_ANON_KEY` живут в настройках Pages-проекта, не в GitHub. Импорты из `src/` — относительным путём: alias `@/` знает Vite, но не esbuild
+- **Workflows** (`.github/workflows/`):
+    - `deploy.yml` — Supabase migrate → build → `wrangler pages deploy` → Telegram notification
+    - `test.yml` — lint / format:check / type-check / unit / Deno-функции / e2e (+ Telegram-нотификация о падении)
+    - `backup.yml` — ежедневный бэкап Supabase (БД + Storage) в S3 (Selectel); `pg_dump` 17 под PG 17
 - **Локально**: Valet proxy `map.euc.test` → `localhost:5173`
 
 ### PWA
