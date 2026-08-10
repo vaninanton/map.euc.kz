@@ -1,5 +1,5 @@
 import { resolveEntity, type OgEnv } from '../../_lib/entities'
-import { buildOgMeta } from '../../_lib/ogMeta'
+import { buildJsonLd, buildOgMeta } from '../../_lib/ogMeta'
 
 /** Нормализация типа из deep-link в тип сущности (как в src/utils/hashNav.ts). */
 const NORMALIZED_TYPE: Record<string, string> = {
@@ -45,12 +45,15 @@ export const onRequestGet: PagesFunction<OgEnv> = async (context) => {
     // Райдеры и неизвестные типы — оставляем дефолтную мету из index.html.
     if (!type || type === 'telegramUser') return response
 
-    const entity = await resolveEntity(type, id, context.env)
+    const entity = await resolveEntity(type, id, context.env, (promise) => {
+        context.waitUntil(promise)
+    })
     if (!entity) return response
 
     const meta = buildOgMeta(entity, FALLBACK_DESCRIPTION)
     const canonicalUrl = new URL(context.request.url)
     canonicalUrl.search = ''
+    const pageUrl = canonicalUrl.toString()
 
     let rewriter = new HTMLRewriter()
         .on('title', {
@@ -63,8 +66,19 @@ export const onRequestGet: PagesFunction<OgEnv> = async (context) => {
         .on('meta[property="og:description"]', setContent(meta.description))
         .on('meta[name="twitter:description"]', setContent(meta.description))
         .on('meta[name="description"]', setContent(meta.description))
-        .on('meta[property="og:url"]', setContent(canonicalUrl.toString()))
+        .on('meta[property="og:url"]', setContent(pageUrl))
         .on('meta[property="og:type"]', setContent('article'))
+        // Канонический адрес и структурированные данные дописываем в <head>: статически
+        // их держать нельзя — index.html отдаётся на любой путь, и один зашитый canonical
+        // объявил бы главную канонической для всех страниц сразу.
+        .on('head', {
+            element(element) {
+                element.append(`<link rel="canonical" href="${pageUrl}" />`, { html: true })
+                element.append(`<script type="application/ld+json">${buildJsonLd(entity, meta, pageUrl)}</script>`, {
+                    html: true,
+                })
+            },
+        })
 
     if (meta.image) {
         const image = meta.image
