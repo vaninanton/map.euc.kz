@@ -1,12 +1,13 @@
-# База данных (Supabase / PostgreSQL 17)
+# Database (Supabase / PostgreSQL 17)
 
-Схема управляется **только** миграциями в `supabase/migrations/` (26 файлов). `supabase/schema.sql` — справочный экспорт, руками не редактируется.
+The schema is managed **exclusively** by the migrations in `supabase/migrations/` (28 files). There is no exported `schema.sql` — this document plus the migrations are the reference.
 
-## Правила работы с миграциями
+## Migration rules
 
-- Новая миграция: `supabase migration new <name>` → SQL-файл → локально `supabase db reset` → на прод через `supabase db push` или CI (deploy.yml).
-- **Запрещено** применять миграции через MCP `apply_migration`/`execute_sql`: MCP пишет в `schema_migrations` автогенерённый таймстамп, расходящийся с именем файла, и ломает деплой. Разошедшуюся историю чинить `supabase migration repair`, сверять `supabase migration list`.
-- Каждая новая таблица обязана сразу получить RLS-политики (`ENABLE ROW LEVEL SECURITY` + политики) — таблица без политик недоступна либо, что хуже, открыта.
+- New migration: `supabase migration new <name>` → write the SQL file → `supabase db reset` locally → to production via `supabase db push` or CI (deploy.yml).
+- **Never** apply migrations through MCP `apply_migration`/`execute_sql`: MCP writes an auto-generated timestamp into `schema_migrations` that diverges from the file name and breaks deploys. Repair a diverged history with `supabase migration repair` and verify with `supabase migration list`.
+- Every new table must get its RLS policies immediately (`ENABLE ROW LEVEL SECURITY` + policies) — a table without policies is either unreachable or, worse, wide open.
+- Merging to `main` applies migrations to production straight away (deploy.yml).
 
 ## Enums
 
@@ -16,96 +17,96 @@ submission_status:  'pending' | 'approved' | 'rejected'
 event_types:        'group_ride' | 'event' | 'training'
 ```
 
-## Таблицы
+## Tables
 
-### Карта
+### Map
 
-**`map_points`** — точки и розетки.
-`id bigint PK` · `created_at` · `title text` (CHECK 4–99 симв.) · `coordinates double precision[]` ([lon, lat], CHECK диапазонов) · `type point_types` · `description` · флаги `flag_is_meeting`, `flag_has_socket`, `flag_erlan`, `flag_disabled` (все boolean NOT NULL DEFAULT false). Индексы по `flag_disabled`, `flag_erlan`.
+**`map_points`** — points and power sockets.
+`id bigint PK` · `created_at` · `title text` (CHECK 4–99 chars) · `coordinates double precision[]` ([lon, lat], range CHECKs) · `type point_types` · `description` · flags `flag_is_meeting`, `flag_has_socket`, `flag_erlan`, `flag_disabled` (all boolean NOT NULL DEFAULT false). Indexed on `flag_disabled`, `flag_erlan`.
 
-**`map_routes`** — маршруты.
-`id bigint PK` · `title` (CHECK 4–99) · `coordinates jsonb` (массив [lon, lat] или [lon, lat, elevation], минимум 2 точки) · `via_coordinates jsonb` (промежуточные точки для внешних навигаторов) · `description` · `flag_disabled` · `flag_erlan`.
+**`map_routes`** — routes.
+`id bigint PK` · `title` (CHECK 4–99) · `coordinates jsonb` (an array of [lon, lat] or [lon, lat, elevation], at least 2 points) · `via_coordinates jsonb` (waypoints for external navigation apps) · `description` · `flag_disabled` · `flag_erlan`.
 
-**`map_points_submissions`** — очередь модерации пользовательских заявок.
-`id uuid PK` · `created_at` · `processed_at` · `type point_types` · `title` · `description` · `coordinates jsonb` · `flag_is_meeting` · `status submission_status DEFAULT 'pending'`. Индекс `(status, created_at)`.
+**`map_points_submissions`** — the moderation queue for user submissions.
+`id uuid PK` · `created_at` · `processed_at` · `type point_types` · `title` · `description` · `coordinates jsonb` · `flag_is_meeting` · `status submission_status DEFAULT 'pending'`. Indexed on `(status, created_at)`.
 
-**`map_point_photos`** — фото точек.
-`id uuid PK` · `point_id bigint FK → map_points ON DELETE CASCADE` · `bucket_name DEFAULT 'map-point-photos'` · `storage_path` (UNIQUE с point_id) · `alt_text` · `sort_order smallint ≥ 0`.
+**`map_point_photos`** — point photos.
+`id uuid PK` · `point_id bigint FK → map_points ON DELETE CASCADE` · `bucket_name DEFAULT 'map-point-photos'` · `storage_path` (UNIQUE together with point_id) · `alt_text` · `sort_order smallint ≥ 0`.
 
-### События и новости
+### Events and news
 
-**`map_events`** — события (покатушки/мероприятия/обучение).
-`id bigint PK` · `created_at` · `updated_at` (триггер) · `type event_types DEFAULT 'group_ride'` · `title` (CHECK 4–99) · `description` · `photo_bucket DEFAULT 'map-event-photos'` · `photo_path` · `duration_minutes smallint > 0` · `location_text` · `start_coordinates` / `finish_coordinates double precision[]` (nullable) · `start_point_id` / `finish_point_id bigint FK → map_points ON DELETE SET NULL` · `flag_disabled`.
-Старт/финиш: либо привязанная точка (приоритет), либо ручные координаты.
+**`map_events`** — events (group rides / meetups / training).
+`id bigint PK` · `created_at` · `updated_at` (trigger) · `type event_types DEFAULT 'group_ride'` · `title` (CHECK 4–99) · `description` · `photo_bucket DEFAULT 'map-event-photos'` · `photo_path` · `duration_minutes smallint > 0` · `location_text` · `start_coordinates` / `finish_coordinates double precision[]` (nullable) · `start_point_id` / `finish_point_id bigint FK → map_points ON DELETE SET NULL` · `flag_disabled`.
+Start/finish is either a linked point (takes priority) or manual coordinates.
 
-**`map_event_dates`** — даты проведения.
+**`map_event_dates`** — occurrence dates.
 `id uuid PK` · `event_id bigint FK → map_events ON DELETE CASCADE` · `starts_at timestamptz` · `note` · `cancelled boolean DEFAULT false`. UNIQUE `(event_id, starts_at)`.
 
-**`map_event_participants`** — RSVP «Участвую» (toggle из Telegram).
+**`map_event_participants`** — «Участвую» RSVPs (toggled from Telegram).
 `id uuid PK` · `event_date_id uuid FK → map_event_dates CASCADE` · `telegram_user_id bigint FK → telegram_profiles CASCADE`. UNIQUE `(event_date_id, telegram_user_id)`.
 
-**`map_news`** — новости проекта (только для рассылки, публичной страницы нет).
-`id uuid PK` · `created_at` · `body text` (источник истины для правки сообщений) · `photo_path` · `deleted_at` (мягкое удаление — строка остаётся для истории).
+**`map_news`** — project news (broadcast only, there is no public page).
+`id uuid PK` · `created_at` · `body text` (the source of truth when editing sent messages) · `photo_path` · `deleted_at` (soft delete — the row stays for history).
 
 ### Telegram
 
-**`telegram_locations`** — live-геопозиции (пишет только edge-функция).
-`id uuid PK` · `created_at` · `telegram_update_id bigint UNIQUE` · `chat_id` / `chat_type` / `chat_title` · `message_id` · `telegram_user_id` · снапшоты `username`/`first_name`/`last_name` · `longitude`/`latitude` (CHECK диапазонов) · `location_accuracy_meters` · `location_live_period_seconds` · `location_heading` · `location_proximity_alert_radius` · `raw_update jsonb` (скрыт от anon). Индексы `(chat_id, created_at)`, `(telegram_user_id, created_at)`, `(created_at, id)`.
-Сохраняются только live-геопозиции (`live_period > 0`); одиночные точки-«поделиться местом» пропускаются.
+**`telegram_locations`** — live geolocations (written only by the edge function).
+`id uuid PK` · `created_at` · `telegram_update_id bigint UNIQUE` · `chat_id` / `chat_type` / `chat_title` · `message_id` · `telegram_user_id` · snapshots of `username`/`first_name`/`last_name` · `longitude`/`latitude` (range CHECKs) · `location_accuracy_meters` · `location_live_period_seconds` · `location_heading` · `location_proximity_alert_radius` · `raw_update jsonb` (hidden from anon). Indexed on `(chat_id, created_at)`, `(telegram_user_id, created_at)`, `(created_at, id)`.
+Only live geolocations are stored (`live_period > 0`); one-off "share my location" pins are skipped.
 
-**`telegram_profiles`** — кэш профилей.
-`telegram_user_id bigint PK` · `username` · `first_name` · `last_name` · `avatar_url` (только безопасный Storage-URL, без bot-токена) · `updated_at` (триггер).
+**`telegram_profiles`** — profile cache.
+`telegram_user_id bigint PK` · `username` · `first_name` · `last_name` · `avatar_url` (a safe Storage URL only, never containing the bot token) · `updated_at` (trigger).
 
-**`telegram_chats`** — назначения рассылки анонсов (управляется в `/admin/telegram-chats`).
-`id uuid PK` (суррогатный) · `chat_id bigint` · `message_thread_id bigint` (тема форумной группы; NULL = обычный чат/General) · `title` · `enabled` · `sort_order`. UNIQUE `(chat_id, message_thread_id) NULLS NOT DISTINCT`.
+**`telegram_chats`** — announcement destinations (managed at `/admin/telegram-chats`).
+`id uuid PK` (surrogate) · `chat_id bigint` · `message_thread_id bigint` (forum group topic; NULL = a plain chat / General) · `title` · `enabled` · `sort_order`. UNIQUE `(chat_id, message_thread_id) NULLS NOT DISTINCT`.
 
-**`telegram_outbound_messages`** — единая таблица исходящих сообщений бота (бывшая `map_event_announcements`, переименована в `20260627120000`). Полиморфная привязка: `event_date_id uuid FK` (анонс даты события) **ЛИБО** `news_id uuid FK` (новость) — CHECK гарантирует ровно один.
-`telegram_chat_id` · `message_thread_id` · `telegram_message_id` (NULL до успешной отправки) · `message_text` (итоговый текст с шапкой) · `body_text` (сырое тело — источник для правки) · `photo_path` · `sent_at` · `send_error` · `cancelled_at` (текст заменён на «❌ ОТМЕНЕНО») · `deleted_at` (удалено из Telegram) · `pinned_at`. UNIQUE `(telegram_chat_id, telegram_message_id)`.
-«Живое» сообщение: `telegram_message_id IS NOT NULL AND send_error IS NULL AND cancelled_at IS NULL AND deleted_at IS NULL`.
+**`telegram_outbound_messages`** — the single table of outbound bot messages (formerly `map_event_announcements`, renamed in `20260627120000`). Polymorphic link: `event_date_id uuid FK` (an event date announcement) **OR** `news_id uuid FK` (a news item) — a CHECK guarantees exactly one.
+`telegram_chat_id` · `message_thread_id` · `telegram_message_id` (NULL until sent successfully) · `message_text` (the final text including the header) · `body_text` (the raw body — the source for edits) · `photo_path` · `sent_at` · `send_error` · `cancelled_at` (text replaced with «❌ ОТМЕНЕНО») · `deleted_at` (removed from Telegram) · `pinned_at`. UNIQUE `(telegram_chat_id, telegram_message_id)`.
+A "live" message is: `telegram_message_id IS NOT NULL AND send_error IS NULL AND cancelled_at IS NULL AND deleted_at IS NULL`.
 
-### Доступ
+### Access
 
-**`map_admin_users`** — администраторы.
-`user_id uuid PK FK → auth.users ON DELETE CASCADE`. Заполняется вручную (INSERT в SQL Editor). Является шлюзом для всех admin-политик RLS.
+**`map_admin_users`** — administrators.
+`user_id uuid PK FK → auth.users ON DELETE CASCADE`. Populated manually (an INSERT in the SQL Editor). It is the gateway for every admin RLS policy.
 
 ## RPC
 
-**`get_admin_dashboard_stats()`** — агрегаты для админ-дашборда одним вызовом: счётчики контента (точки/маршруты/события/фото/новости), pending-заявки, включённые чаты, ошибки рассылок за 30 дней, время последней геопозиции, уникальные райдеры за сегодня/7 дней/30 дней/год и активность по дням за 30 дней (границы периодов — полуночь Asia/Almaty). Тяжёлые агрегаты по `telegram_locations` читают 30-дневное окно одним сканом (CTE `recent` → today/week/month + daily_activity); отдельным широким сканом остаётся только счётчик райдеров за год. SECURITY DEFINER; внутри проверка `map_admin_users`, иначе `42501`. EXECUTE только `authenticated`.
+**`get_admin_dashboard_stats()`** — every admin dashboard aggregate in one call: content counters (points/routes/events/photos/news), pending submissions, enabled chats, broadcast errors over 30 days, the timestamp of the last geolocation, unique riders for today/7 days/30 days/year, and per-day activity over 30 days (period boundaries are midnight Asia/Almaty). The heavy `telegram_locations` aggregates read a 30-day window in a single scan (CTE `recent` → today/week/month + daily_activity); only the yearly rider count remains a separate wide scan. SECURITY DEFINER, with a `map_admin_users` check inside that otherwise raises `42501`. EXECUTE granted to `authenticated` only.
 
-**`get_latest_telegram_locations(ttl_minutes int DEFAULT 60, max_accuracy_meters int DEFAULT 100)`** — последняя позиция каждого пользователя за TTL, JOIN с `telegram_profiles` (имя, аватар), фильтр по точности. Возвращает по одной строке на райдера (ROW_NUMBER, самая свежая). GRANT EXECUTE TO public — раздаёт только безопасные колонки (без `raw_update`).
+**`get_latest_telegram_locations(ttl_minutes int DEFAULT 60, max_accuracy_meters int DEFAULT 100)`** — each user's latest position within the TTL, joined with `telegram_profiles` (name, avatar), filtered by accuracy. Returns one row per rider (ROW_NUMBER, most recent). GRANT EXECUTE TO public — it exposes only the safe columns (no `raw_update`).
 
-## Матрица RLS (упрощённо)
+## RLS matrix (simplified)
 
-| Таблица                                             | anon чтение                              | anon запись | admin (authenticated + map_admin_users) | service role |
-| --------------------------------------------------- | ---------------------------------------- | ----------- | --------------------------------------- | ------------ |
-| `map_points` / `map_routes` / `map_events` (+dates) | только `flag_disabled = false`           | ✗           | полный CRUD                             | ✓            |
-| `map_point_photos`                                  | только фото видимых точек                | ✗           | CRUD                                    | ✓            |
-| `map_points_submissions`                            | ✗                                        | INSERT      | чтение + UPDATE                         | ✓            |
-| `map_event_participants`                            | ✗                                        | ✗           | только чтение                           | ✓ (бот)      |
-| `telegram_profiles`                                 | ✓                                        | ✗           | ✗                                       | ✓ (бот)      |
-| `telegram_locations`                                | ✓ (безопасные колонки, без `raw_update`) | ✗           | ✗                                       | ✓ (бот)      |
-| `telegram_chats`                                    | ✗                                        | ✗           | CRUD                                    | ✓            |
-| `telegram_outbound_messages`                        | ✗                                        | ✗           | только чтение                           | ✓ (бот)      |
-| `map_news`                                          | ✗                                        | ✗           | CRUD                                    | ✓            |
-| `map_admin_users`                                   | ✗                                        | ✗           | только своя строка                      | ✓            |
+| Table                                               | anon read                         | anon write | admin (authenticated + map_admin_users) | service role |
+| --------------------------------------------------- | --------------------------------- | ---------- | --------------------------------------- | ------------ |
+| `map_points` / `map_routes` / `map_events` (+dates) | only `flag_disabled = false`      | ✗          | full CRUD                               | ✓            |
+| `map_point_photos`                                  | only photos of visible points     | ✗          | CRUD                                    | ✓            |
+| `map_points_submissions`                            | ✗                                 | INSERT     | read + UPDATE                           | ✓            |
+| `map_event_participants`                            | ✗                                 | ✗          | read only                               | ✓ (bot)      |
+| `telegram_profiles`                                 | ✓                                 | ✗          | ✗                                       | ✓ (bot)      |
+| `telegram_locations`                                | ✓ (safe columns, no `raw_update`) | ✗          | ✗                                       | ✓ (bot)      |
+| `telegram_chats`                                    | ✗                                 | ✗          | CRUD                                    | ✓            |
+| `telegram_outbound_messages`                        | ✗                                 | ✗          | read only                               | ✓ (bot)      |
+| `map_news`                                          | ✗                                 | ✗          | CRUD                                    | ✓            |
+| `map_admin_users`                                   | ✗                                 | ✗          | own row only                            | ✓            |
 
-## Storage-бакеты
+## Storage buckets
 
-| Бакет              | Публичное чтение           | Запись       | Содержимое                                 |
-| ------------------ | -------------------------- | ------------ | ------------------------------------------ |
-| `map-point-photos` | через public URL           | админы       | фото точек, путь `{point_id}/{uuid}.{ext}` |
-| `map-event-photos` | через public URL           | админы       | фото событий                               |
-| `map-news-photos`  | да (10 MiB, jpeg/png/webp) | админы       | фото новостей                              |
-| `telegram-avatars` | да                         | edge-функция | кэш аватаров Telegram (без bot-токена)     |
+| Bucket             | Public read                 | Write         | Contents                                       |
+| ------------------ | --------------------------- | ------------- | ---------------------------------------------- |
+| `map-point-photos` | via public URL              | admins        | point photos, path `{point_id}/{uuid}.{ext}`   |
+| `map-event-photos` | via public URL              | admins        | event photos                                   |
+| `map-news-photos`  | yes (10 MiB, jpeg/png/webp) | admins        | news photos                                    |
+| `telegram-avatars` | yes                         | edge function | cached Telegram avatars (no bot token in URLs) |
 
-Все URL строятся через `supabase.storage.from(bucket).getPublicUrl(path)` — bot-токены в URL не допускаются.
+Every URL is built with `supabase.storage.from(bucket).getPublicUrl(path)` — bot tokens must never appear in a URL.
 
-## Локальная разработка
+## Local development
 
 ```bash
-supabase start      # полный стек в Docker: API 54321, DB 54322, Studio 54323
-supabase db reset   # пересоздать локальную БД по миграциям
-supabase functions serve telegram-location-bot   # edge-функция с hot-reload
+supabase start      # full stack in Docker: API 54321, DB 54322, Studio 54323
+supabase db reset   # recreate the local DB from migrations
+supabase functions serve telegram-location-bot   # edge function with hot reload
 ```
 
-Подробнее — в [../README.md](../README.md) («Локальная разработка бэкенда»).
+More detail in [../README.md](../README.md) («Локальная разработка бэкенда»). To seed the local database from production, use the `supabase-clone-prod` skill.

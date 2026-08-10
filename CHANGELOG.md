@@ -1,6 +1,20 @@
 # Changelog
 
-## [Unreleased] — 2026-08-05 (sitemap и кэш дампа)
+## 2026-08-10 (документация и скиллы)
+
+### Fixed
+
+- **Скилл `supabase-clone-prod` больше не сливает прод-PII в git.** Он писал дамп прода в `supabase/seed.sql` и «защищал» его добавлением пути в `.gitignore`. Но файл **отслеживается** git (в `.gitignore` есть `!supabase/seed.sql`), а на отслеживаемые файлы gitignore не действует — прогон скилла затирал курируемый seed (только точки и маршруты, без персональных данных) дампом с телеграм-идентификаторами, координатами и аватарами. Теперь дамп идёт в `supabase/backups/` (игнорируется целиком, проверка через `git check-ignore` до дампа) и грузится в локальную БД отдельным `psql`; `seed.sql` не трогается
+- Заголовки CHANGELOG — только дата, без `[Unreleased]` и номеров версий
+- Актуализирован `CLAUDE.md`: `npm run build` не проверяет типы (это `build:check`), `supabase/schema.sql` не существует, миграций 28 а не 16, в adminApi нет `getAdminGeoData`, добавлены `src/app/`, `components/ui|icons`, `admin/utils`, `mapLayerRegistry`, `layerVisibility`, `lib/analytics`, вход по пасскею, `sitemap.xml` и часовой дамп
+- Мелкие расхождения в скиллах: `eslint.config.ts` → `eslint.config.js`, `tsc --noEmit` → `tsc -b --noEmit` (корневой конфиг — только references), порт e2e 4174, счётчики тестов, `.claude/skills/` давно закоммичен
+
+### Changed
+
+- Документация для разработчиков переведена на английский: `docs/`, `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`. По-русски остаются интерфейс, комментарии в коде, CHANGELOG, описания коммитов и `README.md`
+- `update-deps` сначала проверяет открытые PR от Dependabot — он и так группирует minor/patch ежедневно
+
+## 2026-08-05 (sitemap и кэш дампа)
 
 ### Added
 
@@ -16,7 +30,7 @@
 
 - ESLint игнорирует `.wrangler`: после локального запуска `pages dev` линтер спотыкался о временные бандлы и ронял pre-commit
 
-## [Unreleased] — 2026-08-05 (SEO)
+## 2026-08-05 (SEO)
 
 ### Fixed
 
@@ -33,7 +47,7 @@
 - Короткие описания дополняются контекстом проекта: «Вид на город» → «Вид на город. Мономаршруты — карта для райдеров на моноколёсах в Алматы: …» (124 символа против 12 — поисковики показывают 110–160)
 - Данные сущности кэшируются на edge 5 минут: без кэша каждый заход на `/m/...` стоил запроса в Supabase плюс HEAD за весом фото (~150–200 мс сверх статики). Кэшируются именно данные, а не готовый HTML — иначе после деплоя можно было получить страницу со ссылками на удалённые бандлы
 
-## [Unreleased] — 2026-08-05 (OpenGraph)
+## 2026-08-05 (OpenGraph)
 
 ### Added
 
@@ -50,7 +64,7 @@
 
 - Vite-плагин `base-url-meta` — подставлять `%BASE_URL%` больше не во что
 
-## [Unreleased] — 2026-08-05
+## 2026-08-05
 
 ### Changed
 
@@ -69,7 +83,7 @@
 - Сервис-воркер больше не кэширует `/index.html` по прямому адресу: Cloudflare Pages отдаёт на него 308, а redirected-ответ на navigation-запрос ломал офлайн-фолбэк с `TypeError`
 - Из `_redirects` убрано правило канонизации `map-euc.pages.dev` — оно не работало: source в Cloudflare Pages обязан быть путём, правила с полным URL игнорируются молча. Тест теперь это проверяет; сама канонизация переезжает в PR с Pages Functions
 
-## [Unreleased] — 2026-07-18
+## 2026-07-18
 
 ### Added
 
@@ -80,7 +94,7 @@
 - Подсказка про фото новости переписана честно (замена фото возможна, с ограничением Telegram) вместо неверного «Telegram не меняет картинку»
 - При создании новости показывается пояснение, что сохраняется черновик и рассылка не произойдёт
 
-## [Unreleased] — 2026-07-14
+## 2026-07-14
 
 ### Fixed
 
@@ -90,7 +104,7 @@
 - Service worker: офлайн-навигация на непосещённый URL теперь падает на app shell (`index.html` из static-кэша) вместо браузерной страницы «Нет соединения»
 - Service worker не регистрируется в dev (и разрегистрируется, если остался): cache-first отдавал устаревшие `/src/*`-модули и CSS до перезапуска dev-сервера
 
-## [Unreleased] — 2026-07-13
+## 2026-07-13
 
 ### Added
 
@@ -100,7 +114,7 @@
 
 - `supabase/config.toml`: секция `[inbucket]` переименована в `[local_smtp]` (новое имя в актуальных версиях Supabase CLI)
 
-## [Unreleased] — 2026-07-02 (дашборд)
+## 2026-07-02 (дашборд)
 
 ### Added
 
@@ -119,7 +133,7 @@
 - Ускорена загрузка дашборда: RPC `get_admin_dashboard_stats` читает 30-дневное окно `telegram_locations` одним сканом (CTE `recent AS MATERIALIZED`) вместо четырёх — 5 сканов таблицы → 2; добавлен индекс `(created_at, telegram_user_id)` (узкий Index Only Scan, сортировка `count(DISTINCT)` ушла с диска в память); миграция `20260702130000`
 - `useAdminAuth`: единый источник проверки прав через `onAuthStateChange` + кэш по `user.id` — вместо дублирующегося запроса `map_admin_users` (2 → 1)
 
-## [Unreleased] — 2026-07-02
+## 2026-07-02
 
 ### Added
 
@@ -131,7 +145,7 @@
 
 - `README.md` и `CLAUDE.md` актуализированы и ссылаются на `docs/` (deep links `/m/...`, таблица БД, pre-commit)
 
-## [Unreleased] — 2026-06-27
+## 2026-06-27
 
 ### Added
 
@@ -143,13 +157,13 @@
 
 - Исходящие сообщения бота объединены в единую таблицу `telegram_outbound_messages` (переименование `map_event_announcements` + полиморфная привязка `event_date_id` | `news_id`); анонсы событий и новости используют общие helpers (`announceClient`, `listLiveAnnouncements`, `editAnnouncementContent`)
 
-## [Unreleased] — 2026-06-22
+## 2026-06-22
 
 ### Fixed
 
 - Восстановлены типы для mapbox-gl: добавлены devDependencies `@types/geojson` (namespace `GeoJSON`) и `@mapbox/point-geometry` (тип `Point`) — без них `npm run build` падал с 13 ошибками типов
 
-## [Unreleased] — 2026-06-16
+## 2026-06-16
 
 ### Added
 

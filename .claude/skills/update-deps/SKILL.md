@@ -5,6 +5,8 @@ description: Update npm dependencies for map.euc.kz. Use when asked to update pa
 
 Update npm dependencies for map.euc.kz. The workflow creates a new git branch, classifies each outdated package as minor/patch vs major, applies safe updates immediately, researches breaking changes for major bumps, then verifies with build + tests before reporting.
 
+**Check Dependabot first.** `.github/dependabot.yml` already opens daily PRs for minor/patch bumps — grouped into `dev-dependencies` and `production-minor-patch` — plus weekly GitHub Actions updates. Major bumps are deliberately left ungrouped, one PR each, for manual analysis. So run `gh pr list --label dependencies` before doing anything: if an open Dependabot PR already covers the request, review and merge that instead of duplicating the work by hand. This skill is for manual sweeps and for the major bumps Dependabot cannot decide on its own.
+
 ## Process
 
 ### 1. Create branch
@@ -46,6 +48,7 @@ npm install
 ```
 
 Or for individual packages:
+
 ```bash
 npm install <package>@latest
 ```
@@ -59,67 +62,69 @@ npm install
 
 Follow the upgrade guide for each package. Common patterns in this project:
 
-- **Vite major** — check `vite.config.ts` for deprecated plugin APIs; check `@vitejs/plugin-react` compatibility
-- **React major** — check for removed APIs; this project uses React 19 (hooks, no class components)
-- **Tailwind CSS major** — check config format (v4 uses CSS-based config, not `tailwind.config.js`)
-- **TypeScript major** — check `tsconfig.json` for removed/changed compiler options; run `tsc --noEmit` after
-- **ESLint major** — check `eslint.config.ts` flat config format; check plugin compatibility
-- **@supabase/supabase-js major** — check RLS/client API changes; see `src/lib/supabase.ts`
+- **Vite major** — check `vite.config.ts` for deprecated plugin APIs (the build uses rolldown options and a `codeSplitting` group for mapbox-gl); check `@vitejs/plugin-react` compatibility
+- **React major** — check for removed APIs; this project uses React 19 (hooks, no class components except `AppErrorBoundary`)
+- **Tailwind CSS major** — check the config format (v4 uses CSS-based config, not `tailwind.config.js`)
+- **TypeScript major** — check the four `tsconfig.*.json` project files for removed/changed compiler options; run `npx tsc -b --noEmit` after
+- **ESLint major** — check the `eslint.config.js` flat config format; check plugin compatibility
+- **@supabase/supabase-js major** — check RLS/client API changes; see `src/lib/supabase.ts` (note the `auth.experimental.passkey` opt-in used by the admin panel)
 - **mapbox-gl major** — check layer paint/layout expression syntax; see `src/lib/mapLayers.ts`
-- **react-router-dom major** — check route definition API; see `src/App.tsx` or equivalent router setup
+- **react-router-dom major** — check the route definition API; see `src/App.tsx`
+- **@cloudflare/workers-types major** — affects `functions/` and `tsconfig.functions.json`
 
-### 6. Fix TypeScript errors
+### 6. Fix lint and type errors
 
 After any update, run:
+
 ```bash
 npm run lint
-npx tsc --noEmit
+npx tsc -b --noEmit
 ```
 
-Fix errors before proceeding — `noUnusedLocals` and `noUnusedParameters` are enforced.
+`tsc -b` is required — `tsconfig.json` is a solution config with project references only. Fix errors before proceeding; `noUnusedLocals` and `noUnusedParameters` are enforced.
 
 ### 7. Verify build and tests
 
 ```bash
-# Unit tests (99 tests, ~500ms)
-npm run test
-
-# Production build (must succeed cleanly)
-npm run build
-
-# E2e tests (15 tests, ~8s) — requires no other server on port 5180
-PLAYWRIGHT_PORT=5180 npm run test:e2e
+npm test                 # unit tests
+npm run test:functions   # Deno tests for the edge functions (needs deno on PATH)
+npm run build            # production build (must succeed cleanly)
+npm run test:e2e         # Playwright; runs build:e2e first
 ```
 
-All three must pass before the branch is ready.
+All of them must pass before the branch is ready.
 
 ### 8. Report
 
 Summarize:
+
 - Packages updated (old version → new version)
 - Breaking changes applied and how they were resolved
 - Any packages skipped (with reason)
 - Test results
 
-## Verification baseline (as of 2026-06-11)
+## Verification baseline (as of 2026-08-10)
 
 All green on this project before any dependency changes:
-- `npm run test`: 21 test files, 99 tests pass in ~500ms
-- `npm run build`: succeeds in ~400ms (mapbox-gl chunk size warning is expected and harmless)
-- `npm run test:e2e`: 15 tests pass in ~8s (Mapbox API errors in WebServer log are expected — e2e uses a fake token)
+
+- `npm test`: 86 test files, 631 tests pass in ~25 s
+- `npm run build`: succeeds cleanly (a mapbox-gl chunk size warning is expected and harmless)
+- `npm run test:e2e`: 50 tests across 8 spec files in ~2.6 min; the run includes a production build first
+
+Refresh these numbers when they drift — a stale baseline is worse than none.
 
 ## Gotchas
 
-- **`module.register()` deprecation warning** — appears on every npm/node invocation with Node 26. Not a build error; ignore it.
-- **Mapbox API errors in e2e WebServer log** — expected; e2e config uses `e2e-mapbox-token` intentionally. Tests still pass.
-- **Tailwind v4 has no `tailwind.config.js`** — config lives in CSS (`@theme` directive). Don't create a config file.
-- **TypeScript ~6.x uses tilde range** — `tsconfig` `target`/`lib` values may change between patch releases; check `tsc --version` after upgrade.
-- **`npm outdated` exits with code 1** if any packages are outdated — this is normal, not an error. Use `|| true` in scripts.
-- **E2e tests spawn their own dev server** — kill any running `vite` process before running e2e, or use a different port with `PLAYWRIGHT_PORT`.
+- **Mapbox API errors in the e2e WebServer log** — expected; the e2e build uses `e2e-mapbox-token` intentionally. Tests still pass.
+- **Tailwind v4 has no `tailwind.config.js`** — the config lives in CSS (`@theme` directive). Don't create a config file.
+- **TypeScript uses a tilde range (`~6.0.x`)** — `tsconfig` `target`/`lib` values may change between patch releases; check `tsc --version` after an upgrade.
+- **`npm outdated` exits with code 1** when anything is outdated — that is normal, not an error. Use `|| true` in scripts.
+- **E2E runs against a preview server on port 4174** (`PLAYWRIGHT_PORT` overrides it) — kill a stale `vite preview` on that port before running, or set a different port.
+- **`wrangler` is intentionally absent from devDependencies** — don't "helpfully" add it; it pulls ~40–50 MB of workerd binaries for one CI command.
 
 ## Troubleshooting
 
-- **`EADDRINUSE` on port 5173 or 5180**: `pkill -f vite` then retry
-- **`tsc` errors after upgrade**: run `npx tsc --noEmit 2>&1 | head -50` to see all errors; fix before running build
-- **E2e tests fail after dep update**: check if `playwright.config.ts` needs updating; run `npx playwright install chromium` if browser version mismatch
-- **`npm install` peer dependency conflict**: use `--legacy-peer-deps` only as last resort; prefer finding compatible versions first
+- **`EADDRINUSE` on port 4174 or 5173**: `pkill -f vite` then retry
+- **`tsc` errors after an upgrade**: run `npx tsc -b --noEmit 2>&1 | head -50` to see all errors; fix before building
+- **E2E fails after a dep update**: check whether `playwright.config.ts` needs updating; run `npx playwright install chromium` on a browser version mismatch
+- **`npm install` peer dependency conflict**: use `--legacy-peer-deps` only as a last resort; prefer finding compatible versions first

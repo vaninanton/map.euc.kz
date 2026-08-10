@@ -1,44 +1,46 @@
-# Деплой, CI/CD и окружение
+# Deployment, CI/CD and environment
 
-## Хостинг
+## Hosting
 
-- **Фронтенд**: Cloudflare Pages, проект `map-euc` (технический адрес `map-euc.pages.dev`), кастомный домен `map.euc.kz`. Сборка идёт в GitHub Actions, готовый `dist/` заливается через `wrangler pages deploy` (direct upload). Vite собирает с `base = /` — сайт живёт в корне домена. SPA-роутинг обеспечивает `public/_redirects` (`/* /index.html 200`), заголовки кэша — `public/_headers`; оба файла Vite копирует в `dist/` как есть.
-- **Бэкенд**: облачный Supabase (PostgreSQL 17, Storage, Edge Functions).
-- **Локально**: Valet proxy `map.euc.test` → `localhost:5173`; разрешённые dev-хосты: `map.euc.test`, `test.euc.kz`.
+- **Frontend**: Cloudflare Pages, project `map-euc` (technical address `map-euc.pages.dev`), custom domain `map.euc.kz`. The build runs in GitHub Actions and the finished `dist/` is uploaded with `wrangler pages deploy` (direct upload). Vite builds with `base = /` — the site lives at the domain root. SPA routing comes from `public/_redirects` (`/* /index.html 200`) and cache headers from `public/_headers`; Vite copies both files into `dist/` verbatim.
+- **Backend**: hosted Supabase (PostgreSQL 17, Storage, Edge Functions).
+- **Locally**: Valet proxies `map.euc.test` → `localhost:5173`; allowed dev hosts are `map.euc.test` and `test.euc.kz`.
 
 ## Workflows
 
-### `deploy.yml` — push в `main` / вручную
+### `deploy.yml` — push to `main` / manual
 
-1. **supabase**: link по `SUPABASE_PROJECT_REF` → `supabase db push` (миграции) → `supabase functions deploy telegram-location-bot --no-verify-jwt --use-api`.
-2. **deploy**: `npm run build` (только Vite — типы проверены на PR) с `VITE_*` из variables → `wrangler pages deploy dist --project-name=map-euc --branch=main` через `cloudflare/wrangler-action@v3`.
-3. **notify** (`if: always()`): результат в Telegram, со ссылкой на конкретный деплой из `deployment-url`.
+1. **supabase**: link via `SUPABASE_PROJECT_REF` → `supabase db push` (migrations) → `supabase functions deploy telegram-location-bot --no-verify-jwt --use-api` and the same for `ai-assist`.
+2. **deploy**: `npm run build` (Vite only — types were checked on the PR) with the `VITE_*` values from repository variables → `wrangler pages deploy dist --project-name=map-euc --branch=main` via `cloudflare/wrangler-action@v3`.
+3. **notify** (`if: always()`): reports the result to Telegram, linking to the specific deployment from `deployment-url`.
 
-Секреты edge-функции (`TELEGRAM_BOT_TOKEN` и др.) в CI **не** задаются — один раз через `supabase secrets set` (см. [telegram-bot.md](telegram-bot.md)).
+The two jobs are independent and run in parallel, so total wall clock is `max(supabase, deploy)` rather than the sum.
+
+Edge function secrets (`TELEGRAM_BOT_TOKEN` and friends) are **not** set in CI — they are configured once with `supabase secrets set` (see [telegram-bot.md](telegram-bot.md)).
 
 ### Cloudflare Pages
 
-- **Токен CI** (`CLOUDFLARE_API_TOKEN`): достаточно прав `Account → Cloudflare Pages → Edit`. Для разовых операций с доменом и DNS нужен отдельный токен с `Zone → DNS → Edit` и `Zone → Zone → Read` на зону `euc.kz` — держать его в CI не нужно.
-- **Ручной деплой**: `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… npx wrangler@4 pages deploy dist --project-name=map-euc --branch=main`. Ветка обязательно `main` — только production-деплой попадает на кастомный домен.
-- **Откат**: `npx wrangler@4 pages deployment list --project-name=map-euc`, затем «Rollback to this deployment» в дашборде. DNS при этом не трогается.
-- **Почему не Git-интеграция Cloudflare**: сборка ушла бы на сторону CF, где нет `GITHUB_SHA` (из него строится версия PWA-кеша), пришлось бы дублировать семь `VITE_*` в дашборде, а job `supabase` всё равно остаётся в Actions — пайплайн расщепился бы надвое.
-- **Preview-деплои выключены**: собирались бы с боевыми `VITE_SUPABASE_*`, то есть админка из превью писала бы в прод-БД. Включать только вместе с изолированным Supabase-проектом.
-- **`wrangler` не в devDependencies** намеренно: тянет платформенные бинари workerd (~40–50 МБ) всем разработчикам ради одной команды в CI.
+- **CI token** (`CLOUDFLARE_API_TOKEN`): `Account → Cloudflare Pages → Edit` is enough. One-off domain and DNS work needs a separate token with `Zone → DNS → Edit` and `Zone → Zone → Read` on the `euc.kz` zone — there is no reason to keep that one in CI.
+- **Manual deploy**: `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… npx wrangler@4 pages deploy dist --project-name=map-euc --branch=main`. The branch must be `main` — only a production deployment reaches the custom domain.
+- **Rollback**: `npx wrangler@4 pages deployment list --project-name=map-euc`, then "Rollback to this deployment" in the dashboard. DNS is untouched.
+- **Why not Cloudflare's Git integration**: the build would move to CF, where `GITHUB_SHA` does not exist (the PWA cache version is derived from it), seven `VITE_*` variables would have to be duplicated in the dashboard, and the `supabase` job would stay in Actions anyway — the pipeline would split in two.
+- **Preview deployments are disabled**: they would build with the production `VITE_SUPABASE_*`, meaning the admin panel in a preview would write to the production database. Enable them only together with an isolated Supabase project.
+- **`wrangler` is deliberately not in devDependencies**: it pulls the workerd platform binaries (~40–50 MB) onto every developer's machine for the sake of one CI command.
 
-### Pages Functions (динамические OG-теги)
+### Pages Functions (dynamic OG tags and sitemap)
 
-Директория `functions/` в корне репозитория; wrangler компилирует её при деплое (`wrangler pages functions build` — то же самое локально) и сам генерирует `_routes.json`.
+The `functions/` directory sits at the repository root; wrangler compiles it during deploy (`wrangler pages functions build` does the same locally) and generates `_routes.json` itself.
 
-- `functions/m/[type]/[id].ts` — подменяет `<title>` и OG/twitter-теги для ссылок `/m/point/11`, `/m/route/5`, `/m/bikelane/62`. Страница остаётся тем же SPA-бандлом: `next()` отдаёт `index.html`, а `HTMLRewriter` правит только теги в `<head>`.
-- **`_routes.json` включает только `/m/*`** — ассеты, `/`, `/events/*` и админка идут мимо воркера и не тратят его вызовы.
-- `functions/sitemap.xml.ts` — карта сайта: статические разделы + все точки, маршруты, велодорожки и события. Собирается из того же дампа, поэтому точка из админки попадает в `sitemap.xml` без деплоя. Ссылка на неё — в `public/robots.txt`.
-- Данные: точки и маршруты — **часовой дамп** из Supabase REST целиком (23 КБ на 108 сущностей; RLS сам отсекает скрытые), велодорожки — статический `src/data/almaty.json`, вшитый в бандл функции. Для райдеров (`/m/telegramuser/…`) мета не строится: персональные данные.
-- Дамп кэшируется на час, промахи — на 5 минут. Сущности, которой нет в дампе (создали только что), запрашиваются точечно. Кэш живёт по дата-центрам и вытесняется когда угодно, так что «раз в час» на деле означает «когда первый запрос в этом дата-центре обнаружит протухший дамп».
-- Запрос к Supabase ограничен таймаутом 2.5 с; не уложились или сущность не найдена — отдаётся разметка с дефолтными тегами, страница не ломается.
-- **Фото точки идёт в превью как есть, без проверки веса** (решение владельца проекта, август 2026). Telegram — приоритетный парсер — тянет до 5 МБ и сам ужимает; WhatsApp на картинках тяжелее ~600 КБ иногда не показывает превью вовсе, и тогда карточка остаётся без картинки. Трансформация Supabase Storage (`/storage/v1/render/image/...`) на текущем плане отдаёт 403, так что уменьшать нечем — если понадобится, это либо сжатие при загрузке в админке, либо генерация превью-скриншотов карты.
-- **Переменные окружения функции** задаются в Pages-проекте (Settings → Environment variables), а не в GitHub: `SUPABASE_URL`, `SUPABASE_ANON_KEY`. Значения те же, что `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY`; anon-ключ и так публичен, поэтому plain text.
+- `functions/m/[type]/[id].ts` — rewrites `<title>` and the OG/twitter tags for links such as `/m/point/11`, `/m/route/5`, `/m/bikelane/62`. The page stays the same SPA bundle: `next()` returns `index.html` and `HTMLRewriter` only patches the tags in `<head>`.
+- **`_routes.json` covers only `/m/*`** — assets, `/`, `/events/*` and the admin panel bypass the worker and do not consume its invocations.
+- `functions/sitemap.xml.ts` — the sitemap: static sections plus every point, route, bike lane and event. It is built from the same dump, so a point created in the admin panel appears in `sitemap.xml` without a deploy. It is linked from `public/robots.txt`.
+- Data sources: points and routes come from an **hourly dump** of the whole Supabase REST payload (23 KB for 108 entities; RLS filters hidden rows out on its own), bike lanes come from the static `src/data/almaty.json` bundled into the function. No meta is built for riders (`/m/telegramuser/…`) — that is personal data.
+- The dump is cached for an hour, misses for 5 minutes. An entity missing from the dump (just created) is fetched individually. The cache is per data center and can be evicted at any time, so "once an hour" really means "when the first request in this data center finds the dump stale".
+- The Supabase request has a 2.5 s timeout; on a timeout or a missing entity the default markup is served — the page never breaks.
+- **A point photo goes into the preview as-is, with no size check** (project owner's decision, August 2026). Telegram — the priority parser — accepts up to 5 MB and compresses on its own; WhatsApp sometimes shows no preview at all for images heavier than ~600 KB, leaving the card without a picture. Supabase Storage transformations (`/storage/v1/render/image/...`) return 403 on the current plan, so there is nothing to downscale with — if this ever matters, the fix is either compressing on upload in the admin panel or generating map screenshot previews.
+- **The function's environment variables** are set in the Pages project (Settings → Environment variables), not in GitHub: `SUPABASE_URL`, `SUPABASE_ANON_KEY`. The values match `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; the anon key is public anyway, hence plain text.
 
-Локальная проверка — тот же рантайм, что в проде:
+Local verification, on the same runtime as production:
 
 ```bash
 npm run build
@@ -47,53 +49,55 @@ npx wrangler@4 pages dev dist --port 8788 \
 curl -s http://localhost:8788/m/point/11 | grep -oE '<meta property="og:[^"]*" content="[^"]*"'
 ```
 
-### `test.yml` — PR и push в `main`
+Note that `functions/` is bundled by esbuild, which does not understand the `@/` alias — imports from `src/` must be relative.
 
-`paths-ignore`: `**/*.md`, LICENSE, `.editorconfig`, `.gitignore`, `.vscode/**`. Jobs: `checks` (lint, format:check, tsc, vitest, deno) + `e2e` (Playwright chromium) параллельно; `notify` при падении.
+### `test.yml` — pull requests and push to `main`
 
-### `backup.yml` — ежедневно 03:00 UTC (≈08:00 Алматы) / вручную
+`paths-ignore`: `**/*.md`, LICENSE, `.editorconfig`, `.gitignore`, `.vscode/**`. Jobs: `checks` (lint, format:check, tsc, vitest, deno) and `e2e` (Playwright chromium) in parallel; `notify` on failure.
 
-1. **БД**: ставит `postgresql-client-17` на раннер (сервер на PG 17), `pg_dump --schema-only` и `--data-only` с `--exclude-schema` всех системных схем Supabase, gzip, проверка размера > 1 КБ.
-2. **Storage**: `aws s3 sync` четырёх бакетов (`map-point-photos`, `telegram-avatars`, `map-event-photos`, `map-news-photos`) через S3-протокол Supabase Storage.
-3. **Выгрузка**: в Selectel S3 (`BACKUP_S3_*`), c `--no-verify-ssl` — сертификат российского УЦ отсутствует в trust store раннера.
+### `backup.yml` — daily at 03:00 UTC (≈08:00 Almaty) / manual
 
-Восстановление и ручные дампы — скилл `supabase-backup`.
+1. **Database**: installs `postgresql-client-17` on the runner (the server runs PG 17), runs `pg_dump --schema-only` and `--data-only` with `--exclude-schema` for every Supabase system schema, gzips the result and checks the size is over 1 KB.
+2. **Storage**: `aws s3 sync` of the four buckets (`map-point-photos`, `telegram-avatars`, `map-event-photos`, `map-news-photos`) through the Supabase Storage S3 protocol.
+3. **Upload**: to Selectel S3 (`BACKUP_S3_*`) with `--no-verify-ssl` — the Russian CA certificate is absent from the runner's trust store.
 
-## Переменные окружения (фронтенд)
+Restores and manual dumps are handled by the `supabase-backup` skill.
+
+## Environment variables (frontend)
 
 `cp .env.example .env.local`:
 
-| Переменная                          | Назначение                          | Default |
-| ----------------------------------- | ----------------------------------- | ------- |
-| `VITE_MAPBOX_TOKEN`                 | Публичный токен Mapbox              | —       |
-| `VITE_SUPABASE_URL`                 | URL проекта Supabase                | —       |
-| `VITE_SUPABASE_PUBLISHABLE_KEY`     | Anon-ключ (RLS-protected)           | —       |
-| `VITE_YANDEX_METRIKA_ID`            | Счётчик Метрики (опционально)       | пусто   |
-| `VITE_TELEGRAM_GEO_TTL_MINUTES`     | Сколько минут показывать геопозиции | 60      |
-| `VITE_TELEGRAM_TRACK_TAIL_MINUTES`  | Длина «хвоста» трека                | 30      |
-| `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Макс. погрешность GPS               | 100     |
+| Variable                            | Purpose                               | Default |
+| ----------------------------------- | ------------------------------------- | ------- |
+| `VITE_MAPBOX_TOKEN`                 | Mapbox public token                   | —       |
+| `VITE_SUPABASE_URL`                 | Supabase project URL                  | —       |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`     | Anon key (RLS-protected)              | —       |
+| `VITE_YANDEX_METRIKA_ID`            | Metrika counter (optional)            | empty   |
+| `VITE_TELEGRAM_GEO_TTL_MINUTES`     | How many minutes to show geolocations | 60      |
+| `VITE_TELEGRAM_TRACK_TAIL_MINUTES`  | Length of the track "tail"            | 30      |
+| `VITE_TELEGRAM_MAX_ACCURACY_METERS` | Maximum GPS error                     | 100     |
 
-**При добавлении переменной синхронизировать в четырёх местах**: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md`. Для e2e — ещё `build:e2e` в `package.json`.
+**When adding a variable, sync it in five places**: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md`, and `build:e2e` in `package.json` (the e2e production build needs it). `tests/config/deployConfig.test.ts` guards the parity.
 
-Команды синхронизации: чувствительные → `gh secret set NAME --body "$NAME"`, некритичные → `gh variable set NAME --body "$NAME"` (шаблоны `.env.github_vars` / `.env.github_secrets`, в .gitignore).
+Sync commands: sensitive → `gh secret set NAME --body "$NAME"`, non-sensitive → `gh variable set NAME --body "$NAME"` (templates `.env.github_vars` / `.env.github_secrets`, both gitignored).
 
 ## GitHub Variables / Secrets
 
-**Variables**: `SUPABASE_PROJECT_REF`, все `VITE_*` из таблицы выше, `SUPABASE_STORAGE_S3_ENDPOINT/REGION`, `BACKUP_S3_BUCKET/REGION/ENDPOINT`.
+**Variables**: `SUPABASE_PROJECT_REF`, every `VITE_*` from the table above, `SUPABASE_STORAGE_S3_ENDPOINT/REGION`, `BACKUP_S3_BUCKET/REGION/ENDPOINT`.
 
-**Secrets**: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (уведомления CI — отдельный экземпляр, не путать с секретом edge-функции), `SUPABASE_STORAGE_S3_ACCESS_KEY_ID/SECRET_ACCESS_KEY`, `BACKUP_S3_ACCESS_KEY_ID/SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`.
+**Secrets**: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (CI notifications — a separate instance, not to be confused with the edge function secret), `SUPABASE_STORAGE_S3_ACCESS_KEY_ID/SECRET_ACCESS_KEY`, `BACKUP_S3_ACCESS_KEY_ID/SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`.
 
-`CLOUDFLARE_*` — только для CI, правило «синхронизировать в четырёх местах» на них не распространяется: это не переменные сборки, в `.env.example` и `build:e2e` они не нужны. Account id лежит в Secrets, а не в Variables, потому что репозиторий публичный.
+`CLOUDFLARE_*` is CI-only and the "sync in five places" rule does not apply to it: these are not build variables and are needed neither in `.env.example` nor in `build:e2e`. The account id lives in Secrets rather than Variables because the repository is public.
 
-## Версионирование сборки
+## Build versioning
 
-`__APP_VERSION__` = `GITHUB_SHA` (или `Date.now()` локально) — попадает в регистрацию SW (`sw.js?v=...`) и имена кешей: каждый деплой инвалидирует PWA-кеш. Сборка остаётся в GitHub Actions именно поэтому: на стороне Cloudflare `GITHUB_SHA` не существует.
+`__APP_VERSION__` = `GITHUB_SHA` (or `Date.now()` locally) — it reaches the SW registration (`sw.js?v=...`) and the cache names, so every deploy invalidates the PWA cache. This is exactly why the build stays in GitHub Actions: `GITHUB_SHA` does not exist on the Cloudflare side.
 
-## Чеклист после деплоя
+## Post-deploy checklist
 
 ```bash
 BASE=https://map.euc.kz
-# Все маршруты — 200 text/html (SPA-фолбэк из _redirects)
+# Every route must be 200 text/html (SPA fallback from _redirects)
 for p in / /radar /events /m/point/1 /help /admin /no-such-page; do
   printf '%-16s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' $BASE$p)"
 done
@@ -101,20 +105,20 @@ curl -sI $BASE/assets/…js | grep -i cache-control   # immutable
 curl -sI $BASE/sw.js      | grep -i cache-control   # no-cache
 ```
 
-Если `sw.js` вдруг отдаётся не с `no-cache`, а с `max-age=14400` — в зоне включён фиксированный **Browser Cache TTL**, он перебивает заголовки origin для файлов с кэшируемым расширением. Лечится настройкой зоны `browser_cache_ttl = 0` («Respect Existing Headers»); иначе обновление PWA у пользователей задерживается на срок этого TTL.
+If `sw.js` is suddenly served with `max-age=14400` instead of `no-cache`, the zone has a fixed **Browser Cache TTL** enabled, which overrides origin headers for files with a cacheable extension. Fix it by setting the zone to `browser_cache_ttl = 0` ("Respect Existing Headers"); otherwise PWA updates reach users delayed by that TTL.
 
-Технический адрес `map-euc.pages.dev` отдаёт ту же production-сборку и **не** канонизируется: в `_redirects` source обязан быть путём, правила с полным URL игнорируются молча. Увести его на `map.euc.kz` сможет только Pages Function по имени хоста.
+The technical address `map-euc.pages.dev` serves the same production build and is **not** canonicalized: in `_redirects` the source must be a path, and rules with a full URL are ignored silently. Only a Pages Function matching on hostname could redirect it to `map.euc.kz`.
 
-Отдельно на устройстве с установленной PWA: приходит обновление сервис-воркера, в Cache Storage остаются только кеши с новым sha, и офлайн-переход на не посещённый ранее путь отдаёт app shell без ошибки `a redirected response was used…` в консоли.
+Separately, on a device with the PWA installed: the service worker update should arrive, Cache Storage should contain only caches carrying the new sha, and an offline navigation to a previously unvisited path should serve the app shell without the `a redirected response was used…` console error.
 
-## Локальный Supabase
+## Local Supabase
 
 ```bash
 supabase start    # Docker: API 54321, DB 54322, Studio 54323
-supabase status   # ключи для .env.local
-supabase db reset # применить миграции + seed
+supabase status   # keys for .env.local
+supabase db reset # apply migrations + seed
 supabase functions serve telegram-location-bot
 supabase stop
 ```
 
-Облачные preview-ветки требуют платного плана — для правок бота/миграций/RLS использовать локальный стек.
+Cloud preview branches require a paid plan — use the local stack for bot, migration and RLS work. The `supabase-clone-prod` skill refreshes the local stack with production data.

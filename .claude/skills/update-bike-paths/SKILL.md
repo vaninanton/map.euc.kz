@@ -1,182 +1,177 @@
 ---
 name: update-bike-paths
-description: Обновить велодорожки Алматы (src/data/almaty.json) — полная пересборка из velojol.kz. Используй, когда просят проверить/обновить велодорожки на карте, или регулярно (раз в несколько месяцев) для профилактики.
+description: Update the Almaty bike lanes (src/data/almaty.json) — a full rebuild from velojol.kz. Use when asked to check or update the bike lanes on the map, or periodically (every few months) as maintenance.
 ---
 
-# Скилл: обновление велодорожек Алматы
+# Skill: updating the Almaty bike lanes
 
-**velojol.kz — источник истины** (решение владельца, 2026-07-30). Датасет
-там ручной: живые описания («на велодорожке паркуются авто»), тип полосы,
-оценка покрытия — этого нет ни в OSM, ни где-либо ещё.
+**velojol.kz is the source of truth** (owner's decision, 2026-07-30). Its dataset is
+hand-curated: real descriptions ("cars park on this bike lane"), lane type and a
+surface rating — none of which exist in OSM or anywhere else.
 
-## Как обновить
+## How to update
 
 ```bash
 node scripts/fetch-velojol-bike-lanes.js
 ```
 
-Скрипт скачивает `https://velojol.kz/city/almaty`, вырезает из HTML массив
-`window.bikelanesData`, фильтрует, чистит и **полностью перезаписывает**
-`src/data/almaty.json`, печатая сводку (сегментов, км, разбивка по типам
-полос, сколько отфильтровано).
+The script downloads `https://velojol.kz/city/almaty`, extracts the
+`window.bikelanesData` array out of the HTML, filters and cleans it, and **fully
+rewrites** `src/data/almaty.json`, printing a summary (segments, km, breakdown by
+lane type, how many records were filtered out).
 
-Ориентир на 2026-07-30: 578 записей на странице → 245 сегментов / 107.1 км в
-файле, ~160 КБ.
+Reference point on 2026-07-30: 578 records on the page → 245 segments / 107.1 km in
+the file, ~160 KB.
 
-Что делает по дороге:
+What it does along the way:
 
-- **Данных-эндпоинта у velojol нет.** Старый `velojol.kz/static/data/cities/almaty.json`
-  отдаёт 404 с 2026-07-29 (сайт жив, эндпоинт пропал). Единственный доступ к
-  датасету — инлайн-скрипт на странице города. Если скрипт падает с «В HTML
-  нет window.bikelanesData» — смотреть разметку страницы руками, они могли
-  переехать на API.
-- **Автобусные полосы выбрасываются.** `is_bus_lane: true` — примерно
-  половина датасета velojol (327 из 578) с авто-названиями «Автобусная полоса
-  №7463» и без описаний. Решение владельца (2026-07-30): слой «Велодорожки»
-  на карте EUC — только велоинфраструктура. Если понадобится их показать —
-  это отдельный слой со своим цветом и переключателем, а не подмешивание в
-  существующий.
-- **Точечно скрытые дорожки — `HIDDEN_IDS` в начале скрипта.** Владелец
-  попросил убрать с карты конкретные velojol-объекты (2026-07-30: Парк первого
-  Президента, два куска Желтоксан парка, сквер Сейфуллина, Чехова,
-  Молдагалиева). Фильтр живёт в скрипте, а не в рантайме, чтобы обновление
-  данных их не вернуло. Вернуть дорожку — убрать id и перегнать скрипт;
-  просят скрыть новую — добавить id с названием в комментарии. Если скрипт
-  пишет «id из HIDDEN_IDS нет в датасете velojol» — velojol удалил или
-  перенумеровал объект, id пора выкинуть из списка.
-- **Названия чинятся при сборке.** В velojol одно поле `title` без языковых
-  вариантов (`title_ru`/`title_kk` в датасете нет), пишут его пользователи — от
-  этого часть улиц по-казахски и разнобой в формате. Скрипт: (1) переводит по
-  словарю `NAME_ALIASES` (на 2026-07-30 — 11 названий, 20 сегментов),
-  (2) приводит к виду «улица X» / «проспект X», иначе «Абая проспект»,
-  «Проспект Абая» и «проспект Абая» выглядят в списках как три разные улицы.
-  Сводка пишет «названий на казахском без перевода» и «алиасы не пригодились»
-  — по этим строкам словарь и пополняется. Логика покрыта тестами
-  (`scripts/fetch-velojol-bike-lanes.test.js`), в т.ч. случай, на котором она
-  один раз молча не сработала: в JS `\b` считает границей слова только ASCII,
-  на кириллице регексп с `\b` не матчится — потому нормализация по словам.
-- **Куски одной дорожки склеиваются — `MERGE_GROUPS`.** velojol иногда хранит
-  одну дорожку кусками (2026-07-30: улица Манаса — `2031` + `1014` + `362` +
-  `58`, 0.86 км; Роща Баума — 11 безымянных кусков, 6.18 км). Порядок id в группе = порядок вдоль дорожки; кусок
-  разворачивается автоматически, если нарисован в обратную сторону. Первый id
-  становится id склейки — deep-link на остальные куски перестаёт работать.
-  Тип полосы, описание и оценка — от первого куска (если типы разные, скрипт
-  предупреждает), длина — сумма. Разрыв >60 м между кусками — предупреждение:
-  карта нарисует через него прямую, значит группа собрана неверно.
-- **Лишние поля срезаются**: автор с аватаркой, `edit_url`/`can_edit`,
-  `city*`, `photos`/`videos`, `created_at`, `color` (цвет слоя — из `COLORS`),
-  `overall_quality` (вторая оценка «в целом», путается с качеством покрытия).
-  Координаты округляются до 6 знаков (≈0.1 м) — в исходнике 14 знаков мусорной
-  точности. Без этой чистки файл 1 МБ вместо 164 КБ.
-- **Сортировка по id.** velojol отдаёт записи в порядке правок, из-за этого
-  дифф каждый раз перемешивал весь файл.
+- **velojol has no data endpoint.** The old `velojol.kz/static/data/cities/almaty.json`
+  has returned 404 since 2026-07-29 (the site is alive, the endpoint is gone). The only
+  access to the dataset is the inline script on the city page. If the script fails with
+  "В HTML нет window.bikelanesData", inspect the page markup by hand — they may have
+  moved to an API.
+- **Bus lanes are dropped.** `is_bus_lane: true` is roughly half of the velojol dataset
+  (327 of 578), with auto-generated names like «Автобусная полоса №7463» and no
+  descriptions. Owner's decision (2026-07-30): the "Велодорожки" layer on the EUC map is
+  cycling infrastructure only. If they ever need to be shown, that is a separate layer
+  with its own color and toggle — not a merge into the existing one.
+- **Individually hidden lanes live in `HIDDEN_IDS`** at the top of the script. The owner
+  asked to remove specific velojol objects from the map (2026-07-30: First President's
+  Park, two pieces of Zheltoksan Park, Seifullin square, Chekhov, Moldagaliev). The
+  filter lives in the script rather than at runtime so a data refresh cannot bring them
+  back. To restore a lane, remove its id and re-run the script; to hide a new one, add
+  its id with the name in a comment. If the script prints "id из HIDDEN_IDS нет в
+  датасете velojol", velojol deleted or renumbered the object and the id should be
+  dropped from the list.
+- **Names are fixed at build time.** velojol has a single `title` field with no language
+  variants (there is no `title_ru`/`title_kk` in the dataset) and users type it in — hence
+  some streets are in Kazakh and the formatting is inconsistent. The script (1) translates
+  through the `NAME_ALIASES` dictionary (11 names / 20 segments as of 2026-07-30), and
+  (2) normalizes to «улица X» / «проспект X», otherwise «Абая проспект», «Проспект Абая»
+  and «проспект Абая» look like three different streets in a list. The summary prints
+  "названий на казахском без перевода" and "алиасы не пригодились" — those lines are how
+  the dictionary gets extended. The logic is covered by tests
+  (`scripts/fetch-velojol-bike-lanes.test.js`), including the case where it once silently
+  failed: in JS `\b` treats only ASCII as a word boundary, so a regexp with `\b` does not
+  match Cyrillic — which is why normalization is done word by word.
+- **Fragments of one lane are merged via `MERGE_GROUPS`.** velojol sometimes stores one
+  lane as several pieces (2026-07-30: улица Манаса — `2031` + `1014` + `362` + `58`,
+  0.86 km; Роща Баума — 11 unnamed pieces, 6.18 km). The id order within a group is the
+  order along the lane; a piece is reversed automatically if it was drawn backwards. The
+  first id becomes the id of the merged lane — deep links to the other pieces stop
+  working. Lane type, description and rating come from the first piece (the script warns
+  when types differ), the length is the sum. A gap over 60 m between pieces raises a
+  warning: the map would draw a straight line across it, meaning the group is wrong.
+- **Extra fields are stripped**: the author with their avatar, `edit_url`/`can_edit`,
+  `city*`, `photos`/`videos`, `created_at`, `color` (layer colors come from `COLORS`) and
+  `overall_quality` (a second, "overall" rating that gets confused with surface quality).
+  Coordinates are rounded to 6 decimals (≈0.1 m) — the source has 14 digits of junk
+  precision. Without this cleanup the file is 1 MB instead of 164 KB.
+- **Sorted by id.** velojol returns records in edit order, which made every diff reshuffle
+  the whole file.
 
-## Как искать дубли
+## How to find duplicates
 
-В velojol один и тот же путь нередко обведён двумя авторами: длинный
-названный сегмент и поверх него безымянные куски. Такие дубли — в
-`HIDDEN_IDS` (оставляем названный).
+On velojol the same path is often traced by two authors: a long named segment with
+unnamed pieces drawn on top of it. Such duplicates go into `HIDDEN_IDS` (keep the named
+one).
 
-Метрика: доля длины сегмента, лежащая в коридоре 25 м от другого, **плюс
-медианное расстояние между трассами** на этом участке. Медиана обязательна:
-без неё в «дубли» попадают полосы в разные стороны по одной улице — у них
-перекрытие 100 %, но медиана 8–25 м (ширина проезжей части). Калибровка на
-2026-07-30: настоящие дубли — медиана 0.1–5.5 м; улица Гоголя (`128` и `313`,
-две стороны) — 20.4 м; улица Жумбаева и Палладина — по 1 м, это дубли.
+The metric: the share of a segment's length lying within a 25 m corridor of another one,
+**plus the median distance between the two traces** over that stretch. The median is
+mandatory: without it, lanes running in opposite directions along the same street get
+classified as duplicates — their overlap is 100 % but the median is 8–25 m (the width of
+the roadway). Calibration on 2026-07-30: true duplicates have a median of 0.1–5.5 m;
+улица Гоголя (`128` and `313`, two sides) sits at 20.4 m; улица Жумбаева and Палладина
+are 1 m apart and are duplicates.
 
-Разбор 2026-07-30 закрыт: владелец прошёл по всем 18 группам и скрыл 19
-обводов (см. `HIDDEN_IDS`, каждый с пометкой «поверх ‹id›»). Решения, которые
-не выводятся из метрики и которые важно не «исправить» обратно:
+The 2026-07-30 review is closed: the owner walked through all 18 groups and hid 19 traces
+(see `HIDDEN_IDS`, each annotated «поверх ‹id›»). Decisions that do not follow from the
+metric and must not be "corrected" back:
 
-- `226` **оставлен**, хотя лежит на `2014` «вдоль БАК» частично (52 %) — он
-  выходит за пределы 2014, обрезать нельзя;
-- `64` «улица Утепова» и `1015` **оставлены** — они попали в группу Жароковой
-  только через 20-метровый огрызок на углу, это соседи, а не дубли;
-- `198` «улица Жарокова» **скрыт** в пользу `2002` (тот же участок, но у 198
-  устаревший тип полосы) — единственный случай, где скрыли названный сегмент;
-- `437` и `258` остались как «хозяева» своих групп, хотя названия у них
-  заглушки — просто других вариантов в группе нет.
+- `226` was **kept** even though it partially (52 %) lies on `2014` "along the BAK" — it
+  extends beyond 2014 and cannot be trimmed;
+- `64` «улица Утепова» and `1015` were **kept** — they only landed in the Zharokov group
+  through a 20-meter stub at the corner; they are neighbors, not duplicates;
+- `198` «улица Жарокова» was **hidden** in favor of `2002` (the same stretch, but 198 has
+  an outdated lane type) — the only case where a named segment was hidden;
+- `437` and `258` remain the "owners" of their groups even though their names are
+  placeholders — there is simply no other candidate in the group.
 
-Для повторного разбора удобно собрать страницу-триаж (превью геометрий SVG,
-галочки, генератор промпта) — генератор писать в scratchpad, в репозиторий не
-класть.
+For a repeat review it helps to build a triage page (SVG geometry previews, checkboxes, a
+prompt generator) — write the generator in the scratchpad, do not commit it.
 
-## Как искать новые группы для склейки
+## How to find new merge groups
 
-Разовый скрипт-разведка (не в репозитории, писать в scratchpad): посчитать
-попарные расстояния между концами сегментов, собрать связные компоненты с
-порогом ~30 м и разложить по четырём корзинам:
+A one-off reconnaissance script (not in the repository — write it in the scratchpad):
+compute pairwise distances between segment endpoints, build connected components with a
+~30 m threshold, and sort them into four buckets:
 
-1. **одно название, куски стыкуются** — самые надёжные кандидаты;
-2. **названный кусок + безымянные «Велодорожка №N»** — случай улицы Манаса;
-3. **только безымянные куски** — склеивать можно, но название придётся
-   придумывать самому;
-4. **стыкуются куски с разными названиями** — это перекрёстки, НЕ склеивать
-   (в центре так связывается сетка боллардных полос: 35 кусков, 13.8 км).
+1. **one name, pieces connect** — the most reliable candidates;
+2. **a named piece plus unnamed «Велодорожка №N» pieces** — the улица Манаса case;
+3. **only unnamed pieces** — mergeable, but you will have to invent a name;
+4. **pieces with different names that connect** — those are intersections, do NOT merge
+   (downtown this links the whole grid of bollard-separated lanes: 35 pieces, 13.8 km).
 
-Обязательно считать степень вершины: если у куска больше двух соседей, это
-перекрёсток или петля, а не звено цепочки — одной линией такую компоненту не
-склеить, надо разбирать вручную. Порог 30 м подобран эмпирически: реальные
-стыки в velojol почти всегда 0–15 м.
+Always compute vertex degree: if a piece has more than two neighbors it is an intersection
+or a loop, not a link in a chain — such a component cannot be merged into one line and
+needs manual review. The 30 m threshold was chosen empirically: real joins in velojol are
+almost always 0–15 m.
 
-## Известные компромиссы датасета
+## Known dataset compromises
 
-Не баги скрипта, не пытайся «исправить» — это качество исходных данных:
+These are not script bugs — do not try to "fix" them; they are the quality of the source
+data:
 
-- **Названия смешаны ru/kk** — как их вводили пользователи velojol («Саин
-  көшесі», «Бөгенбай Батыр көшесі»). 157 из 251 сегмента — заглушки вида
-  «Велодорожка №1026».
-- **Грубая геометрия у части сегментов** — 40 нарисованы двумя точками (напр.
-  «улица Наурызбай Батыра» — прямая на 2.76 км, срезающая кварталы).
-- **Огрызки** — 37 сегментов короче 50 м. Не фильтруем: датасет ручной,
-  доверяем автору.
-- **Дубли по названию** — 7 записей «Бөгенбай Батыр көшесі» и т.п. Это разные
-  куски одной улицы, а не дубли. Не склеивай их: в PR #176 попытка вручную
-  вычислять дубли по названию уже приводила к удалению реальных параллельных
-  дорожек (`alm30` / `alm109`, две разные дорожки на Сатпаева).
+- **Names mix Russian and Kazakh** — exactly as velojol users typed them («Саин көшесі»,
+  «Бөгенбай Батыр көшесі»). 157 of 251 segments are placeholders like «Велодорожка №1026».
+- **Coarse geometry on some segments** — 40 are drawn with two points (e.g. «улица
+  Наурызбай Батыра» — a 2.76 km straight line cutting through blocks).
+- **Stubs** — 37 segments shorter than 50 m. Not filtered: the dataset is hand-made, trust
+  the author.
+- **Duplicate names** — 7 records named «Бөгенбай Батыр көшесі» and similar. Those are
+  different pieces of one street, not duplicates. Do not merge them: in PR #176 an attempt
+  to detect duplicates by name deleted genuinely parallel lanes (`alm30` / `alm109`, two
+  distinct lanes on Satpayev).
 
-## Важные грабли
+## Important pitfalls
 
-- **Никогда не сериализуй `almaty.json` через `JSON.stringify(data, null, 2)`
-  или `json.dump(..., indent=2)` напрямую.** Файл хранит координатные пары
-  `[lon, lat]` в одну строку; generic-сериализация с отступом разворачивает
-  каждое число на отдельную строку — весь файл переформатируется, диф на
-  десятки тысяч строк вместо реальных изменений (наступали в PR #176).
-  `scripts/fetch-velojol-bike-lanes.js` содержит свой `serialize()` — используй
-  его. Файл в `.prettierignore` по той же причине.
-- **Id велодорожек — из velojol** (числовые, напр. `7589`), они уходят в
-  deep-link `/m/bikelane/7589`. Если velojol перенумерует объекты, старые
-  ссылки побьются — это известный риск, обходного пути нет.
-- **Не пуш в одну ветку по частям, если PR может смержиться раньше, чем ты
-  допушишь всё.** В PR #177 часть коммитов ушла в уже смерженную ветку и
-  осела мёртвым грузом — пришлось поднимать их в новом PR (#179). Если работа
-  растянута на несколько заходов — либо предупреждай, что PR ещё не финален,
-  либо не открывай PR, пока не готов весь набор изменений.
-- После пересборки — полный набор проверок перед коммитом: `npm run lint`,
+- **Never serialize `almaty.json` with `JSON.stringify(data, null, 2)` or
+  `json.dump(..., indent=2)` directly.** The file stores coordinate pairs `[lon, lat]` on
+  one line; generic indented serialization expands every number onto its own line, which
+  reformats the entire file and produces a diff of tens of thousands of lines instead of
+  the real change (this happened in PR #176). `scripts/fetch-velojol-bike-lanes.js` has
+  its own `serialize()` — use it. The file is in `.prettierignore` for the same reason.
+- **Bike lane ids come from velojol** (numeric, e.g. `7589`) and end up in the
+  `/m/bikelane/7589` deep link. If velojol renumbers its objects, old links break — a known
+  risk with no workaround.
+- **Do not push to one branch in installments if the PR might merge before you finish.**
+  In PR #177 some commits landed on an already-merged branch and became dead weight — they
+  had to be resurrected in a new PR (#179). If the work spans several sessions, either warn
+  that the PR is not final or hold off opening it until the whole change set is ready.
+- After a rebuild, run the full gate before committing: `npm run lint`,
   `npm run format:check`, `npx tsc -b --noEmit`, `npm test`, `npm run build`,
-  `npm run test:e2e` (для последнего может понадобиться
-  `npx playwright install chromium`, если версия Playwright только что
-  обновилась зависимостями — иначе тесты падают на «Executable doesn't
-  exist», это не связано с самими велодорожками).
+  `npm run test:e2e` (the last one may need `npx playwright install chromium` if Playwright
+  was just updated by a dependency bump — otherwise the tests fail with "Executable doesn't
+  exist", which has nothing to do with the bike lanes).
 
-## История: почему не OSM
+## History: why not OSM
 
-С 2026-07-29 по 2026-07-30 источником был OpenStreetMap (`src/data/almaty.json`,
-`scripts/rebuild-bike-paths.js`, PR #176/#177/#179) — как раз потому, что
-данных-эндпоинт velojol отвалился и казалось, что датасет потерян. Когда
-нашёлся `window.bikelanesData`, OSM-пайплайн удалён: у velojol ручные описания
-и оценки, а OSM-сборка давала generic-описания «Загружено из OpenStreetMap» и
-названия-заглушки с OSM way id. Если velojol снова отвалится — код сборки из
-OSM лежит в истории git (`git show 3491bdf:scripts/rebuild-bike-paths.js`).
+Between 2026-07-29 and 2026-07-30 the source was OpenStreetMap (`src/data/almaty.json`,
+`scripts/rebuild-bike-paths.js`, PRs #176/#177/#179) — precisely because the velojol data
+endpoint had died and the dataset looked lost. Once `window.bikelanesData` was found, the
+OSM pipeline was deleted: velojol has hand-written descriptions and ratings, while the OSM
+build produced generic «Загружено из OpenStreetMap» descriptions and placeholder names
+carrying OSM way ids. If velojol dies again, the OSM build code is in git history
+(`git show 3491bdf:scripts/rebuild-bike-paths.js`).
 
-## Оформить как PR
+## Ship it as a PR
 
-Дальше — по стандартному флоу этого репозитория, см.
+From here, follow the repository's standard flow — see
 [[git-feature-workflow]] (`.claude/skills/git-feature-workflow/SKILL.md`):
-ветка `feature/update-bike-lanes-<дата>` → коммит → push → `gh pr create`.
+branch `feature/update-bike-lanes-<date>` → commit → push → `gh pr create`.
 
 Commit message: `feat(map): обновить велодорожки Алматы из velojol.kz`.
 
-В теле PR — итоговые цифры из вывода скрипта (сегментов, км, разбивка по
-типам, сколько автобусных полос отфильтровано) и, если менялось количество,
-что именно появилось/исчезло.
+In the PR body, include the final numbers from the script output (segments, km, breakdown
+by type, how many bus lanes were filtered out) and, if the count changed, what exactly
+appeared or disappeared.
