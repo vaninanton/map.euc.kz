@@ -1,85 +1,85 @@
-# Telegram-бот (Edge Function `telegram-location-bot`)
+# Telegram bot (Edge Function `telegram-location-bot`)
 
-Deno-функция `supabase/functions/telegram-location-bot/` — единая точка интеграции с Telegram: приём геопозиций, inline-поиск, RSVP, рассылка анонсов событий и новостей.
+The Deno function in `supabase/functions/telegram-location-bot/` is the single integration point with Telegram: receiving geolocations, inline search, RSVP, and broadcasting event and news announcements.
 
-## Файлы
+## Files
 
-- `index.ts` — маршрутизация и точка входа;
-- `_handlers.ts` — обработчики с I/O (Supabase + Telegram Bot API);
-- `_pure.ts` — чистые функции без I/O (построение текстов, санитизация, валидация) — покрыты unit-тестами;
-- `_handlers.test.ts`, `_pure.test.ts` — `npm run test:functions` (deno test).
+- `index.ts` — routing and entry point;
+- `_handlers.ts` — handlers with I/O (Supabase + Telegram Bot API);
+- `_pure.ts` — pure functions without I/O (text building, sanitization, validation) — covered by unit tests;
+- `_handlers.test.ts`, `_pure.test.ts` — run with `npm run test:functions` (deno test).
 
-Задекларирована в `supabase/config.toml` с `verify_jwt = false`: webhook Telegram приходит без Supabase JWT, аутентификация — внутри функции.
+The function is declared in `supabase/config.toml` with `verify_jwt = false`: the Telegram webhook arrives without a Supabase JWT, so authentication happens inside the function.
 
-## Секреты (supabase secrets set)
+## Secrets (supabase secrets set)
 
-| Секрет                                      | Назначение                                                     |
-| ------------------------------------------- | -------------------------------------------------------------- |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Запись в БД (выдаются платформой автоматически)                |
-| `TELEGRAM_BOT_TOKEN`                        | Вызовы Bot API (отправка, аватары, callback-ответы)            |
-| `TELEGRAM_WEBHOOK_SECRET`                   | Проверка заголовка `x-telegram-bot-api-secret-token` webhook'а |
-| `TELEGRAM_BACKFILL_SECRET`                  | Авторизация `POST /backfill`                                   |
-| `TELEGRAM_BACKFILL_MAX_PROFILES`            | Лимит профилей за один backfill (default 500)                  |
-| `MAP_BASE_URL`                              | База ссылок в анонсах (default `https://map.euc.kz`)           |
+| Secret                                      | Purpose                                                          |
+| ------------------------------------------- | ---------------------------------------------------------------- |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Database writes (provided by the platform automatically)         |
+| `TELEGRAM_BOT_TOKEN`                        | Bot API calls (sending, avatars, callback answers)               |
+| `TELEGRAM_WEBHOOK_SECRET`                   | Validates the webhook's `x-telegram-bot-api-secret-token` header |
+| `TELEGRAM_BACKFILL_SECRET`                  | Authorizes `POST /backfill`                                      |
+| `TELEGRAM_BACKFILL_MAX_PROFILES`            | Profile limit per backfill run (default 500)                     |
+| `MAP_BASE_URL`                              | Link base used in announcements (default `https://map.euc.kz`)   |
 
-## Карта маршрутов
+## Route map
 
-| Маршрут                      | Аутентификация               | Назначение                                                      |
-| ---------------------------- | ---------------------------- | --------------------------------------------------------------- |
-| `POST /` (webhook)           | secret-token заголовок       | update от Telegram: локации, inline, callback, команды          |
-| `POST /backfill`             | `x-telegram-backfill-secret` | Переобновление аватаров профилей                                |
-| `POST /announce`             | JWT администратора           | Рассылка анонса даты события                                    |
-| `POST /announce-edit`        | JWT администратора           | Правка текста всех живых анонсов даты                           |
-| `POST /announce-cancel`      | JWT администратора           | «❌ ОТМЕНЕНО» во всех живых анонсах даты                        |
-| `POST /announce-delete`      | JWT администратора           | Удаление сообщений анонса из Telegram                           |
-| `POST /announce-pin`         | JWT администратора           | Закрепить/открепить одно сообщение                              |
-| `POST /news-announce`        | JWT администратора           | Рассылка новости                                                |
-| `POST /news-announce-edit`   | JWT администратора           | Синхронизация текста и заменённого фото новости (из `map_news`) |
-| `POST /news-announce-delete` | JWT администратора           | Удаление сообщений новости из Telegram                          |
+| Route                        | Authentication               | Purpose                                                 |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------- |
+| `POST /` (webhook)           | secret-token header          | Telegram update: locations, inline, callback, commands  |
+| `POST /backfill`             | `x-telegram-backfill-secret` | Re-fetch profile avatars                                |
+| `POST /announce`             | admin JWT                    | Broadcast an event date announcement                    |
+| `POST /announce-edit`        | admin JWT                    | Edit the text of every live announcement for a date     |
+| `POST /announce-cancel`      | admin JWT                    | «❌ ОТМЕНЕНО» across every live announcement for a date |
+| `POST /announce-delete`      | admin JWT                    | Delete announcement messages from Telegram              |
+| `POST /announce-pin`         | admin JWT                    | Pin/unpin a single message                              |
+| `POST /news-announce`        | admin JWT                    | Broadcast a news item                                   |
+| `POST /news-announce-edit`   | admin JWT                    | Sync news text and a replaced photo (from `map_news`)   |
+| `POST /news-announce-delete` | admin JWT                    | Delete news messages from Telegram                      |
 
-JWT администратора проверяется по наличию в `map_admin_users`; из фронтенда сабруты вызываются через `supabase.functions.invoke('telegram-location-bot/<subroute>', …)` (`src/admin/lib/adminApi/announceClient.ts`).
+The admin JWT is validated by presence in `map_admin_users`; the frontend calls the subroutes through `supabase.functions.invoke('telegram-location-bot/<subroute>', …)` (`src/admin/lib/adminApi/announceClient.ts`).
 
-## Webhook: что обрабатывает
+## Webhook: what it handles
 
-1. **Live-геопозиции** — `message.location` с `live_period > 0` (одиночные «поделиться местом» пропускаются): INSERT в `telegram_locations` (идемпотентно по `telegram_update_id`), upsert `telegram_profiles`, при наличии токена — кэширование аватара. На **старте** трансляции в группе автору шлётся эфемерный онбординг (см. «Эфемерные сообщения»).
-2. **Inline queries** (`@бот <запрос>` в любом чате) — поиск по title в `map_points`/`map_routes`, до 50 результатов, приоритет: места встреч → точки → маршруты; ссылки с UTM; `cache_time=60` (новые точки появляются в inline не мгновенно).
-3. **Callback queries** — кнопка «Участвую», `callback_data = rsvp:<event_date_uuid>` (см. ниже).
-4. **Команды** — `/start`, `/help` в личке.
+1. **Live geolocations** — `message.location` with `live_period > 0` (one-off "share my location" pins are skipped): INSERT into `telegram_locations` (idempotent on `telegram_update_id`), upsert into `telegram_profiles`, and avatar caching when the token is available. When a broadcast **starts** in a group, the author receives an ephemeral onboarding card (see "Ephemeral messages").
+2. **Inline queries** (`@bot <query>` in any chat) — title search across `map_points`/`map_routes`, up to 50 results, ordered meeting points → points → routes; links carry UTM; `cache_time=60` (so new points do not appear in inline results instantly).
+3. **Callback queries** — the «Участвую» button, `callback_data = rsvp:<event_date_uuid>` (see below).
+4. **Commands** — `/start`, `/help` in direct messages.
 
 ## RSVP «Участвую»
 
-1. Валидация UUID; отменённая дата (`cancelled = true`) отклоняется. Дата подгружается вместе с событием (`starts_at`, `map_events`) — для эфемерной карточки.
-2. `ensureTelegramProfile` — upsert профиля **без** аватара (окно ответа callback узкое; аватар добьёт backfill).
-3. Toggle в `map_event_participants`: есть строка → DELETE, нет → INSERT (конфликт 23505 = идемпотентный успех).
-4. `answerCallbackQuery` — короткий toast пользователю.
-5. Эфемерная карточка-подтверждение в том же чате (см. «Эфемерные сообщения») — best-effort, только если событие подгрузилось и есть `chat_id`.
-6. Пересчёт счётчика и `editMessageReplyMarkup` во **всех** живых анонсах этой даты во всех чатах (ошибки отдельных чатов не блокируют).
+1. UUID validation; a cancelled date (`cancelled = true`) is rejected. The date is loaded together with its event (`starts_at`, `map_events`) for the ephemeral card.
+2. `ensureTelegramProfile` — upserts the profile **without** an avatar (the callback response window is tight; backfill fills the avatar in later).
+3. Toggle in `map_event_participants`: row exists → DELETE, otherwise INSERT (a 23505 conflict counts as idempotent success).
+4. `answerCallbackQuery` — a short toast for the user.
+5. An ephemeral confirmation card in the same chat (see "Ephemeral messages") — best-effort, only when the event loaded and a `chat_id` is known.
+6. The counter is recomputed and `editMessageReplyMarkup` is applied to **every** live announcement for that date across all chats (a failure in one chat does not block the rest).
 
-## Анонсы
+## Announcements
 
-- Текст = шапка (тип · название · дата, строится в `_pure.ts` и должна совпадать с превью `src/utils/eventAnnounce.ts`) + тело админа; экранируется, `parse_mode=HTML`.
-- Отправка: `sendMessage`/`sendPhoto` (если есть `photo_path`) с инлайн-кнопкой «Участвую (N)» + ссылкой на карту; в форумных группах добавляется `message_thread_id` из `telegram_chats`.
-- Каждая отправка фиксируется в `telegram_outbound_messages` (`sent_at` либо `send_error`); ответ — `{ sent: [...], failed: [...] }`.
-- `pin=true` — best-effort `pinChatMessage` (`disable_notification=true`), ошибка не блокирует отправку.
-- Правка: `editMessageText` / `editMessageCaption` (при фото). Если Telegram отвечает «message not found / can't be edited» — сообщение помечается `deleted_at` и выбывает из живых.
-- Удаление: `deleteMessage` + `deleted_at` (мягкое — строка остаётся для истории).
-- Новости — то же, но без шапки и без RSVP-кнопки, привязка `news_id`; источник текста — `map_news.body`.
+- Text = header (type · title · date, built in `_pure.ts` and required to match the preview in `src/utils/eventAnnounce.ts`) + the admin's body; escaped, `parse_mode=HTML`.
+- Sending: `sendMessage`/`sendPhoto` (when `photo_path` exists) with an inline «Участвую (N)» button plus a map link; in forum groups the `message_thread_id` from `telegram_chats` is added.
+- Every send is recorded in `telegram_outbound_messages` (`sent_at` or `send_error`); the response is `{ sent: [...], failed: [...] }`.
+- `pin=true` — best-effort `pinChatMessage` (`disable_notification=true`); a failure does not block the send.
+- Editing: `editMessageText` / `editMessageCaption` (with a photo). If Telegram answers "message not found / can't be edited", the message is marked `deleted_at` and drops out of the live set.
+- Deleting: `deleteMessage` + `deleted_at` (soft — the row stays for history).
+- News works the same way but without a header and without the RSVP button, linked via `news_id`; the text comes from `map_news.body`.
 
-## Аватары и безопасность bot-токена
+## Avatars and bot token safety
 
-Telegram отдаёт файлы по URL `/file/bot<TOKEN>/...` — токен нельзя допускать в БД/браузер:
+Telegram serves files from `/file/bot<TOKEN>/...` — that token must never reach the database or the browser:
 
-1. Функция скачивает фото (`getUserProfilePhotos` → `getFile` → CDN);
-2. загружает в публичный бакет `telegram-avatars`;
-3. в `telegram_profiles.avatar_url` пишется только Storage-URL.
+1. The function downloads the photo (`getUserProfilePhotos` → `getFile` → CDN);
+2. uploads it to the public `telegram-avatars` bucket;
+3. writes only the Storage URL into `telegram_profiles.avatar_url`.
 
-`isAvatarUrlSafe()` — проверка на `/file/bot`; фронтенд дополнительно санирует при чтении (`sanitizeTelegramAvatarUrl` → null для небезопасных URL).
+`isAvatarUrlSafe()` checks for `/file/bot`; the frontend sanitizes again on read (`sanitizeTelegramAvatarUrl` → null for unsafe URLs).
 
-**Backfill** (`POST /backfill?from=<offset>`): проходит профили окнами, обновляет пустые/небезопасные avatar_url, отвечает `{ processed, updated, failed, …, capped_at_max_profiles, next_from }` — при `capped_at_max_profiles: true` повторить с `?from=<next_from>`.
+**Backfill** (`POST /backfill?from=<offset>`): walks profiles in windows, refreshes empty or unsafe avatar_urls, and answers `{ processed, updated, failed, …, capped_at_max_profiles, next_from }` — when `capped_at_max_profiles: true`, repeat with `?from=<next_from>`.
 
-## Деплой и подключение
+## Deployment and wiring
 
-Деплой — автоматически из CI при push в `main` (`supabase functions deploy telegram-location-bot --no-verify-jwt --use-api`). Первичная настройка webhook:
+Deployment happens automatically from CI on push to `main` (`supabase functions deploy telegram-location-bot --no-verify-jwt --use-api`). Initial webhook setup:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot<bot_token>/setWebhook" \
@@ -87,33 +87,33 @@ curl -X POST "https://api.telegram.org/bot<bot_token>/setWebhook" \
   -d '{"url":"https://<project-ref>.supabase.co/functions/v1/telegram-location-bot","secret_token":"<TELEGRAM_WEBHOOK_SECRET>"}'
 ```
 
-Локально: `supabase functions serve telegram-location-bot` (для реального webhook нужен туннель ngrok/cloudflared).
+Locally: `supabase functions serve telegram-location-bot` (a real webhook needs an ngrok/cloudflared tunnel).
 
-## Эфемерные сообщения (ephemeral)
+## Ephemeral messages
 
-**Что это.** Бот отправляет **приватный ответ прямо внутри группового чата, видимый только одному пользователю** (и боту) — не засоряя общую ленту. Решает дилемму «спам в общий чат ↔ личка (требует Start)»: приватный ответ в контексте того же чата, без обоих минусов.
+**What it is.** The bot sends a **private reply inside a group chat, visible to one user only** (and the bot) — without cluttering the shared feed. It resolves the "spam the group ↔ direct message (requires Start)" dilemma: a private reply in the context of the same chat, with neither downside.
 
-**API** (сверять при расширении с [core.telegram.org/bots/api](https://core.telegram.org/bots/api) — фича свежая):
+**API** (re-check against [core.telegram.org/bots/api](https://core.telegram.org/bots/api) when extending — the feature is new):
 
-- Отправка — существующие методы (`sendMessage`, `sendPhoto`…) + новый параметр `receiver_user_id` (кому показать; `chat_id` остаётся обязательным). Альтернатива для ответа на нажатие кнопки — `callback_query_id`.
-- `Message` получает поля `receiver_user` и `ephemeral_message_id` (id эфемерного сообщения внутри чата) — добавлены в тип `TelegramMessage` (`_pure.ts`).
-- Правка/удаление — отдельные методы `editEphemeralMessage*` / `deleteEphemeralMessage` (пока не используем — шлём свежую эфемерку на каждое событие).
+- Sending uses the existing methods (`sendMessage`, `sendPhoto`, …) plus a new `receiver_user_id` parameter (who sees it; `chat_id` is still required). For replying to a button press, `callback_query_id` is the alternative.
+- `Message` gains `receiver_user` and `ephemeral_message_id` (the ephemeral message id within the chat) — both added to the `TelegramMessage` type in `_pure.ts`.
+- Editing and deleting use dedicated methods `editEphemeralMessage*` / `deleteEphemeralMessage` (unused so far — we send a fresh ephemeral message per event).
 
-**Общий примитив** — `sendEphemeralMessage(chatId, receiverUserId, text, botToken)` в `_handlers.ts`: `sendMessage` + `receiver_user_id`, `parse_mode=HTML`. **Best-effort**: ошибка (в т.ч. если фича ещё недоступна боту) только логируется и **не влияет** на основной поток (запись RSVP/геопозиции). Возвращает `ephemeral_message_id` (для будущей правки) либо `null`.
+**The shared primitive** is `sendEphemeralMessage(chatId, receiverUserId, text, botToken)` in `_handlers.ts`: `sendMessage` + `receiver_user_id`, `parse_mode=HTML`. It is **best-effort**: an error (including the feature not being available to the bot yet) is only logged and **does not affect** the main flow (writing the RSVP or the geolocation). It returns `ephemeral_message_id` (for a future edit) or `null`.
 
-**Внедрено:**
+**Already shipped:**
 
-1. **RSVP-подтверждение** (`handleCallbackQuery`) — поверх короткого `answerCallbackQuery`-тоста шлём приватную карточку: при записи — «Ты в списке участников» + шапка события (тип · название · дата) + deep-link `/events/:id`; при выходе — «Ты больше не участвуешь» + шапка. Текст строит `buildRsvpEphemeralText` (`_pure.ts`), адресат — `receiver_user_id = cb.from.id` в `cb.message.chat.id`. Шлётся только если событие подгрузилось и `chat_id` известен.
-2. **Онбординг live-геопозиции** (`handleLocationUpdate`) — при **старте** трансляции (update как `message`, а не `edited_message`; флаг `isLiveStart` из `index.ts`) в **группе** приватно показываем автору карточку: он на карте (deep-link `/m/telegramuser/<id>`), сколько ещё райдеров онлайн и кто ближайший из них. В личке не шлём (эфемерка — про группы). Данные собирает `gatherLiveLocationStats` (последняя геопозиция каждого юзера в окне `ACTIVE_RIDER_WINDOW_MINUTES`, ближайший — `selectNearestRider` по `haversineMeters`; если он ближе `RIDER_AT_POINT_THRESHOLD_METERS` к любой точке `map_points` — показываем её как ориентир). Текст — `buildLiveLocationEphemeralText`; при 0 других райдеров — «катаешь один».
+1. **RSVP confirmation** (`handleCallbackQuery`) — on top of the short `answerCallbackQuery` toast we send a private card: on joining, «Ты в списке участников» + the event header (type · title · date) + a `/events/:id` deep link; on leaving, «Ты больше не участвуешь» + the header. The text is built by `buildRsvpEphemeralText` (`_pure.ts`), addressed with `receiver_user_id = cb.from.id` in `cb.message.chat.id`. It is sent only when the event loaded and the chat id is known.
+2. **Live geolocation onboarding** (`handleLocationUpdate`) — when a broadcast **starts** (the update arrives as `message`, not `edited_message`; the `isLiveStart` flag comes from `index.ts`) in a **group**, the author privately sees a card: they are on the map (deep link `/m/telegramuser/<id>`), how many other riders are online, and who is nearest. Nothing is sent in direct messages (ephemeral messages are a group feature). The data is collected by `gatherLiveLocationStats` (the latest geolocation of each user inside `ACTIVE_RIDER_WINDOW_MINUTES`; the nearest one comes from `selectNearestRider` over `haversineMeters`, and if that rider is within `RIDER_AT_POINT_THRESHOLD_METERS` of any `map_points` entry, the point is shown as a landmark). The text comes from `buildLiveLocationEphemeralText`; with zero other riders it says «катаешь один».
 
-**Потенциал (ещё не внедрено):**
+**Potential (not implemented yet):**
 
-- **Приватная выдача по команде в группе** — `/спот`, `/розетки рядом`, `/маршрут N`, `/кто онлайн`: ответ виден только спросившему; при ephemeral-команде скрыт и сам вопрос.
-- **Персональные ответы на валидацию** — объяснить только автору, что нужна именно _live_-геопозиция, а не статичная (сейчас такой update молча пропускается).
+- **Private answers to in-group commands** — `/спот`, `/розетки рядом`, `/маршрут N`, `/кто онлайн`: the answer is visible only to the asker; with an ephemeral command even the question is hidden.
+- **Personal validation replies** — explaining to the author alone that a _live_ geolocation is required rather than a static one (today such an update is silently skipped).
 
-## Инварианты
+## Invariants
 
-- Ссылки на события в текстах бота — сегмент `events` (`EVENTS_PATH_PREFIX`), **не** `/m/event/...`.
-- Даты в анонсах форматируются в таймзоне Алматы (Asia/Almaty, UTC+5, без DST); хранение — UTC.
-- Никаких новых секретов для анонсов/новостей не требуется — используются существующие.
-- Логика построения текста анонса продублирована в превью фронтенда (`eventAnnounce.ts`) — менять синхронно.
+- Event links in bot text use the `events` segment (`EVENTS_PATH_PREFIX`), **not** `/m/event/...`.
+- Announcement dates are formatted in the Almaty timezone (Asia/Almaty, UTC+5, no DST); storage is UTC.
+- Announcements and news need no new secrets — the existing ones cover them.
+- The announcement text builder is duplicated in the frontend preview (`eventAnnounce.ts`) — change both together.

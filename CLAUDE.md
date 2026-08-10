@@ -4,47 +4,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PWA-карта для райдеров на моноколёсах (EUC) в Алматы — live at **map.euc.kz**. Точки встреч, розетки, маршруты, велодорожки и live-геопозиции из Telegram-чатов. Плюс события (анонсы поездок с RSVP через Telegram) и новости проекта.
+PWA map for EUC (electric unicycle) riders in Almaty — live at **map.euc.kz**. Meeting points, power sockets, routes, bike lanes, live geolocations from Telegram chats, community events and news.
 
-**Полная документация — в [docs/](docs/README.md)**: архитектура, фронтенд, схема БД и RLS, Telegram-бот, события/новости, админка, тесты, деплой. Перед изменением подсистемы читать профильный файл; при изменении поведения — обновлять docs/ в том же коммите. Правила для агентов продублированы в [AGENTS.md](AGENTS.md).
+**Full documentation lives in [docs/](docs/README.md)**: architecture, frontend, DB schema and RLS, Telegram bot, events/news, admin panel, testing, deployment. Read the relevant file before changing a subsystem; update docs/ in the same commit as the behavior change. Agent rules are mirrored in [AGENTS.md](AGENTS.md) — keep both in sync when invariants change.
 
 ## Stack
 
-- **React 19** + **TypeScript 6** (strict) + **Vite 8** + **Tailwind CSS 4** (`@tailwindcss/vite`)
-- **Mapbox GL JS 3** — карта; **react-router-dom 7** — SPA-роутинг; **Font Awesome 7** — иконки
+- **React 19** + **TypeScript 6** (strict) + **Vite 8** (rolldown) + **Tailwind CSS 4** (`@tailwindcss/vite`)
+- **Mapbox GL JS 3** — map; **react-router-dom 7** — SPA routing; **Font Awesome 7** — icons; **typograf** — text typography
 - **Supabase** — PostgreSQL + RLS + Realtime + Storage + Deno Edge Functions
-- **Vitest 4** + **RTL 16** + **jsdom** — unit-тесты; **Playwright** — e2e; **Deno test** — Edge Functions
-- **Husky 9** — pre-commit хук; **ESLint 10** + **Prettier** — качество кода
-- **typograf** — типографика русских текстов (см. `src/utils/typograf.ts`)
+- **Cloudflare Pages** + Pages Functions (server-side rendering only for meta tags and `sitemap.xml`)
+- **Vitest 4** + **RTL 16** + **jsdom** — unit tests; **Playwright** — e2e; **deno test** — edge functions
+- **Husky 9** — pre-commit hook; **ESLint 10** (flat config, `eslint.config.js`) + **Prettier**
 
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server (localhost:5173; host: true — доступен по сети)
-npm run build        # vite build (только бандл, БЕЗ type-check)
-npm run build:check  # tsc -b && vite build (type-check + bundle)
-npm run lint         # ESLint (TypeScript strict + React hooks)
-npm run format       # prettier --write .
-npm run format:check # prettier --check . (то, что проверяет CI и хук)
-npm run test         # Vitest (run once)
+npm run dev          # Vite dev server (localhost:5173; host: true — reachable over LAN)
+npm run build        # vite build only (no type check)
+npm run build:check  # tsc -b && vite build — full check before pushing
+npm run lint         # ESLint (typescript-eslint strictTypeChecked + React hooks)
+npm test             # Vitest, single run (NODE_OPTIONS=--no-experimental-webstorage)
+npm run test:e2e     # Playwright (pretest:e2e → build:e2e with dummy env vars)
+npm run test:e2e:ui  # Playwright UI mode
+npm run test:functions  # deno test --allow-net supabase/functions/
+npm run format       # Prettier --write
+npm run format:check # Prettier --check (gate in CI and pre-commit)
 npm run preview      # Preview production build locally
+npm run secrets:sync # scripts/set-supabase-secrets.sh — push edge-function secrets
 ```
 
-Запуск одного теста:
+Run a single test:
 
 ```bash
 npx vitest run src/utils/hashNav.test.ts
+npx playwright test tests/e2e/map.e2e.ts
 ```
 
-E2E тесты: `npm run test:e2e` / `npm run test:e2e:ui` (перед запуском авто-`build:e2e` со stub-env).
-Тесты Edge Functions (Deno): `npm run test:functions` (`deno test --allow-net supabase/functions/`).
+**Pre-commit hook** (`.husky/pre-commit`) runs automatically:
+`lint → format:check → npx tsc -b --noEmit → test → test:functions (if deno is installed) → build → test:e2e`.
+The hook prepends `/opt/homebrew/bin` to `PATH`. Never bypass it with `--no-verify`.
 
-**Pre-commit хук** (`.husky/pre-commit`) запускает автоматически: `lint → format:check → tsc -b --noEmit → test → test:functions (если есть deno) → build → test:e2e`.
-**CI** (`.github/workflows/test.yml`) дублирует те же гейты: lint, format:check, type-check, unit, Deno-функции, e2e.
+Type-check with `tsc -b`: `tsconfig.json` is a solution config holding only `references` (app / node / playwright / functions).
 
 ## Environment
 
-Скопировать `.env.example` → `.env.local`:
+Copy `.env.example` → `.env.local`:
 
 ```
 VITE_MAPBOX_TOKEN=             # Mapbox public token
@@ -56,37 +61,40 @@ VITE_TELEGRAM_TRACK_TAIL_MINUTES=30
 VITE_TELEGRAM_MAX_ACCURACY_METERS=100
 ```
 
-При добавлении переменной синхронизировать в четырёх местах: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md`.
+Non-Vite secrets (`supabase secrets` only, never shipped to the browser): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BACKFILL_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`.
+Pages Functions read `SUPABASE_URL` / `SUPABASE_ANON_KEY` from the Cloudflare project settings, not from GitHub.
 
-Предлагать команды из `.env.local`:
+When adding a `VITE_*` variable, sync it in five places: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md`, and the `build:e2e` script in `package.json` (otherwise the e2e production build breaks). `tests/config/deployConfig.test.ts` guards this.
 
-- чувствительные → `gh secret set NAME --body "$NAME"`
-- некритичные → `gh variable set NAME --body "$NAME"`
+Suggest commands for values from `.env.local`:
+
+- sensitive → `gh secret set NAME --body "$NAME"`
+- non-sensitive → `gh variable set NAME --body "$NAME"`
 
 ## Language
 
-UI-тексты, сообщения пользователю, комментарии в коде — **русский**. Пользовательские длинные тексты (описания событий/новостей и т.п.) прогонять через типографику — `src/utils/typograf.ts`.
+UI strings, user-facing messages, code comments, `CHANGELOG.md` and commit descriptions are written in **Russian**; identifiers in English. Developer documentation is English: `docs/`, `CLAUDE.md`, `AGENTS.md` and `.claude/skills/`. `README.md` stays Russian — it is the public face of the repository. When editing an existing file, write in that file's language.
 
 ## Code Style
 
-- **Prettier**: 4-space tabs, 120-char line width, single quotes, no semicolons, trailing commas
-- **TypeScript**: strict, `noUnusedLocals`, `noUnusedParameters`. Избегать `any`; при необходимости — явный `eslint-disable` с обоснованием.
-- **ESLint**: flat config, `typescript-eslint/configs.strictTypeChecked` + React hooks rules.
-- Импорты: сначала внешние библиотеки, затем внутренние по пути, в конце `type`-импорты.
-- Именование: PascalCase — компоненты/типы; camelCase — функции/хуки/переменные; UPPER_SNAKE — глобальные константы.
-- Только функциональные компоненты, именованный экспорт: `export function ComponentName()`.
-- Пропсы — отдельный интерфейс `ComponentNameProps`, не инлайнить в `FC<...>`.
-- Для отключения правил хуков — `// eslint-disable-next-line react-hooks/... -- краткое обоснование`.
-- В эффектах с подписками — ref для актуального колбэка, чтобы не переподписываться на каждый рендер.
+- **Prettier**: 4-space tabs, 120-char line width, single quotes, no semicolons, trailing commas. YAML uses 2 spaces.
+- **TypeScript**: strict, `noUnusedLocals`, `noUnusedParameters`. Avoid `any`; if unavoidable, add an explicit `eslint-disable` with justification.
+- **ESLint**: flat config (`eslint.config.js`), `typescript-eslint/configs.strictTypeChecked` + React hooks rules.
+- Imports: external libraries first, then internal by path, `type` imports last. Alias `@/` → `src/` (known to Vite/Vitest; **not** to the esbuild bundler behind Pages Functions — use relative paths there).
+- Naming: PascalCase for components/types; camelCase for functions/hooks/variables; UPPER_SNAKE for global constants.
+- Function components only, named exports: `export function ComponentName()`.
+- Props go in a separate `ComponentNameProps` interface — never inlined into `FC<...>`.
+- Disabling hook rules: `// eslint-disable-next-line react-hooks/... -- краткое обоснование`.
+- In effects with subscriptions, keep the live callback in a ref so the effect does not resubscribe on every render.
 
 ### Styles & UI
 
-- Стилизация только через классы Tailwind. Глобальные стили — в `src/index.css`.
-- Цвета интерфейса — из палитры Tailwind (neutral, white). Цвета слоёв карты — из `COLORS` в `src/constants/index.ts`.
-- Инлайн `style` — только для динамических значений (цвет по типу фичи, позиционирование попапа).
-- Карта и оверлеи: `fixed`/`absolute` с `inset-0`. Safe area (`safe-area-padding`, `control-inset-*`) — глобально в `src/index.css` на `.mapboxgl-ctrl-*`, `.mapboxgl-popup`.
-- Адаптив: `sm:` breakpoints. Кнопки: `type="button"`, `aria-label` где нужно, декоративные иконки — `aria-hidden`.
-- На всех `<button>` и `<a>` обязателен `cursor-pointer` (без исключений). Для disabled — `cursor-not-allowed`.
+- Tailwind classes only. Global styles live in `src/index.css`.
+- UI colors come from the Tailwind palette (neutral, white) or `UI_ACCENT`. Map layer colors come from `COLORS` in `src/constants/index.ts`.
+- Inline `style` only for dynamic values (color by feature type, popup positioning).
+- Map and overlays: `fixed`/`absolute` with `inset-0`. Safe area (`safe-area-padding`, `control-inset-*`) is applied globally in `src/index.css` to `.mapboxgl-ctrl-*`, `.mapboxgl-popup`.
+- Responsive via `sm:` breakpoints. Buttons: `type="button"`, `aria-label` where needed, decorative icons `aria-hidden`.
+- Every `<button>` and `<a>` must carry `cursor-pointer` (no exceptions); disabled ones use `cursor-not-allowed`.
 
 ## Architecture
 
@@ -94,33 +102,47 @@ UI-тексты, сообщения пользователю, комментар
 
 ```
 src/
-├── app/           # Роутовые оболочки: MapShell (lazy-грузит EucMap), NotFound
-├── components/    # UI только — никакой бизнес-логики
-│   ├── ui/            # Примитивы: Badge, FilterChips, SearchInput, ToggleSwitch
-│   └── icons/         # Кастомные SVG-иконки (IconTelegram)
-├── hooks/         # Состояние, эффекты, загрузка данных
+├── App.tsx        # router: public routes + lazy-loaded /admin
+├── main.tsx       # bootstrap, service worker registration
+├── app/           # MapShell.tsx (shell for public screens), NotFound.tsx
+├── components/    # UI only — no business logic
+│   ├── ui/            # primitives: Badge, FilterChips, SearchInput, ToggleSwitch
+│   └── icons/         # custom icons (IconTelegram)
+├── hooks/         # state, effects, data loading
 ├── lib/           # env.ts, supabase.ts, mapLayers.ts, analytics.ts
-├── utils/         # Чистые функции без React/Mapbox (все покрыты тестами)
-├── constants/     # LAYER_IDS/SOURCE_IDS/COLORS/MAP_CENTER (index.ts), layerVisibility.ts, mapLayerRegistry.ts
-├── types/         # geojson.ts, supabase.ts, velojol.ts — реэкспорт через index.ts
-├── data/          # almaty.json — статичный GeoJSON велодорожек (Velojol)
-├── test/          # setup.ts для Vitest + jsdom
-└── admin/         # Lazy-loaded по /admin, Supabase Auth + map_admin_users
-    ├── pages/         # Point/Route/Submissions/Geo + Events, News, TelegramChats (+ AdminLoginPage)
-    ├── components/    # PointForm, PhotoManager, EventForm, EventDatesManager, EventAnnounceModal,
-    │                  #   NewsAnnounceManager, AnnouncementMessagesList, ConfirmDialog, ...
+├── utils/         # pure functions, no React/Mapbox (all covered by tests)
+├── constants/     # index.ts (LAYER_IDS, SOURCE_IDS, COLORS, MAP_CENTER, labels),
+│                  # mapLayerRegistry.ts (layer descriptors), layerVisibility.ts
+├── types/         # geojson.ts, supabase.ts, velojol.ts — re-exported via index.ts
+├── data/          # almaty.json — static bike-lane GeoJSON (Velojol)
+├── test/          # setup.ts for Vitest + jsdom
+└── admin/         # lazy-loaded at /admin; Supabase Auth (password or passkey) + map_admin_users
+    ├── pages/         # DashboardPage, PointsPage/PointEditPage, RoutesPage/RouteEditPage,
+    │                  # EventsPage/EventEditPage, NewsPage/NewsEditPage, SubmissionsPage,
+    │                  # TelegramChatsPage, GeoPage, SettingsPage, AdminLoginPage
+    ├── components/    # PointForm, EventForm, PhotoManager, AiAssistPanel, EventAnnounceModal,
+    │                  # AdminGeoMap, AdminRoutePolylineMap, ConfirmDialog, ...
     ├── hooks/         # useAdminAuth, useCoordinateHistory, useUndoRedoHotkeys, useAdminListLoader
-    ├── lib/adminApi/  # CRUD: points, routes, photos, submissions, geo, events, news, telegramChats;
-    │                  #   eventAnnouncements, newsAnnouncements, announceClient; types, parsers, query
-    ├── utils/         # formatAdminDate
-    └── route-editor/  # routeGeometry.ts, routeValidation.ts (геометрия и валидация маршрута)
-functions/         # Cloudflare Pages Functions (не путать с supabase/functions)
-├── _lib/          # ogMeta.ts (сборка метатегов), entities.ts (данные точки/маршрута/велодорожки)
-└── m/[type]/[id].ts  # динамические OG-теги для deep-links
+    ├── lib/adminApi/  # CRUD: points, routes, photos, submissions, events, eventAnnouncements,
+    │                  # news, newsAnnouncements, telegramChats, geo, dashboard, aiAssist,
+    │                  # announceClient; types, parsers, query, constants
+    ├── lib/passkeys.ts # WebAuthn sign-in for the admin panel
+    ├── utils/         # adminTime, formatAdminDate, routeDistance, aiAssistPrompt
+    └── route-editor/  # routeGeometry.ts, routeValidation.ts (route vertex geometry & validation)
+functions/         # Cloudflare Pages Functions (not to be confused with supabase/functions)
+├── _lib/          # ogMeta.ts (meta tags), entities.ts (hourly entity dump), sitemap.ts
+├── m/[type]/[id].ts  # dynamic OG tags for deep links
+└── sitemap.xml.ts    # sitemap built from the same dump
 supabase/
-├── migrations/    # 28 PostgreSQL-миграций (все таблицы + RLS + индексы + RPC)
-├── functions/     # telegram-location-bot (index.ts + _handlers.ts + _pure.ts), ai-assist (OpenAI-помощник админки)
-└── schema.sql     # Полный экспорт схемы БД
+├── migrations/    # PostgreSQL migrations (tables + RLS + indexes + RPC), 28 files today
+├── functions/     # telegram-location-bot (bot webhook), ai-assist (OpenAI helper for admin)
+├── config.toml    # local stack config
+└── seed.sql       # curated local DB seed, tracked and PII-free (points + routes only)
+scripts/           # fetch-velojol-bike-lanes.js (bike lanes), set-supabase-secrets.sh
+tests/
+├── e2e/           # Playwright specs + fixtures.ts (Mapbox/Supabase mocks)
+└── config/        # deployConfig.test.ts — env parity between CI and .env.example
+public/            # sw.js, _redirects, _headers, robots.txt, manifest.webmanifest, icons
 ```
 
 ### Data Flow
@@ -129,47 +151,39 @@ supabase/
 useMapData.ts
   ├─ fetchMapPoints()      → mapPointsToFeatureCollection()    → pointsGeo
   ├─ fetchMapRoutes()      → mapRoutesToFeatureCollection()    → routesGeo
-  ├─ velojolToFeatureCollection(almaty.json)                   → bikeLanesGeo
+  ├─ import('@/data/almaty.json') → velojolToFeatureCollection() → bikeLanesGeo
   └─ fetchTelegramLocations()
        ├─ telegramLocationsToUsersFeatureCollection()          → telegramUsersGeo
        └─ telegramLocationsToRecentTracksFeatureCollection()   → telegramTracksGeo
 
-Все запросы — через Promise.allSettled (один упавший не блокирует остальные).
-Каждый запрос обёрнут withTimeoutAndRetry() — 10с таймаут, 2 повтора, экспоненциальный backoff.
+All requests go through Promise.allSettled (one failure does not block the rest).
+Each request is wrapped in withTimeoutAndRetry() — 10s timeout, 2 retries, exponential backoff.
 
 useLayers.ts
-  └─ lib/mapLayers.ts → добавляет/обновляет GeoJSON sources + paint layers в Mapbox
+  └─ lib/mapLayers.ts → adds/updates GeoJSON sources + paint layers on the Mapbox instance
 
 Telegram realtime:
   useTelegramRealtime.ts → postgres_changes → 300ms debounce → fetchTelegramLocations() → source.setData()
+  Out-of-order refreshes are discarded by the telegramRefreshSeqRef counter.
 ```
 
 ### Main Component (`EucMap.tsx`)
 
-Оркестрирует хуки в порядке зависимостей:
+Orchestrates hooks in dependency order:
 
-1. `useMapbox(containerRef)` — создаёт Mapbox-инстанс (один раз)
-2. `useMapData` — загружает данные, управляет realtime
-3. `useLayers` — добавляет слои, управляет видимостью
-4. `useMapClick`, `useMapHover` — attach listeners, обновляют feature-state
-5. `useMapSelectionSync` — синхронизирует URL ↔ выбранная фича
-6. `useMapPopup` — управляет Mapbox popup
-7. `useGeolocateControl`, `useUserGeolocation`, `useDeviceCompassHeading` — геолокация
-8. `useEvents`, `useTelegramAvatars`, `useMapPadding`, `useDraftPointFlow` — события, аватары, паддинг под сайдбары, флоу добавления точки
+1. `useMapbox(containerRef)` — creates the Mapbox instance (once)
+2. `useMapData` — loads data, manages realtime
+3. `useLayers` — adds layers, manages visibility (`useLayerVisibilityStore`)
+4. `useMapClick`, `useMapHover` — attach listeners, update feature-state
+5. `useMapSelectionSync` — syncs URL ↔ selected feature
+6. `useMapPopup` — drives the Mapbox popup
+7. `useGeolocateControl`, `useUserGeolocation`, `useDeviceCompassHeading` — geolocation
 
-Рендерит: `LayerControls`, `BottomTabBar`, `LiveActivityBar`, `PointListSidebar`, `RouteListSidebar`, `PopupContent`, `AddPointPanel`, `MapFeatureInfoModal`, `ProjectInfoModal`, `MapNotificationModals`, `RadarModal`, `EventsScreen`, `EventDetailScreen`. `PwaPrompts` рендерится в `App.tsx`.
+Renders: `LayerControls`/`LayerPanel`, `FeatureSidebar`, `PopupContent`, `AddPointPanel`, `MapOverlayButtons`, `MapNotificationModals`, `PwaPrompts`, `BottomTabBar`, `LiveActivityBar`.
 
-### Routing & Screens (`src/App.tsx`, `src/app/`)
+### Feature State (no DOM re-renders)
 
-- `BrowserRouter basename={import.meta.env.BASE_URL}` — все пути реальные (не hash).
-- Публичные пути `/`, `/radar`, `/events`, `/events/:eventId`, `/help`, `/m/:type/:id` рендерят один и тот же `MapShell` (lazy-грузит `EucMap`). Экраны/модалки (радар, события, помощь) — оверлеи над картой; `EucMap` читает `useLocation()` и показывает нужный экран, чтобы карта не размонтировалась при навигации.
-- **Нижняя навигация** — `BottomTabBar`: Точки / Маршруты / Добавить / События / Радар / Помощь. Бейджи (непрочитанные события) — через `useEvents` + `eventsReadStore`.
-- `/admin/*` — отдельная ветка под `AdminShell` с lazy-страницами (`src/admin/lazyAdminPages.ts`): submissions, point(s), route(s), event(s), news, telegram-chats, geo.
-- Неизвестный путь вне `/admin` → `NotFound` (`src/app/NotFound.tsx`).
-
-### Feature State (нет DOM-ререндеров)
-
-Hover/select реализованы через Mapbox feature-state — нулевые React-ререндеры:
+Hover/select are implemented with Mapbox feature-state — zero React re-renders:
 
 ```javascript
 map.setFeatureState({ source, id }, { selected: true })
@@ -178,102 +192,130 @@ map.setFeatureState({ source, id }, { selected: true })
 
 ### URL Deep Links
 
-- Формат `/m/:type/:id`: `/m/point/11`, `/m/route/5`, `/m/socket/3`, `/m/bikelane/alm1`, `/m/telegramuser/123` — только для типов фич карты (`HashFeatureType` в `src/utils/hashNav.ts`).
-- **События — отдельный маршрут `/events/:id`** (не `/m/event/:id`!). Строить только через `buildEventDetailPath` из `src/utils/eventLinks.ts`; `event` НЕ входит в `HashFeatureType`, поэтому `buildMapDeepLinkPath`/`/m/...` для события даст битую ссылку (маршрут `/m/:type/:id` не распознает тип и откроет пустую карту). Это касается и edge-функций (Telegram-бот): сегмент `events` стабилен (`EVENTS_PATH_PREFIX`), вписывать строкой.
-- При добавлении нового вида сущности со своей страницей — завести парный `build*Path`/`parse*Pathname` и маршрут в `src/App.tsx`; не переиспользовать `/m/...` вслепую.
-- Старый hash `#point=11` → автоматически редиректит на путь.
-- При построении ссылок: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — `BASE_URL` остаётся единой точкой, если base когда-нибудь снова станет непустым.
+Public routes (`src/App.tsx`): `/`, `/radar`, `/events`, `/events/:eventId`, `/help`, `/m/:type/:id`; anything else renders `NotFound`.
 
-### Constants (`src/constants/index.ts`)
+- `/m/:type/:id` format: `/m/point/11`, `/m/route/5`, `/m/socket/3`, `/m/bikelane/alm1`, `/m/telegramuser/123` — map feature types only (`HashFeatureType = FeatureType` in `src/utils/hashNav.ts`).
+- **Events use their own route `/events/:id`** — not `/m/event/:id`. Build them only via `buildEventDetailPath` from `src/utils/eventLinks.ts`; `event` is not part of `HashFeatureType`, so `buildMapDeepLinkPath` / `/m/...` for an event yields a broken link (the `/m/:type/:id` route fails to recognize the type and opens an empty map). This applies to edge functions (Telegram bot) too: the `events` segment is stable (`EVENTS_PATH_PREFIX`) and is written as a literal.
+- When adding a new entity type with its own page, add a matching `build*Path`/`parse*Pathname` pair plus a route in `src/App.tsx`; do not blindly reuse `/m/...`.
+- Legacy hash `#point=11` redirects to the path form automatically.
+- Build links as `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(type, id)}` — `BASE_URL` stays the single knob in case base ever becomes non-empty again.
 
-Единственный источник истины — не дублировать строковые ID в коде:
+### Constants (`src/constants/`)
+
+Single source of truth — never duplicate string IDs in code:
 
 - `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`, `LAYER_ID_TO_SOURCE`
-- `COLORS` — цвета по типу фичи для paint-выражений
-- `FEATURE_TYPE_LABELS`, `POINT_FLAG_LABELS` — русские подписи
-- `MAPBOX_STYLES` (`streets`, `satellite`), тип `BaseMapStyle`, тип `LayerKey`
+- `COLORS` — per-feature-type colors for paint expressions; `UI_ACCENT` — interface accents
+- `FEATURE_TYPE_LABELS`, `POINT_FLAG_LABELS`, `EVENT_TYPE_LABELS` — Russian labels
+- `MAPBOX_STYLES` (`streets`, `satellite`), type `BaseMapStyle`, type `LayerKey`
 - `MAP_CENTER` (`[76.904848, 43.226807]`), `MAP_ZOOM_DEFAULT` (12), `MAP_ZOOM_FOCUS` (15)
-- `layerVisibility.ts` — тип `LayerVisibility` и дефолты видимости слоёв (стор `useLayerVisibilityStore`)
-- `mapLayerRegistry.ts` — `LAYER_KEY_TO_MAP_LAYER_IDS` + `applyVisibilityToMapLayers(map, visibility)` (у telegram два слоя — треки + маркеры — под одной кнопкой)
+- `mapLayerRegistry.ts` — declarative layer descriptors; `layerVisibility.ts` — defaults and visibility persistence
+
+Register a new layer in all of the above at once, otherwise it will not be clickable or toggleable.
 
 ### GeoJSON & Types (`src/types/`)
 
 - `FeatureType = 'point' | 'socket' | 'route' | 'bikeLane' | 'telegramUser'`
-- `FeatureProperties` — union: `PointProperties | SocketProperties | RouteProperties | BikeLaneProperties | TelegramUserProperties`
-- Координаты: `[lon, lat]` или `[lon, lat, elevation]` (тип `Position`)
-- `PointFeature`, `RouteFeature`, `BikeLaneFeature`, `LineStringFeature` — типизированные обёртки
+- `FeatureProperties` — union of `PointProperties | SocketProperties | RouteProperties | BikeLaneProperties | TelegramUserProperties`
+- Coordinates: `[lon, lat]` or `[lon, lat, elevation]` (type `Position`)
+- `PointFeature`, `RouteFeature`, `BikeLaneFeature`, `LineStringFeature` — typed wrappers
 
 ### Mapbox
 
-- Инициализация — `useMapbox(containerRef)`. Один инстанс; при `setStyle(...)` — пересоздание слоёв через `style.load`.
-- Перед добавлением слоёв: `if (map.getStyle() === undefined) return`
-- Popup: `createRoot` + React-компонент, при закрытии — `root.unmount()`
-- Токен: `import.meta.env.VITE_MAPBOX_TOKEN`. Телеметрия отключена через `transformRequest` (пустой ответ на `events.mapbox.com`)
-- Map controls: только через `map.addControl(...)`, кнопка без текста, без кастомных классов/стилей. Позиции: `top-left`, `top-right`, `bottom-left`, `bottom-right`.
+- Initialized in `useMapbox(containerRef)`. One instance; after `setStyle(...)` layers are recreated on `style.load`.
+- Before adding layers: `if (map.getStyle() === undefined) return`
+- Popups: `createRoot` + a React component; call `root.unmount()` on close
+- Token: `import.meta.env.VITE_MAPBOX_TOKEN`. Telemetry is disabled via `transformRequest` (empty response for `events.mapbox.com`)
+- Map controls only via `map.addControl(...)` — no text on the button, no custom classes/styles. Positions: `top-left`, `top-right`, `bottom-left`, `bottom-right`.
+- Map padding for sidebars/panels goes through `useMapPadding` only; calling `setPadding` elsewhere races with layer rendering.
 
 ### Supabase Backend
 
-- **Таблицы**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions`, `telegram_locations`, `telegram_profiles`, `map_admin_users`, `map_events`, `map_event_dates`, `map_event_participants`, `map_news`, `telegram_chats`, `telegram_outbound_messages`
-- **`telegram_outbound_messages`** — единая таблица исходящих сообщений бота (бывшая `map_event_announcements`, переименована в миграции `20260627120000`). Полиморфная привязка: `event_date_id` (анонс события) ЛИБО `news_id` (новость проекта); CHECK гарантирует ровно один из них. Маппинг `(telegram_chat_id, telegram_message_id)` → отправитель используется для RSVP-callback событий, а также правки/удаления сообщений. Поля `cancelled_at`/`pinned_at` специфичны для событий.
-- **Storage**: бакеты `map-point-photos/`, `telegram-avatars/`, `map-event-photos/`, `map-news-photos/` (публичные URL, без bot-токенов)
-- **RLS**: публичное чтение (кроме disabled/draft); запись требует auth или Edge Function
-- **Resilience**: `withTimeoutAndRetry()` в `lib/supabase.ts`; при отсутствии URL/ключа — fallback на Cache API, предупреждение в консоль, не бросать ошибку при старте
-- **Миграции**: файлы в `supabase/migrations/`. Применять только через `supabase db push` (или CI), **не** через MCP `apply_migration`/`execute_sql` — последний пишет в `schema_migrations` автогенерённый таймстамп, расходящийся с именем файла, и ломает деплой. Если история разошлась — чинить через `supabase migration repair` (правит учёт, не схему), сверять `supabase migration list`. MCP `apply_migration` допустим лишь для разовых проверок на preview-ветке.
+- **Tables**: `map_points`, `map_routes`, `map_point_photos`, `map_points_submissions`, `telegram_locations`, `telegram_profiles`, `map_admin_users`, `map_events`, `map_event_dates`, `map_event_participants`, `map_news`, `telegram_chats`, `telegram_outbound_messages`
+- **RPC**: `get_latest_telegram_locations` (latest position per rider), `get_admin_dashboard_stats` (SECURITY DEFINER, admins only — the whole admin dashboard summary in one call)
+- **`telegram_outbound_messages`** — the single table of outbound bot messages (formerly `map_event_announcements`, renamed in migration `20260627120000`). Polymorphic link: `event_date_id` (event announcement) OR `news_id` (project news); a CHECK guarantees exactly one of them. The `(telegram_chat_id, telegram_message_id)` → sender mapping powers event RSVP callbacks as well as message edits/deletions. `cancelled_at`/`pinned_at` are event-specific.
+- **Storage**: buckets `map-point-photos/`, `telegram-avatars/`, `map-event-photos/`, `map-news-photos/` (public URLs, no bot tokens)
+- **RLS**: public read (except disabled/draft rows); writes require auth or an Edge Function. Every new table ships with its policies.
+- **Resilience**: `withTimeoutAndRetry()` in `lib/supabase.ts`; with a missing URL/key the app falls back to the Cache API and logs a console warning instead of throwing at startup
+- **Migrations**: files in `supabase/migrations/`, applied only via `supabase db push` (or CI) — **never** through MCP `apply_migration`/`execute_sql`, which writes an auto-generated timestamp into `schema_migrations` that diverges from the file name and breaks deploys. If the history diverges, fix it with `supabase migration repair` (it fixes bookkeeping, not the schema) and verify with `supabase migration list`. MCP `apply_migration` is acceptable only for one-off checks on a preview branch.
+- There is no exported `schema.sql` in the repo: migrations plus [docs/database.md](docs/database.md) are the canonical schema reference.
 
 ### Telegram Bot (Edge Function)
 
-`supabase/functions/telegram-location-bot/` — Deno runtime. `index.ts` — роутинг webhook'ов; `_handlers.ts` — обработчики (I/O с Telegram/Supabase); `_pure.ts` — чистые хелперы (легко тестируются). Отдельные тесты `_handlers.test.ts` / `_pure.test.ts` (`npm run test:functions`).
+`supabase/functions/telegram-location-bot/` — Deno runtime. Accepts the webhook `POST`, validates the secret token, stores geolocation into `telegram_locations`, caches avatars in `telegram_profiles` + Storage, broadcasts event/news announcements and handles RSVP callbacks. Avatar URLs are sanitized (the bot token is stripped before persisting).
 
-Функционал бота вырос за пределы геолокации:
-
-- **Геопозиция**: webhook `POST`, валидация secret-токена, запись в `telegram_locations`, кеш аватара в `telegram_profiles` + Storage (URL санируется — bot-токен вырезается перед записью).
-- **RSVP событий**: `handleCallbackQuery` — inline-кнопки записи на дату события → `map_event_participants`, `answerCallbackQuery` в коротком окне (аватар не запрашиваем, добьёт `/backfill`).
-- **Анонсы/новости**: сабруты рассылки, правки, удаления, отмены и пина сообщений (`handleAnnounceEventDate`, `handleAnnounceNews`, `handleEdit*`, `handleDelete*`, `handleCancelAnnouncements`, `handlePinAnnouncement`) — пишут в `telegram_outbound_messages`. Админ-действия защищены `isAdminRequest`.
-- Ссылка на событие в анонсе — строго `/events/:id` (сегмент `EVENTS_PATH_PREFIX`), НЕ `/m/event/:id`.
+Pure logic lives in `_pure.ts` / `_handlers.ts` with Deno tests alongside; `index.ts` holds only the HTTP wiring. New bot logic starts as a pure function plus a test.
 
 ### AI Assist (Edge Function)
 
-`supabase/functions/ai-assist/` — улучшение названия/описания точек и маршрутов через OpenAI Responses API + `web_search` (см. [docs/admin.md](docs/admin.md), раздел «ИИ-помощник»). Билдер промпта в `_pure.ts` — копия `src/admin/utils/aiAssistPrompt.ts`, правки синхронизировать. Секреты: `OPENAI_API_KEY`, `OPENAI_MODEL` (опционально).
+`supabase/functions/ai-assist/` — improves point/route titles and descriptions via the OpenAI Responses API + `web_search` (see [docs/admin.md](docs/admin.md), section «ИИ-помощник»). The prompt builder in `_pure.ts` is a copy of `src/admin/utils/aiAssistPrompt.ts` — change both together. Secrets: `OPENAI_API_KEY`, `OPENAI_MODEL` (optional, defaults to `gpt-5-mini`).
 
 ### Admin Section (`/admin`)
 
-Lazy-loaded (`lazyAdminPages.ts`), доступ — Supabase Auth + запись в `map_admin_users`. Структура:
+Lazy-loaded; access requires Supabase Auth (password or passkey/WebAuthn via `admin/lib/passkeys.ts`) plus a row in `map_admin_users`.
 
-- **adminApi**: CRUD для points, routes, events, news; `listSubmissions/approveSubmission/rejectSubmission`; `getAdminGeoData`; `uploadPhoto/deletePhoto`; `telegramChats`; `eventAnnouncements`/`newsAnnouncements` + `announceClient` (вызов Edge-сабрутов рассылки).
-- **События**: `EventForm`, `EventDatesManager` (даты поездки), `EventAnnounceModal` + `AnnouncementMessagesList` (рассылка анонса в чаты, счётчик RSVP, правка/удаление/пин).
-- **Новости**: `NewsAnnounceManager` + `NewsMessagesList` (рассылка новости в выбранные чаты).
-- **route-editor**: геометрия и валидация вершин маршрута. Undo/redo координат: `useCoordinateHistory` + `useUndoRedoHotkeys`.
-- Кнопка «Открыть на сайте» в edit-страницах: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}` (для события — `buildEventDetailPath`).
+- **adminApi** (`src/admin/lib/adminApi/index.ts` is the only import surface): points, routes, photos, submissions, events + eventAnnouncements, news + newsAnnouncements, telegramChats, geo (`fetchTelegramLocations`, `buildRiderTracks`), dashboard (`getDashboardStats`), aiAssist (`improveWithAi`)
+- **route-editor**: route vertex geometry and validation
+- Coordinate undo/redo: `useCoordinateHistory` + `useUndoRedoHotkeys`
+- List pages use `useAdminListLoader` (loading, search, empty/error states)
+- The "Открыть на сайте" button on edit pages: `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}`
+- Yandex.Metrika is fully disabled under `/admin/*`
 
 ### Deployment
 
-- **Cloudflare Pages** (`map.euc.kz`, проект `map-euc`) — static SPA, Vite `base = /`; SPA-фолбэк — `public/_redirects`, заголовки кэша — `public/_headers`
-- **Pages Functions** (`functions/`) — `m/[type]/[id].ts` подменяет OG-теги для `/m/point|socket|route|bikelane/:id` через `HTMLRewriter` (краулеры не исполняют JS); `sitemap.xml.ts` отдаёт карту сайта. `_routes.json` генерируется wrangler'ом. Переменные `SUPABASE_URL`/`SUPABASE_ANON_KEY` живут в настройках Pages-проекта, не в GitHub. Импорты из `src/` — относительным путём: alias `@/` знает Vite, но не esbuild
-- **Workflows** (`.github/workflows/`):
-    - `deploy.yml` — Supabase migrate → build → `wrangler pages deploy` → Telegram notification
-    - `test.yml` — lint / format:check / type-check / unit / Deno-функции / e2e (+ Telegram-нотификация о падении)
-    - `backup.yml` — ежедневный бэкап Supabase (БД + Storage) в S3 (Selectel); `pg_dump` 17 под PG 17
-- **Локально**: Valet proxy `map.euc.test` → `localhost:5173`
+- **Cloudflare Pages** (`map.euc.kz`, project `map-euc`) — static SPA, Vite `base = /`; SPA fallback comes from `public/_redirects`, cache headers from `public/_headers`
+- **Pages Functions** (`functions/`):
+    - `m/[type]/[id].ts` rewrites OG tags for `/m/point|socket|route|bikelane/:id` via `HTMLRewriter` (crawlers do not execute JS); no meta is built for `/m/telegramuser/…` — personal data
+    - `sitemap.xml.ts` serves the sitemap (static sections + points, routes, bike lanes, events); it is linked from `public/robots.txt`
+    - Both functions share one **hourly dump** of points/routes fetched from the Supabase REST API (`_lib/entities.ts`); misses are cached for 5 minutes and an entity absent from the dump is fetched individually
+    - `_routes.json` is generated by wrangler. `SUPABASE_URL`/`SUPABASE_ANON_KEY` live in the Pages project settings, not in GitHub. Imports from `src/` must be relative: the `@/` alias is known to Vite but not to esbuild
+- **CI/CD**:
+    - `.github/workflows/test.yml` — PR gate: lint → format:check → `tsc -b --noEmit` → vitest → Deno tests → Playwright
+    - `.github/workflows/deploy.yml` (push to `main`) — job `supabase` (`db push` + deploying both edge functions with `--no-verify-jwt --use-api`) and job `deploy` (`npm run build` without tsc → `wrangler pages deploy dist --project-name=map-euc --branch=main`) run in parallel, followed by a Telegram notification
+    - `.github/workflows/backup.yml` — database backups
+- **Locally**: Valet proxies `map.euc.test` → `localhost:5173` (`vite.config.ts` allowlists `map.euc.test`, `test.euc.kz`)
 
 ### PWA
 
-- Service worker `public/sw.js` — app shell cache + stale-while-revalidate для Supabase API, offline fallback
-- Иконки/сплэши: `npm run generate:pwa-icons` / `npm run generate:pwa-startup`
+- Service worker `public/sw.js` — app shell cache + stale-while-revalidate for the Supabase API, offline fallback. Build version is injected via the `__APP_VERSION__` define (`GITHUB_SHA` or a timestamp).
+- Icons/splash screens: `npm run generate:pwa-icons` / `npm run generate:pwa-startup`
 
-### Analytics (Яндекс.Метрика)
+### Analytics (Yandex.Metrika)
 
-Вся аналитика централизована в `src/lib/analytics.ts`. Не вызывать `ym()` из `react-metrika` напрямую в компонентах.
+All analytics is centralized in `src/lib/analytics.ts`. Never call `ym()` from `react-metrika` directly in components.
 
-- **События — только через хелперы**: `trackGoal(goal, params?)` и `trackPageView(url)` из `@/lib/analytics`. Обе функции — no-op без счётчика (`VITE_YANDEX_METRIKA_ID`) и глушат ошибки, чтобы аналитика не влияла на UX.
-- **Имена целей — закрытый union `MetrikaGoal`**. Новую цель добавлять туда с комментарием; строковые имена живут только в этом типе.
-- **SPA-переходы** трекает хук `useMetrikaPageViews` (`hit` на смену пути; первый рендер пропускается — его фиксирует init). Подключён в `YandexMetrika.tsx`.
-- **В админ-зоне (`/admin/*`) Метрика отключена полностью**: не рендерится `<MetrikaCounter>` (нет webvisor по админке) и не шлются pageview. Проверка — `isAdminPath(pathname)`.
-- `pwa_launch_standalone` — единственный сигнал об установленной PWA на iOS (`isStandaloneLaunch()` через `display-mode: standalone` + `navigator.standalone`), т.к. событие `appinstalled` там не срабатывает.
-- Для нового функционала аналитики писать тесты: мок `react-metrika`/`@/lib/analytics` через `vi.hoisted`; для env-зависимого `metrikaCounterId` — `vi.stubEnv` + `vi.resetModules` + динамический импорт.
+- **Events go through helpers only**: `trackGoal(goal, params?)` and `trackPageView(url)` from `@/lib/analytics`. Both are no-ops without a counter (`VITE_YANDEX_METRIKA_ID`) and swallow errors so analytics never affects UX.
+- **Goal names are a closed `MetrikaGoal` union**. Add new goals there with a comment; goal name strings live only in that type.
+- **SPA navigation** is tracked by the `useMetrikaPageViews` hook (`hit` on path change; the first render is skipped since init already reports it). Mounted in `YandexMetrika.tsx`.
+- **Metrika is fully off under `/admin/*`**: `<MetrikaCounter>` is not rendered (no webvisor over the admin panel) and no pageviews are sent. The check is `isAdminPath(pathname)`.
+- `pwa_launch_standalone` is the only signal of an installed PWA on iOS (`isStandaloneLaunch()` via `display-mode: standalone` + `navigator.standalone`), because `appinstalled` never fires there.
+- Write tests for new analytics: mock `react-metrika`/`@/lib/analytics` with `vi.hoisted`; for the env-dependent `metrikaCounterId` use `vi.stubEnv` + `vi.resetModules` + dynamic import.
 
 ## Workflow
 
-- Слои/источники/цвета — только через константы из `src/constants/index.ts`.
-- Для публичных функций/хуков/утилит/edge functions — краткий JSDoc с назначением и ключевыми эффектами.
-- Vitest-конфиг встроен в `vite.config.ts` (environment: jsdom, globals: true, setupFiles: `src/test/setup.ts`).
-- **Тесты обязательны для любого нового функционала** (компонент, хук, утилита) — писать `*.test.ts(x)` рядом с файлом, не заканчивать задачу без тестов.
+- Layers/sources/colors only through the constants in `src/constants/`.
+- Public functions/hooks/utils/edge functions get a short JSDoc stating purpose and key effects.
+- The Vitest config is embedded in `vite.config.ts` (environment: jsdom, globals: true, setupFiles: `src/test/setup.ts`; `supabase/functions/**` is excluded — those run under `deno test`).
+- **Tests are mandatory for any new functionality** (component, hook, util, pure bot function) — write `*.test.ts(x)` next to the file; do not close a task without tests.
+- A new frontend query to Supabase requires a matching mock in `tests/e2e/fixtures.ts`, otherwise e2e fails.
+- Notable changes get a line in `CHANGELOG.md` (`Added/Changed/Fixed` under a date). Commits follow Conventional Commits.
+
+## Danger Zones
+
+- `src/lib/mapLayers.ts` — a bad paint expression means an invisible layer with no console error
+- `supabase/migrations/` (RLS) — a bad policy means leaked or unreachable data
+- `src/hooks/useMapData.ts` — realtime update races (`telegramRefreshSeqRef`)
+- `supabase/functions/telegram-location-bot/` — bot token leak risk (avatar URLs, logs)
+- `public/sw.js` — a caching mistake strands users on a stale version
+- `functions/_lib/entities.ts` — the hourly dump: a bug here breaks OG previews and `sitemap.xml` for every crawler at once
+
+## Skills (`.claude/skills/`)
+
+| Skill                  | Use it for                                                              |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `commit`               | preparing a commit: checks, test coverage, docs/ freshness              |
+| `git-feature-workflow` | branch → commit → push → PR → merge into `main`                         |
+| `supabase-backup`      | dumping/restoring the production database                               |
+| `supabase-clone-prod`  | refresh the local stack: schema from migrations + data seeded from prod |
+| `update-bike-paths`    | rebuild `src/data/almaty.json` from velojol.kz                          |
+| `update-deps`          | npm dependency updates (minor/patch automatic, major with analysis)     |

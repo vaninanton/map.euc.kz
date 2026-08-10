@@ -1,35 +1,41 @@
-# Документация map.euc.kz
+# map.euc.kz documentation
 
-PWA-карта для райдеров на моноколёсах (EUC) в Алматы — live at **map.euc.kz**.
-Точки встреч, розетки, маршруты, велодорожки, live-геопозиции из Telegram-чатов, события и новости сообщества.
+A PWA map for EUC (electric unicycle) riders in Almaty — live at **map.euc.kz**.
+Meeting points, power sockets, routes, bike lanes, live geolocations from Telegram chats, community events and news.
 
-Эта директория — канонический источник документации проекта. Актуальность: **2026-07-02**.
-При изменении поведения, схемы БД или маршрутов — обновляйте соответствующий файл здесь.
+This directory is the canonical documentation for the project. Current as of **2026-08-10**.
+When behavior, the database schema or the routes change, update the relevant file here in the same commit.
 
-## Карта документации
+## Documentation map
 
-| Файл                               | Содержание                                                                                      |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [architecture.md](architecture.md) | Общая архитектура: топология, потоки данных, ключевые паттерны, структура репозитория           |
-| [frontend.md](frontend.md)         | SPA: маршруты, компоненты, хуки, константы, `lib/`, `utils/`, PWA/Service Worker, аналитика     |
-| [database.md](database.md)         | Supabase: все таблицы, RLS-политики, enums, RPC, Storage-бакеты, правила работы с миграциями    |
-| [telegram-bot.md](telegram-bot.md) | Edge Function `telegram-location-bot`: webhook, inline-режим, RSVP, анонсы, backfill, секреты   |
-| [events-news.md](events-news.md)   | Подсистема событий и новостей: публичный UI, админка, рассылка анонсов в Telegram               |
-| [admin.md](admin.md)               | Админка `/admin`: аутентификация, маршруты, adminApi, редактор маршрутов, компоненты            |
-| [testing.md](testing.md)           | Тестирование: Vitest, Playwright (моки), Deno-тесты edge-функции, pre-commit                    |
-| [deployment.md](deployment.md)     | CI/CD: deploy/test/backup workflows, переменные и секреты, локальный Supabase, Cloudflare Pages |
+| File                               | Contents                                                                                            |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [architecture.md](architecture.md) | Overall architecture: topology, data flows, key patterns, repository layout                         |
+| [frontend.md](frontend.md)         | SPA: routes, components, hooks, constants, `lib/`, `utils/`, PWA/Service Worker, analytics          |
+| [database.md](database.md)         | Supabase: every table, RLS policies, enums, RPC, Storage buckets, migration rules                   |
+| [telegram-bot.md](telegram-bot.md) | Edge Function `telegram-location-bot`: webhook, inline mode, RSVP, announcements, backfill, secrets |
+| [events-news.md](events-news.md)   | The events and news subsystem: public UI, admin panel, Telegram broadcasts                          |
+| [admin.md](admin.md)               | Admin panel `/admin`: authentication, routes, adminApi, route editor, components                    |
+| [testing.md](testing.md)           | Testing: Vitest, Playwright (mocks), Deno tests for the edge functions, pre-commit                  |
+| [deployment.md](deployment.md)     | CI/CD: deploy/test/backup workflows, variables and secrets, local Supabase, Cloudflare Pages        |
 
-## Правила разработки
+## Development rules
 
-- **[../AGENTS.md](../AGENTS.md)** — правила для AI-агентов и разработчиков: стиль кода, инварианты, чек-листы, запреты.
-- **[../CLAUDE.md](../CLAUDE.md)** — инструкции для Claude Code (согласованы с AGENTS.md).
+- **[../AGENTS.md](../AGENTS.md)** — rules for AI agents and developers: code style, invariants, checklists, prohibitions.
+- **[../CLAUDE.md](../CLAUDE.md)** — instructions for Claude Code (kept in sync with AGENTS.md).
+- **[../.claude/skills/](../.claude/skills/)** — Claude Code skills: `commit`, `git-feature-workflow`, `supabase-backup`, `supabase-clone-prod`, `update-bike-paths`, `update-deps`.
+- **[../CHANGELOG.md](../CHANGELOG.md)** — the log of notable changes (written in Russian; headings carry a date only, no version numbers).
 
-## Быстрый старт
+## Language
+
+This documentation, `AGENTS.md`, `CLAUDE.md` and the skills are written in English. User-facing content stays Russian: UI strings, code comments, `CHANGELOG.md`, commit descriptions and [../README.md](../README.md).
+
+## Quick start
 
 ```bash
 npm install
-cp .env.example .env.local   # заполнить VITE_MAPBOX_TOKEN, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
+cp .env.example .env.local   # fill in VITE_MAPBOX_TOKEN, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
 npm run dev                  # localhost:5173
 ```
 
-Полный список команд и переменных окружения — в [deployment.md](deployment.md), пользовательский обзор — в [../README.md](../README.md).
+The full list of commands and environment variables is in [deployment.md](deployment.md); the user-facing overview is in [../README.md](../README.md).

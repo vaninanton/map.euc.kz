@@ -1,90 +1,90 @@
-# События и новости
+# Events and news
 
-## События: публичная часть
+## Events: public side
 
-Маршруты: `/events` (лента) и `/events/:eventId` (детали). Строятся **только** через `buildEventDetailPath()` из `src/utils/eventLinks.ts`; `event` не входит в `HashFeatureType`, поэтому `/m/event/:id` — битая ссылка.
+Routes: `/events` (feed) and `/events/:eventId` (detail). Build them **only** with `buildEventDetailPath()` from `src/utils/eventLinks.ts`; `event` is not part of `HashFeatureType`, so `/m/event/:id` is a broken link.
 
-- `EventsScreen` — лента с фильтром по типу (`group_ride` «Покатушка», `event` «Мероприятие», `training` «Обучение»), сортировка по ближайшему вхождению; при открытии вызывает `markAsRead()`.
-- `EventCard` — превью: фото, тип, расписание (`summarizeEvent`: next / ongoing / schedule / isPast).
-- `EventDetailScreen` — фото, описание (через `applyTypography`), расписание, место, старт/финиш (`EndpointRow`: переход на привязанную точку либо центрирование по координатам), `EventShareBlock` (Telegram + копирование).
-- `PointEventsBlock` — блок «События здесь» в карточке точки (точка = старт или финиш события, `eventsForPoint()`).
-- `BottomTabBar` — таб «События» с бейджем непрочитанных.
+- `EventsScreen` — the feed with a type filter (`group_ride` «Покатушка», `event` «Мероприятие», `training` «Обучение»), sorted by the nearest occurrence; calls `markAsRead()` when opened.
+- `EventCard` — preview: photo, type, schedule (`summarizeEvent`: next / ongoing / schedule / isPast).
+- `EventDetailScreen` — photo, description (through `applyTypography`), schedule, place, start/finish (`EndpointRow`: navigates to the linked point or centers on the coordinates), `EventShareBlock` (Telegram + copy).
+- `PointEventsBlock` — the «События здесь» block in a point card (the point is the start or the finish of an event, `eventsForPoint()`).
+- `BottomTabBar` — the «События» tab with an unread badge.
 
-### Данные
+### Data
 
-`useEvents` (`src/hooks/useEvents.ts`) один раз грузит `fetchEvents()` (`lib/supabase.ts`):
-`map_events` (WHERE `flag_disabled = false`) c вложенными `map_event_dates` и привязанными точками старта/финиша; нормализация в `EventRow` с вычисленным `photo_url`.
+`useEvents` (`src/hooks/useEvents.ts`) loads `fetchEvents()` (`lib/supabase.ts`) once:
+`map_events` (WHERE `flag_disabled = false`) with nested `map_event_dates` and the linked start/finish points; normalized into `EventRow` with a computed `photo_url`.
 
-Расписание — `src/utils/eventSchedule.ts`:
+Scheduling lives in `src/utils/eventSchedule.ts`:
 
-- `validOccurrences()` — только неотменённые даты (единственный фильтр `cancelled`);
-- `getNextOccurrence()` — первое будущее вхождение;
+- `validOccurrences()` — non-cancelled dates only (the single `cancelled` filter);
+- `getNextOccurrence()` — the first future occurrence;
 - `formatOccurrenceLabel()` — «Сегодня в 19:00», «Завтра в 19:00», «14 июля, 19:00–20:30»;
-- «идущим» событие считается в интервале `[start, start + duration]`, default 60 мин.
+- an event counts as _ongoing_ within `[start, start + duration]`, defaulting to 60 minutes.
 
-### Бейдж непрочитанных
+### Unread badge
 
-`src/utils/eventsReadStore.ts`, localStorage `map-euc-events-last-read`:
-непрочитанное = событие с будущим вхождением И `created_at > lastReadAt`. Полностью прошедшие события новыми не считаются; если ленту ни разу не открывали — все актуальные события новые.
+`src/utils/eventsReadStore.ts`, localStorage key `map-euc-events-last-read`:
+unread = an event that has a future occurrence AND `created_at > lastReadAt`. Fully past events never count as new; if the feed has never been opened, every current event is new.
 
-## События: админка
+## Events: admin panel
 
-Маршруты: `/admin/event`, `/admin/event/new`, `/admin/event/:id`.
+Routes: `/admin/event`, `/admin/event/new`, `/admin/event/:id`.
 
-- `EventsPage` — список, toggle `flag_disabled`.
-- `EventEditPage` — `EventForm` (тип, название, описание, длительность, место: точка или координаты) + `EventPhotoManager` (бакет `map-event-photos`) + `EventDatesManager`.
-- `EventDatesManager` — CRUD дат (starts_at, note, cancelled), раскрывающийся список участников RSVP, кнопка «Telegram» → `EventAnnounceModal`.
-- `EventAnnounceModal` — режимы `send` (превью шапки + textarea тела + чекбоксы чатов из `pendingAnnouncementChats()` + флаг «Закрепить») и `edit` (правка/до-отправка/удаление).
-- `AnnouncementMessagesList` — история отправок с индикаторами (успех/ошибка/отменено/удалено) и pin/unpin.
+- `EventsPage` — the list, with a `flag_disabled` toggle.
+- `EventEditPage` — `EventForm` (type, title, description, duration, place: a point or raw coordinates) + `EventPhotoManager` (bucket `map-event-photos`) + `EventDatesManager`.
+- `EventDatesManager` — CRUD over dates (starts_at, note, cancelled), an expandable RSVP participant list, and a «Telegram» button opening `EventAnnounceModal`.
+- `EventAnnounceModal` — mode `send` (header preview + body textarea + chat checkboxes from `pendingAnnouncementChats()` + a «Закрепить» flag) and mode `edit` (edit / send to remaining chats / delete).
+- `AnnouncementMessagesList` — delivery history with status indicators (sent / error / cancelled / deleted) and pin/unpin.
 
-adminApi: `events.ts` (CRUD событий/дат/фото), `eventAnnouncements.ts` (announce/edit/cancel/delete/pin, участники), вызовы edge-функции через `announceClient.ts` → сабруты `announce*` (см. [telegram-bot.md](telegram-bot.md)).
+adminApi: `events.ts` (CRUD over events/dates/photos), `eventAnnouncements.ts` (announce/edit/cancel/delete/pin, participants); edge function calls go through `announceClient.ts` → the `announce*` subroutes (see [telegram-bot.md](telegram-bot.md)).
 
-Удаление события — **hard delete** (каскад на даты, участников и исходящие сообщения); фото удаляется из Storage перед удалением записи.
+Deleting an event is a **hard delete** (cascading to dates, participants and outbound messages); the photo is removed from Storage before the row is deleted.
 
-## Поток анонса даты события
+## Announcement flow for an event date
 
 ```
-Админ → EventDatesManager → EventAnnounceModal (выбор чатов, pin)
+Admin → EventDatesManager → EventAnnounceModal (pick chats, pin)
   → announceEventDate(eventDateId, messageText, destinationIds, pin)
-  → invokeAnnounce('announce', …)  [JWT администратора]
-  → Edge Function: шапка + тело → sendMessage/sendPhoto с кнопкой «Участвую (0)»
-  → записи в telegram_outbound_messages (sent_at | send_error)
+  → invokeAnnounce('announce', …)  [admin JWT]
+  → Edge Function: header + body → sendMessage/sendPhoto with an «Участвую (0)» button
+  → rows in telegram_outbound_messages (sent_at | send_error)
   → { sent: [...], failed: [...] }
 
-Правка   → 'announce-edit'   (editMessageText/Caption во всех живых сообщениях)
-Отмена   → 'announce-cancel' (текст «❌ ОТМЕНЕНО», снятие кнопки, cancelled_at)
-Удаление → 'announce-delete' (deleteMessage + deleted_at)
-Пин      → 'announce-pin'    (pinChatMessage / unpin, pinned_at)
+Edit   → 'announce-edit'   (editMessageText/Caption across every live message)
+Cancel → 'announce-cancel' («❌ ОТМЕНЕНО» text, button removed, cancelled_at)
+Delete → 'announce-delete' (deleteMessage + deleted_at)
+Pin    → 'announce-pin'    (pinChatMessage / unpin, pinned_at)
 
-RSVP: пользователь жмёт «Участвую» в Telegram → callback_query → toggle
-map_event_participants → пересчёт счётчика на кнопке во ВСЕХ чатах даты.
+RSVP: a user taps «Участвую» in Telegram → callback_query → toggles
+map_event_participants → the button counter is recomputed in EVERY chat of that date.
 ```
 
-## Новости
+## News
 
-Публичной страницы нет — новости пишутся в админке и рассылаются ботом в чаты.
+There is no public page — news items are written in the admin panel and broadcast by the bot into chats.
 
-Маршруты: `/admin/news`, `/admin/news/new`, `/admin/news/:id`.
+Routes: `/admin/news`, `/admin/news/new`, `/admin/news/:id`.
 
-- `NewsPage` — список (превью = первая непустая строка body, `newsTitlePreview()`), мягкое удаление.
-- `NewsEditPage` — textarea `body` (единственный источник истины) + `NewsPhotoManager` (бакет `map-news-photos`) + `NewsAnnounceManager`.
-- `NewsAnnounceManager` — выбор чатов и отправка (`news-announce`), синхронизация текста и заменённого фото во все живые сообщения (`news-announce-edit` — берёт актуальные body и photo_path из БД), удаление из Telegram (`news-announce-delete`); предупреждает о несохранённых изменениях перед синхронизацией.
+- `NewsPage` — the list (preview = the first non-empty line of body, `newsTitlePreview()`), soft delete.
+- `NewsEditPage` — a `body` textarea (the single source of truth) + `NewsPhotoManager` (bucket `map-news-photos`) + `NewsAnnounceManager`.
+- `NewsAnnounceManager` — chat selection and sending (`news-announce`), syncing the text and a replaced photo into every live message (`news-announce-edit` — reads the current body and photo_path from the database), deleting from Telegram (`news-announce-delete`); it warns about unsaved changes before syncing.
 
-Замена фото у отправленных сообщений (`news-announce-edit`) — только «фото → другое фото» через `editMessageMedia`; при успехе `photo_path` строки обновляется. Добавить фото к сообщению без него или убрать фото из сообщения с ним нельзя — Telegram не конвертирует медиа-сообщение в текстовое и наоборот, такая правка ограничивается подписью/текстом.
+Replacing the photo of already-sent messages (`news-announce-edit`) only works «photo → another photo» via `editMessageMedia`; on success the row's `photo_path` is updated. You cannot add a photo to a message that has none, or strip the photo from one that has it — Telegram does not convert a media message into a text message or back, so such an edit is limited to the caption/text.
 
-adminApi: `news.ts`, `newsAnnouncements.ts`; утилиты — `src/utils/newsAnnounce.ts` (`isLiveNewsAnnouncement`, `pendingNewsChats`, `newsTitlePreview`).
+adminApi: `news.ts`, `newsAnnouncements.ts`; utilities in `src/utils/newsAnnounce.ts` (`isLiveNewsAnnouncement`, `pendingNewsChats`, `newsTitlePreview`).
 
-Удаление новости — **soft delete** (`deleted_at`), фото удаляется из Storage.
+Deleting a news item is a **soft delete** (`deleted_at`); the photo is removed from Storage.
 
-## Чаты рассылки
+## Broadcast chats
 
-`/admin/telegram-chats` (`TelegramChatsPage`) → таблица `telegram_chats`: `chat_id`, `title`, `enabled`, `sort_order`, `message_thread_id` (тема форумной группы; NULL — обычный чат). Один физический чат может иметь несколько записей с разными темами — UNIQUE `(chat_id, message_thread_id) NULLS NOT DISTINCT`.
+`/admin/telegram-chats` (`TelegramChatsPage`) manages the `telegram_chats` table: `chat_id`, `title`, `enabled`, `sort_order`, `message_thread_id` (a forum group topic; NULL means a plain chat). One physical chat may have several rows for different topics — UNIQUE `(chat_id, message_thread_id) NULLS NOT DISTINCT`.
 
-## Инварианты
+## Invariants
 
-1. Ссылка на событие — только `/events/:id` (`buildEventDetailPath`); это касается и текстов бота (`EVENTS_PATH_PREFIX`).
-2. `telegram_outbound_messages` полиморфна: ровно один из `event_date_id` / `news_id` (CHECK).
-3. «Живое» сообщение = отправлено, без ошибки, не отменено, не удалено — только такие правятся/удаляются.
-4. `body_text` (события) и `map_news.body` (новости) — сырые тела для повторной правки; `message_text` и `photo_path` строки — снапшот отправленного (`photo_path` меняется только при реальной замене фото через `editMessageMedia`).
-5. Шапка анонса строится в `_pure.ts` бота и в `eventAnnounce.ts` фронта — менять синхронно.
-6. Отменённая дата (`cancelled`) не участвует в расписании (`validOccurrences`) и отклоняет RSVP.
+1. A link to an event is always `/events/:id` (`buildEventDetailPath`) — including in bot messages (`EVENTS_PATH_PREFIX`).
+2. `telegram_outbound_messages` is polymorphic: exactly one of `event_date_id` / `news_id` (enforced by a CHECK).
+3. A "live" message = sent, no error, not cancelled, not deleted — only those get edited or deleted.
+4. `body_text` (events) and `map_news.body` (news) are the raw bodies used for re-editing; the row's `message_text` and `photo_path` are a snapshot of what was sent (`photo_path` changes only on an actual photo replacement through `editMessageMedia`).
+5. The announcement header is built both in the bot's `_pure.ts` and in the frontend's `eventAnnounce.ts` — change them together.
+6. A cancelled date (`cancelled`) is excluded from the schedule (`validOccurrences`) and rejects RSVP.

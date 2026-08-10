@@ -1,105 +1,111 @@
-# Правила для агентов и разработчиков
+# Rules for agents and developers
 
-Проект: **map.euc.kz** — PWA-карта для райдеров на моноколёсах (EUC) в Алматы.
-React 19 + TypeScript (strict) + Vite 8 + Tailwind 4 + Mapbox GL JS 3 + Supabase (PostgreSQL/RLS/Realtime/Storage/Deno Edge Functions).
+Project: **map.euc.kz** — a PWA map for EUC (electric unicycle) riders in Almaty.
+React 19 + TypeScript (strict) + Vite 8 + Tailwind 4 + Mapbox GL JS 3 + Supabase (PostgreSQL/RLS/Realtime/Storage/Deno Edge Functions), hosted on Cloudflare Pages.
 
-Полная документация — в [docs/](docs/README.md): архитектура, фронтенд, БД, Telegram-бот, события/новости, админка, тесты, деплой. Прочитайте профильный файл перед изменением соответствующей подсистемы. **Изменили поведение — обновите docs/ в том же коммите.**
+Full documentation lives in [docs/](docs/README.md): architecture, frontend, DB, Telegram bot, events/news, admin panel, testing, deployment. Read the relevant file before changing a subsystem. **Change behavior — update docs/ in the same commit.**
 
-## Язык
+## Language
 
-UI-тексты, сообщения пользователю, комментарии в коде, коммиты по смыслу — **русский**. Идентификаторы — английский.
+UI strings, user-facing messages, code comments, `CHANGELOG.md` and commit descriptions are **Russian**. Identifiers are English. Developer documentation is English: `docs/`, `AGENTS.md`, `CLAUDE.md`, `.claude/skills/`. `README.md` stays Russian — it is the public face of the repository. When editing an existing file, write in that file's language.
 
-## Команды
+## Commands
 
 ```bash
-npm run dev          # Vite dev server (localhost:5173, доступен по сети)
+npm run dev          # Vite dev server (localhost:5173, reachable over LAN)
+npm run build        # vite build only (no type check — that is what CI does on deploy)
 npm run build:check  # tsc -b && vite build
 npm run lint         # ESLint (strictTypeChecked + react-hooks)
-npm test             # Vitest, один прогон
-npx vitest run src/utils/hashNav.test.ts   # один файл
-npm run test:e2e     # Playwright (моки Mapbox/Supabase, прод-сборка)
-npm run test:functions  # deno test для edge-функции
-npm run format       # Prettier
+npm run format       # Prettier --write; format:check is the CI/hook gate
+npm test             # Vitest, single run
+npx vitest run src/utils/hashNav.test.ts   # one file
+npm run test:e2e     # Playwright (Mapbox/Supabase mocks, production build)
+npm run test:functions  # deno test for the edge functions
+npm run secrets:sync # push edge-function secrets from .env.local
 ```
 
-Pre-commit (Husky): `lint → format:check → tsc → vitest → deno test → build → e2e`. Не обходить `--no-verify`.
+Pre-commit (Husky): `lint → format:check → tsc -b --noEmit → vitest → deno test → build → e2e`. Never bypass with `--no-verify`. Type checking must use `tsc -b` — `tsconfig.json` only holds project references.
 
-## Стиль кода
+## Code style
 
-- **Prettier**: 4 пробела, ширина 120, одинарные кавычки, без точек с запятой, trailing commas. YAML — 2 пробела.
-- **TypeScript**: strict, `noUnusedLocals/Parameters`. `any` избегать; при необходимости — явный `eslint-disable` с обоснованием.
-- Импорты: внешние библиотеки → внутренние по пути → `type`-импорты. Alias `@/` → `src/`.
-- Именование: PascalCase — компоненты/типы; camelCase — функции/хуки/переменные; UPPER_SNAKE — глобальные константы.
-- Только функциональные компоненты, именованный экспорт `export function ComponentName()`. Пропсы — отдельный интерфейс `ComponentNameProps`.
-- Отключение правил хуков — `// eslint-disable-next-line react-hooks/... -- краткое обоснование`.
-- В эффектах с подписками — ref на актуальный колбэк (не переподписываться каждый рендер).
-- Для публичных функций/хуков/утилит/edge functions — краткий JSDoc.
+- **Prettier**: 4 spaces, width 120, single quotes, no semicolons, trailing commas. YAML — 2 spaces.
+- **TypeScript**: strict, `noUnusedLocals/Parameters`. Avoid `any`; when unavoidable, add an explicit `eslint-disable` with justification.
+- Imports: external libraries → internal by path → `type` imports. Alias `@/` → `src/` (Vite/Vitest only; Pages Functions under `functions/` are bundled by esbuild and need relative paths).
+- Naming: PascalCase — components/types; camelCase — functions/hooks/variables; UPPER_SNAKE — global constants.
+- Function components only, named export `export function ComponentName()`. Props go in a separate `ComponentNameProps` interface.
+- Disabling hook rules: `// eslint-disable-next-line react-hooks/... -- краткое обоснование`.
+- Effects with subscriptions keep the live callback in a ref (do not resubscribe every render).
+- Short JSDoc for public functions/hooks/utils/edge functions.
 
 ### UI
 
-- Только Tailwind-классы; глобальные стили — `src/index.css`. Инлайн `style` — только для динамических значений.
-- Цвета UI — палитра Tailwind (neutral, white); цвета слоёв карты — только `COLORS` из `src/constants/index.ts`.
-- Кнопки: `type="button"`, `aria-label` где нужно, декоративные иконки `aria-hidden`. На всех `<button>` и `<a>` обязателен `cursor-pointer` (disabled — `cursor-not-allowed`).
-- Адаптив через `sm:`; safe area — глобально в `index.css`.
-- Map controls — только `map.addControl(...)`, без кастомных классов.
+- Tailwind classes only; global styles in `src/index.css`. Inline `style` only for dynamic values.
+- UI colors from the Tailwind palette (neutral, white) or `UI_ACCENT`; map layer colors only from `COLORS` in `src/constants/index.ts`.
+- Buttons: `type="button"`, `aria-label` where needed, decorative icons `aria-hidden`. Every `<button>` and `<a>` needs `cursor-pointer` (disabled — `cursor-not-allowed`).
+- Responsive via `sm:`; safe area handled globally in `index.css`.
+- Map controls only via `map.addControl(...)`, no custom classes.
 
-## Разделение слоёв
+## Layer separation
 
 ```
-components/  UI без бизнес-логики        hooks/   состояние и эффекты
-lib/         клиенты (supabase, mapLayers, env, analytics)
-utils/       чистые функции без React/Mapbox — ВСЕ покрыты тестами
-constants/   единственный источник LAYER_IDS, SOURCE_IDS, COLORS, подписей
-admin/       lazy-loaded админка со своим adminApi
+components/  UI without business logic     hooks/   state and effects
+lib/         clients (supabase, mapLayers, env, analytics)
+utils/       pure functions without React/Mapbox — ALL covered by tests
+constants/   single source for LAYER_IDS, SOURCE_IDS, COLORS, labels, layer registry
+admin/       lazy-loaded admin panel with its own adminApi
+functions/   Cloudflare Pages Functions (OG tags, sitemap) — separate runtime, no React
 ```
 
-Не размывать: логика запросов — не в компонентах; React/Mapbox — не в utils.
+Keep the boundaries: no query logic in components; no React/Mapbox in utils.
 
-## Жёсткие инварианты (нарушение = баг)
+## Hard invariants (breaking one is a bug)
 
-1. **Deep links**: фичи карты — `/m/:type/:id` (`buildMapDeepLinkPath`, union `HashFeatureType`); события — **только** `/events/:id` (`buildEventDetailPath` из `src/utils/eventLinks.ts`). `/m/event/...` — битая ссылка. В prod ссылки строить с `${import.meta.env.BASE_URL}` (base = `/`). Новая сущность со страницей ⇒ свой `build*Path`/`parse*Pathname` + маршрут в `App.tsx`.
-2. **Константы**: строковые ID слоёв/источников и цвета — только из `src/constants/index.ts`. Новый слой — регистрировать в `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`, `LAYER_ID_TO_SOURCE`, `mapLayerRegistry.ts`, `layerVisibility.ts`.
-3. **Миграции** — только файлы в `supabase/migrations/` + `supabase db push` (или CI). **Никогда** через MCP `apply_migration`/`execute_sql` (ломает историю миграций; чинить `supabase migration repair`). Каждая новая таблица — сразу с RLS-политиками.
-4. **Секреты**: service-role ключ и bot-токен — только в Edge Function/Supabase secrets, никогда в браузере, БД, URL или логах. Avatar-URL с `/file/bot` — запрещены (санировать). Не коммитить `.env.local`.
-5. **Аналитика**: только `trackGoal`/`trackPageView` из `@/lib/analytics`; новые цели — в union `MetrikaGoal`. В `/admin/*` Метрика полностью отключена. Не вызывать `ym()` напрямую.
-6. **Mapbox**: один инстанс через `useMapbox`; перед добавлением слоёв — `if (map.getStyle() === undefined) return`; после `setStyle` слои пересоздаются на `style.load`; hover/select — через feature-state, не через React-state.
-7. **Устойчивость**: запросы данных карты — через `withTimeoutAndRetry` и `Promise.allSettled`; отсутствие Supabase-конфига не должно ронять приложение.
-8. **Анонсы**: текст шапки анонса строится и в боте (`_pure.ts`), и в превью фронта (`utils/eventAnnounce.ts`) — менять синхронно. «Живые» сообщения бота определяются `isLiveAnnouncement`/`isLiveNewsAnnouncement`.
+1. **Deep links**: map features use `/m/:type/:id` (`buildMapDeepLinkPath`, union `HashFeatureType`); events use **only** `/events/:id` (`buildEventDetailPath` from `src/utils/eventLinks.ts`). `/m/event/...` is a broken link. Build production links with `${import.meta.env.BASE_URL}` (base = `/`). A new entity with its own page ⇒ its own `build*Path`/`parse*Pathname` pair plus a route in `App.tsx`.
+2. **Constants**: layer/source string IDs and colors come only from `src/constants/`. A new layer must be registered in `LAYER_IDS`, `SOURCE_IDS`, `CLICKABLE_LAYER_IDS`, `LAYER_ID_TO_KEY`, `LAYER_ID_TO_SOURCE`, `mapLayerRegistry.ts` and `layerVisibility.ts`.
+3. **Migrations** — files in `supabase/migrations/` applied with `supabase db push` (or CI) only. **Never** via MCP `apply_migration`/`execute_sql` (it corrupts migration history; repair with `supabase migration repair`). Every new table ships with its RLS policies. A merge to `main` applies migrations to production immediately.
+4. **Secrets**: the service-role key and the bot token live only in Edge Functions / Supabase secrets — never in the browser, the database, a URL or logs. Avatar URLs containing `/file/bot` are forbidden (sanitize them). Never commit `.env.local`.
+5. **Analytics**: only `trackGoal`/`trackPageView` from `@/lib/analytics`; new goals go into the `MetrikaGoal` union. Metrika is fully disabled under `/admin/*`. Never call `ym()` directly.
+6. **Mapbox**: one instance via `useMapbox`; before adding layers `if (map.getStyle() === undefined) return`; after `setStyle` layers are recreated on `style.load`; hover/select via feature-state, never React state; map padding only through `useMapPadding`.
+7. **Resilience**: map data requests go through `withTimeoutAndRetry` and `Promise.allSettled`; a missing Supabase config must not crash the app.
+8. **Announcements**: the announcement header text is built both in the bot (`_pure.ts`) and in the frontend preview (`utils/eventAnnounce.ts`) — change them together. "Live" bot messages are identified by `isLiveAnnouncement`/`isLiveNewsAnnouncement`.
+9. **Pages Functions**: `functions/` is a separate esbuild-bundled runtime — no `@/` alias, no React, no `import.meta.env` (use the `env` binding). OG tags and `sitemap.xml` share the hourly entity dump in `_lib/entities.ts`.
 
-## Тесты — обязательны
+## Tests are mandatory
 
-- Любой новый функционал (компонент, хук, утилита, чистая функция бота) — с `*.test.ts(x)` рядом с файлом. Не закрывать задачу без тестов.
-- Логика бота — сначала чистая функция в `_pure.ts` + deno-тест.
-- Новый запрос фронтенда к Supabase ⇒ добавить мок в `tests/e2e/fixtures.ts`, иначе e2e упадут.
-- E2E гоняются в CI и pre-commit; при правке UI-селекторов прогнать `npm run test:e2e` вручную до пуша.
-- Моки аналитики: `vi.hoisted`; env-зависимые модули: `vi.stubEnv` + `vi.resetModules` + динамический импорт.
+- Any new functionality (component, hook, util, pure bot function) ships with a `*.test.ts(x)` next to the file. Do not close a task without tests.
+- Bot logic starts as a pure function in `_pure.ts` + a Deno test.
+- A new frontend query to Supabase ⇒ add a mock to `tests/e2e/fixtures.ts`, otherwise e2e fails.
+- E2E runs in CI and in pre-commit; when touching UI selectors, run `npm run test:e2e` (or the affected spec) manually before pushing.
+- Analytics mocks: `vi.hoisted`; env-dependent modules: `vi.stubEnv` + `vi.resetModules` + dynamic import.
 
-## Окружение
+## Environment
 
-При добавлении `VITE_*`-переменной синхронизировать: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md` (+ `build:e2e` в `package.json`). Значения из `.env.local` предлагать командами: чувствительные — `gh secret set NAME --body "$NAME"`, некритичные — `gh variable set NAME --body "$NAME"`.
+When adding a `VITE_*` variable, sync: `.github/workflows/deploy.yml`, `.env.example`, `.env.local`, `README.md` and the `build:e2e` script in `package.json`. `tests/config/deployConfig.test.ts` guards the parity. Offer to upload values from `.env.local`: sensitive — `gh secret set NAME --body "$NAME"`, non-sensitive — `gh variable set NAME --body "$NAME"`. Pages Functions read `SUPABASE_URL`/`SUPABASE_ANON_KEY` from the Cloudflare project settings.
 
-## Коммиты и PR
+## Commits and PRs
 
-- Conventional Commits: `feat: …`, `fix: …`, `chore: …`, `ci: …`; императив, кратко; тело — по-русски допустимо.
-- CHANGELOG.md ведётся (`Added/Changed/Fixed` под датой) — дополняйте при заметных изменениях.
-- PR: описать пользовательское изменение, затронутые зоны (карта/админка/Supabase), миграции и новые переменные; скриншоты для UI.
+- Conventional Commits: `feat: …`, `fix: …`, `chore: …`, `ci: …`; imperative and short; the description is written in Russian.
+- `CHANGELOG.md` is maintained in Russian, newest first, headings are `## YYYY-MM-DD (тема)` with `Added/Changed/Fixed` sections — no version numbers. Add an entry for notable changes.
+- PR: describe the user-visible change, affected areas (map / admin / Supabase), migrations and new variables; screenshots for UI.
 
-## Типовые задачи — куда смотреть
+## Common tasks — where to look
 
-| Задача                     | Файлы / документ                                                                                |
-| -------------------------- | ----------------------------------------------------------------------------------------------- |
-| Новый слой карты           | `constants/*`, `lib/mapLayers.ts`, `hooks/useMapData.ts` → [docs/frontend.md](docs/frontend.md) |
-| Изменение схемы БД         | `supabase/migrations/` → [docs/database.md](docs/database.md)                                   |
-| Логика Telegram-бота       | `supabase/functions/telegram-location-bot/` → [docs/telegram-bot.md](docs/telegram-bot.md)      |
-| События / новости / анонсы | [docs/events-news.md](docs/events-news.md)                                                      |
-| Страницы админки           | `src/admin/` → [docs/admin.md](docs/admin.md)                                                   |
-| CI, бэкапы, переменные     | `.github/workflows/` → [docs/deployment.md](docs/deployment.md)                                 |
-| PWA / Service Worker       | `public/sw.js`, `src/main.tsx` → [docs/frontend.md](docs/frontend.md)                           |
+| Task                          | Files / document                                                                                |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| New map layer                 | `constants/*`, `lib/mapLayers.ts`, `hooks/useMapData.ts` → [docs/frontend.md](docs/frontend.md) |
+| DB schema change              | `supabase/migrations/` → [docs/database.md](docs/database.md)                                   |
+| Telegram bot logic            | `supabase/functions/telegram-location-bot/` → [docs/telegram-bot.md](docs/telegram-bot.md)      |
+| Events / news / announcements | [docs/events-news.md](docs/events-news.md)                                                      |
+| Admin pages                   | `src/admin/` → [docs/admin.md](docs/admin.md)                                                   |
+| OG tags, sitemap, SEO         | `functions/` → [docs/deployment.md](docs/deployment.md)                                         |
+| CI, backups, variables        | `.github/workflows/` → [docs/deployment.md](docs/deployment.md)                                 |
+| PWA / Service Worker          | `public/sw.js`, `src/main.tsx` → [docs/frontend.md](docs/frontend.md)                           |
 
-## Опасные зоны — менять с особой осторожностью
+## Danger zones — change with extra care
 
-- `src/lib/mapLayers.ts` — ошибка в paint-выражении = невидимый слой без ошибок в консоли;
-- `supabase/migrations/` (RLS) — ошибка политики = утечка или недоступность данных;
-- `src/hooks/useMapData.ts` — гонки realtime-обновлений (счётчик `telegramRefreshSeqRef`);
-- `supabase/functions/telegram-location-bot/` — риск утечки bot-токена;
-- `public/sw.js` — ошибка кеширования = пользователи застревают на старой версии.
+- `src/lib/mapLayers.ts` — a bad paint expression means an invisible layer with no console error;
+- `supabase/migrations/` (RLS) — a bad policy means leaked or unreachable data;
+- `src/hooks/useMapData.ts` — realtime update races (the `telegramRefreshSeqRef` counter);
+- `supabase/functions/telegram-location-bot/` — bot token leak risk;
+- `public/sw.js` — a caching mistake strands users on a stale version;
+- `functions/_lib/entities.ts` — the hourly dump feeds both OG previews and `sitemap.xml`; a bug hits every crawler at once.

@@ -25,10 +25,15 @@ The project `map.euc.kz` must show `●` (linked). If not:
 supabase link --project-ref sbfnottcjbbgoucfwbzs
 ```
 
-### 2. Create backup directory and ensure gitignore
+### 2. Create the backup directory
 
 ```bash
 mkdir -p /private/var/www/map.euc/supabase/backups
+```
+
+`supabase/backups/` is already in `.gitignore` — backups contain personal data (Telegram user IDs, coordinates). Verify it is still there before writing anything:
+
+```bash
 grep -q 'supabase/backups' /private/var/www/map.euc/.gitignore || echo 'supabase/backups/' >> /private/var/www/map.euc/.gitignore
 ```
 
@@ -114,7 +119,7 @@ ls -lh "/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql"
 # Check it starts with expected SQL header
 head -5 "/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql"
 
-# Count table dumps (expect ~7: 6 project tables + spatial_ref_sys from PostGIS)
+# Count table dumps (expect ~14: 13 project tables + spatial_ref_sys from PostGIS)
 grep -c "^COPY " "/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql" || true
 ```
 
@@ -129,20 +134,21 @@ Tell the user:
 
 | Table | Description |
 |---|---|
-| `map_points` | Verified map points (встречи, розетки и т.д.) |
-| `map_routes` | Routes / маршруты |
+| `map_points` | Verified map points (meeting spots, power sockets, …) |
+| `map_routes` | Routes |
 | `map_point_photos` | Photos attached to map points |
 | `map_points_submissions` | Moderation queue — pending point submissions |
+| `map_events` | Events (group rides, meetups, training) |
+| `map_event_dates` | Occurrence dates for an event |
+| `map_event_participants` | RSVPs collected from Telegram |
+| `map_news` | Project news (broadcast only, soft-deleted) |
+| `map_admin_users` | Admin allowlist gating every admin RLS policy |
 | `telegram_locations` | Real-time rider locations from Telegram |
 | `telegram_profiles` | Telegram user profiles + avatar cache |
+| `telegram_chats` | Broadcast destinations (chats and forum topics) |
+| `telegram_outbound_messages` | Every message the bot has sent (announcements, news) |
 
-## Gitignore note
-
-Add `supabase/backups/` to `.gitignore` — backups contain personal data (Telegram user IDs, coordinates):
-
-```bash
-grep -q 'supabase/backups' .gitignore || echo 'supabase/backups/' >> .gitignore
-```
+Full schema reference: [docs/database.md](../../../docs/database.md). Storage buckets are **not** covered by this skill — the nightly `backup.yml` workflow syncs them to S3 separately.
 
 ## Restoring from backup
 

@@ -24,9 +24,9 @@ git add src/components/Foo.tsx src/hooks/useBar.ts
 git commit -m "short imperative description"
 ```
 
-Commit message style from this repo: lowercase imperative, no period. Examples: `add radar range toggle`, `fix point form validation`, `update mapbox layer paint`.
+Commit message style from this repo: Conventional Commits with a Russian description, imperative, no trailing period. Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`; optional scope (`admin`, `map`, `og`, `seo`, `deps`, …). Examples: `feat(map): переключатель радиуса радара`, `fix(admin): валидация формы точки`, `chore(deps): обновить mapbox-gl`.
 
-If pre-commit hooks run (ESLint / tsc), fix any errors before retrying the commit. Never use `--no-verify`.
+The pre-commit hook runs the full gate — `lint → format:check → tsc -b --noEmit → vitest → deno tests → build → Playwright e2e` — so a commit can take minutes and e2e is the usual failure point. Fix any error and retry; never use `--no-verify`.
 
 ## 3. Push
 
@@ -42,8 +42,9 @@ gh pr create --title "Short title" --body "$(cat <<'EOF'
 - What changed and why
 
 ## Test plan
-- [ ] `npm run test` passes
-- [ ] `npm run build` succeeds
+- [ ] `npm test` passes
+- [ ] `npm run build:check` succeeds (tsc + vite build)
+- [ ] `npm run test:e2e` passes
 - [ ] Manually verified in browser
 EOF
 )"
@@ -93,7 +94,8 @@ git checkout main && git pull
 ## Gotchas
 
 - **`git push` asks for passphrase** — remote uses SSH (`git@github.com`). SSH key must be added to the agent: `ssh-add ~/.ssh/id_ed25519` (or equivalent).
-- **CI runs on push** — `.github/workflows/deploy.yml` deploys on merge to `main`. Don't merge if the build is broken.
-- **`--no-verify` is forbidden** — if lint/tsc hooks fail, fix the underlying issue first.
-- **`npm run lint` uses ESLint flat config** — `eslint.config.ts`, not `.eslintrc`. Don't add `.eslintignore`.
-- **Untracked `.claude/skills/`** — the skills directory is not yet committed. If you're committing it as part of a feature, add it explicitly: `git add .claude/skills/`.
+- **CI runs on push** — `.github/workflows/test.yml` is the PR gate (lint, format, types, unit, Deno, Playwright); `.github/workflows/deploy.yml` deploys to production on merge to `main` and also pushes DB migrations and edge functions. Don't merge if the build is broken.
+- **`--no-verify` is forbidden** — if the pre-commit gate fails, fix the underlying issue first.
+- **`npm run lint` uses ESLint flat config** — `eslint.config.js`, not `.eslintrc`. Don't add `.eslintignore`.
+- **DB migrations ship with the merge** — a PR touching `supabase/migrations/` applies to production the moment it lands on `main`. Review those PRs with extra care.
+- **`.claude/` is tracked** — `settings.json`, `launch.json` and `skills/` are committed; `settings.local.json` is not. Changes to skills belong in the commit that motivated them.
