@@ -3,7 +3,9 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { EventDatesManager } from '@/admin/components/EventDatesManager'
 import type { AdminEvent, AdminEventDate } from '@/admin/lib/adminApi'
 import {
+    addEventDate,
     cancelEventDateAnnouncements,
+    deleteEventDate,
     listEventAnnouncements,
     listEventAnnouncementsForDates,
     listEventDates,
@@ -29,6 +31,7 @@ vi.mock('@/admin/lib/adminApi', () => ({
 }))
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+const PAST = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
 const EVENT: AdminEvent = {
     id: 5,
@@ -215,5 +218,112 @@ describe('EventDatesManager', () => {
         expect(await screen.findByText('Сообщить в Telegram')).toBeInTheDocument()
         expect(screen.queryByText('Отправлено')).not.toBeInTheDocument()
         expect(screen.queryByText('Анонс в Telegram')).not.toBeInTheDocument()
+    })
+
+    describe('удаление даты', () => {
+        it('по клику на «Удалить» показывает подтверждение и НЕ удаляет сразу', async () => {
+            vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+
+            render(<EventDatesManager event={EVENT} />)
+
+            fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }))
+
+            expect(await screen.findByText('Удалить дату?')).toBeInTheDocument()
+            expect(deleteEventDate).not.toHaveBeenCalled()
+        })
+
+        it('удаляет дату только после подтверждения в диалоге', async () => {
+            vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+            vi.mocked(deleteEventDate).mockResolvedValue(undefined)
+
+            render(<EventDatesManager event={EVENT} />)
+
+            fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }))
+            await screen.findByText('Удалить дату?')
+
+            // В строке и в диалоге кнопки называются одинаково — подтверждающая идёт последней.
+            const buttons = screen.getAllByRole('button', { name: 'Удалить' })
+            fireEvent.click(buttons[buttons.length - 1])
+
+            await waitFor(() => {
+                expect(deleteEventDate).toHaveBeenCalledWith('date-1')
+            })
+        })
+
+        it('по «Отмена» в диалоге дату не удаляет', async () => {
+            vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+
+            render(<EventDatesManager event={EVENT} />)
+
+            fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }))
+            await screen.findByText('Удалить дату?')
+            fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
+
+            await waitFor(() => {
+                expect(screen.queryByText('Удалить дату?')).not.toBeInTheDocument()
+            })
+            expect(deleteEventDate).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('прошедшие даты', () => {
+        it('скрыты по умолчанию и раскрываются кнопкой', async () => {
+            vi.mocked(listEventDates).mockResolvedValue([
+                makeDate({ id: 'past-1', starts_at: PAST, note: 'Прошлая покатушка' }),
+                makeDate({ id: 'future-1', note: 'Будущая покатушка' }),
+            ])
+
+            render(<EventDatesManager event={EVENT} />)
+
+            expect(await screen.findByText(/Будущая покатушка/)).toBeInTheDocument()
+            expect(screen.queryByText(/Прошлая покатушка/)).not.toBeInTheDocument()
+
+            fireEvent.click(screen.getByRole('button', { name: 'Показать прошедшие (1)' }))
+
+            expect(await screen.findByText(/Прошлая покатушка/)).toBeInTheDocument()
+        })
+
+        it('без прошедших дат кнопка-раскрывашка не показывается', async () => {
+            vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+
+            render(<EventDatesManager event={EVENT} />)
+
+            await screen.findByText('Сообщить в Telegram')
+            expect(screen.queryByText(/Показать прошедшие/)).not.toBeInTheDocument()
+        })
+    })
+
+    describe('кнопка «+1 неделя»', () => {
+        it('добавляет дату на неделю позже последней, копируя заметку', async () => {
+            const last = makeDate({ id: 'last', starts_at: FUTURE, note: 'Сбор у фонтана' })
+            vi.mocked(listEventDates).mockResolvedValue([last])
+            vi.mocked(addEventDate).mockResolvedValue(last)
+
+            render(<EventDatesManager event={EVENT} />)
+
+            fireEvent.click(await screen.findByRole('button', { name: '+1 неделя' }))
+
+            await waitFor(() => {
+                expect(addEventDate).toHaveBeenCalledTimes(1)
+            })
+            const [eventId, input] = vi.mocked(addEventDate).mock.calls[0] as [
+                number,
+                { starts_at: string; note: string | null },
+            ]
+            expect(eventId).toBe(EVENT.id)
+            expect(input.note).toBe('Сбор у фонтана')
+            const expected = new Date(FUTURE)
+            expected.setDate(expected.getDate() + 7)
+            expect(new Date(input.starts_at).getTime()).toBe(expected.getTime())
+        })
+
+        it('не показывается, пока у события нет ни одной даты', async () => {
+            vi.mocked(listEventDates).mockResolvedValue([])
+
+            render(<EventDatesManager event={EVENT} />)
+
+            expect(await screen.findByText('Дат пока нет.')).toBeInTheDocument()
+            expect(screen.queryByRole('button', { name: '+1 неделя' })).not.toBeInTheDocument()
+        })
     })
 })

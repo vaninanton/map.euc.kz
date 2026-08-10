@@ -47,13 +47,16 @@ vi.mock('@/admin/lib/adminApi/parsers', () => ({
 
 import {
     addEventDate,
+    createEvent,
     deleteEvent,
     deleteEventDate,
     deleteEventPhoto,
     eventPhotoUrl,
+    listEvents,
     setEventPhoto,
     updateEventDate,
 } from '@/admin/lib/adminApi/events'
+import type { EventInput } from '@/admin/lib/adminApi/types'
 
 const EVENT = { id: 7, photo_path: 'events/7/old.jpg' }
 
@@ -201,6 +204,79 @@ describe('eventPhotoUrl', () => {
 
         expect(eventPhotoUrl('events/7/p.jpg')).toBe('https://cdn/events/7/p.jpg')
         expect(storageFrom).toHaveBeenCalledWith('map-event-photos')
+    })
+})
+
+describe('listEvents', () => {
+    it('забирает даты тем же запросом — списку нужна ближайшая дата без N+1', async () => {
+        const order = vi.fn()
+        const select = vi.fn(() => ({ order }))
+        fromTable.mockReturnValue({ select } as never)
+        runManyParsed.mockResolvedValue([])
+
+        await listEvents()
+
+        expect(fromTable).toHaveBeenCalledWith('map_events')
+        expect(select).toHaveBeenCalledWith(expect.stringContaining('dates:map_event_dates('))
+    })
+})
+
+describe('createEvent', () => {
+    const INPUT = { type: 'group_ride', title: 'Покатушка' } as unknown as EventInput
+    const FIRST_DATE = { starts_at: '2026-09-01T14:00:00Z', note: 'Сбор у фонтана' }
+
+    /** Общая цепочка: insert (событие и дата) + delete (откат). */
+    function mockChain(dateResult: { data: unknown; error: unknown }, deleteError: { message: string } | null = null) {
+        const single = vi.fn().mockResolvedValue(dateResult)
+        const select = vi.fn(() => ({ single }))
+        const insert = vi.fn(() => ({ select }))
+        const eq = vi.fn().mockResolvedValue({ error: deleteError })
+        const del = vi.fn(() => ({ eq }))
+        fromTable.mockReturnValue({ insert, delete: del } as never)
+        return { insert, eq }
+    }
+
+    it('создаёт событие и сразу первую дату', async () => {
+        runOneParsed.mockResolvedValue({ id: 7 })
+        const { insert } = mockChain({ data: { id: 'd1' }, error: null })
+
+        const created = await createEvent(INPUT, FIRST_DATE)
+
+        expect(created).toEqual({ id: 7 })
+        // Второй insert — дата, привязанная к созданному событию.
+        expect(insert).toHaveBeenNthCalledWith(2, { event_id: 7, ...FIRST_DATE })
+    })
+
+    it('откатывает событие, если дату вставить не удалось', async () => {
+        runOneParsed.mockResolvedValue({ id: 7 })
+        const { eq } = mockChain({ data: null, error: { code: '23505', message: 'duplicate key' } })
+
+        // Наружу уходит исходная ошибка — форма покажет её с сохранёнными полями.
+        await expect(createEvent(INPUT, FIRST_DATE)).rejects.toThrow('Такая дата и время уже добавлены.')
+        expect(eq).toHaveBeenCalledWith('id', 7)
+    })
+
+    it('если откат не удался — сообщает в консоль, но всё равно бросает исходную ошибку', async () => {
+        runOneParsed.mockResolvedValue({ id: 7 })
+        mockChain({ data: null, error: { code: '42501', message: 'permission denied' } }, { message: 'delete failed' })
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+        await expect(createEvent(INPUT, FIRST_DATE)).rejects.toThrow('permission denied')
+        expect(errorSpy).toHaveBeenCalledWith(
+            'createEvent:rollback',
+            expect.objectContaining({ message: 'delete failed' }),
+        )
+    })
+
+    it('не пытается создавать дату, если само событие не создалось', async () => {
+        runOneParsed.mockRejectedValue(new Error('insert failed'))
+        const { insert, eq } = mockChain({ data: null, error: null })
+
+        await expect(createEvent(INPUT, FIRST_DATE)).rejects.toThrow('insert failed')
+        // Цепочка запроса события строится до runOneParsed, поэтому один insert неизбежен;
+        // важно, что второго (вставки даты) и отката не было.
+        expect(insert).toHaveBeenCalledTimes(1)
+        expect(eq).not.toHaveBeenCalled()
     })
 })
 
