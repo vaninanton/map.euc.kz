@@ -8,5 +8,9 @@ package-lock.json
 composer.lock
 .claude
 supabase/.temp
+# Артефакты Playwright MCP (снимки страниц, логи консоли) — не наш код.
+.playwright-mcp
+playwright-report
+test-results
 # Большой сгенерированный GeoJSON велодорожек — не форматируем (огромный шумный дифф).
 src/data/almaty.json

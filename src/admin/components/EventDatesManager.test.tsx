@@ -31,6 +31,7 @@ vi.mock('@/admin/lib/adminApi', () => ({
 }))
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+const FUTURE_2 = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
 const PAST = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
 const EVENT: AdminEvent = {
@@ -221,27 +222,30 @@ describe('EventDatesManager', () => {
     })
 
     describe('удаление даты', () => {
+        /** Две даты — удаление разрешено только когда дата не единственная. */
+        const twoDates = () => [makeDate({ id: 'date-1' }), makeDate({ id: 'date-2', starts_at: FUTURE_2 })]
+
         it('по клику на «Удалить» показывает подтверждение и НЕ удаляет сразу', async () => {
-            vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+            vi.mocked(listEventDates).mockResolvedValue(twoDates())
 
             render(<EventDatesManager event={EVENT} />)
 
-            fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }))
+            fireEvent.click((await screen.findAllByRole('button', { name: 'Удалить' }))[0])
 
             expect(await screen.findByText('Удалить дату?')).toBeInTheDocument()
             expect(deleteEventDate).not.toHaveBeenCalled()
         })
 
         it('удаляет дату только после подтверждения в диалоге', async () => {
-            vi.mocked(listEventDates).mockResolvedValue([makeDate()])
+            vi.mocked(listEventDates).mockResolvedValue(twoDates())
             vi.mocked(deleteEventDate).mockResolvedValue(undefined)
 
             render(<EventDatesManager event={EVENT} />)
 
-            fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }))
+            fireEvent.click((await screen.findAllByRole('button', { name: 'Удалить' }))[0])
             await screen.findByText('Удалить дату?')
 
-            // В строке и в диалоге кнопки называются одинаково — подтверждающая идёт последней.
+            // В строках и в диалоге кнопки называются одинаково — подтверждающая идёт последней.
             const buttons = screen.getAllByRole('button', { name: 'Удалить' })
             fireEvent.click(buttons[buttons.length - 1])
 
@@ -250,12 +254,46 @@ describe('EventDatesManager', () => {
             })
         })
 
-        it('по «Отмена» в диалоге дату не удаляет', async () => {
+        it('единственную дату удалить нельзя — кнопка заблокирована', async () => {
             vi.mocked(listEventDates).mockResolvedValue([makeDate()])
 
             render(<EventDatesManager event={EVENT} />)
 
-            fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }))
+            const button = await screen.findByRole('button', { name: 'Удалить' })
+            expect(button).toBeDisabled()
+
+            fireEvent.click(button)
+
+            expect(screen.queryByText('Удалить дату?')).not.toBeInTheDocument()
+            expect(deleteEventDate).not.toHaveBeenCalled()
+        })
+
+        it('после удаления предпоследней даты оставшаяся становится неудаляемой', async () => {
+            vi.mocked(listEventDates)
+                .mockResolvedValueOnce(twoDates())
+                .mockResolvedValue([makeDate({ id: 'date-2' })])
+            vi.mocked(deleteEventDate).mockResolvedValue(undefined)
+
+            render(<EventDatesManager event={EVENT} />)
+
+            fireEvent.click((await screen.findAllByRole('button', { name: 'Удалить' }))[0])
+            const buttons = screen.getAllByRole('button', { name: 'Удалить' })
+            fireEvent.click(buttons[buttons.length - 1])
+
+            await waitFor(() => {
+                expect(deleteEventDate).toHaveBeenCalledTimes(1)
+            })
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: 'Удалить' })).toBeDisabled()
+            })
+        })
+
+        it('по «Отмена» в диалоге дату не удаляет', async () => {
+            vi.mocked(listEventDates).mockResolvedValue(twoDates())
+
+            render(<EventDatesManager event={EVENT} />)
+
+            fireEvent.click((await screen.findAllByRole('button', { name: 'Удалить' }))[0])
             await screen.findByText('Удалить дату?')
             fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
 

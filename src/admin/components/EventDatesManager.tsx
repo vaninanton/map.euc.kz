@@ -153,12 +153,18 @@ interface DateRowProps {
     onSave: (id: string, patch: { starts_at: string; note: string | null; cancelled: boolean }) => Promise<void>
     /** Запрашивает удаление — подтверждение показывает родитель. */
     onDelete: (id: string) => void
+    /**
+     * Можно ли удалять эту дату. У события всегда должна оставаться хотя бы одна дата:
+     * без дат оно пропадает из ленты и не анонсируется. Единственную дату не удаляем —
+     * вместо этого её переносят, отменяют или удаляют событие целиком.
+     */
+    canDelete: boolean
     /** Открыть модалку Telegram: отправка (если ещё не анонсировано) или управление отправленным. */
     onTelegram: (date: AdminEventDate) => void
 }
 
 /** Строка даты: просмотр и встроенное редактирование (время, заметка, отмена). */
-function DateRow({ date, busy, nowTs, announced, onSave, onDelete, onTelegram }: DateRowProps) {
+function DateRow({ date, busy, nowTs, announced, onSave, onDelete, canDelete, onTelegram }: DateRowProps) {
     const [editing, setEditing] = useState(false)
     const [editAt, setEditAt] = useState(() => isoToDatetimeLocal(date.starts_at))
     const [editNote, setEditNote] = useState(date.note ?? '')
@@ -280,11 +286,16 @@ function DateRow({ date, busy, nowTs, announced, onSave, onDelete, onTelegram }:
                         </button>
                         <button
                             type="button"
-                            disabled={busy}
+                            disabled={busy || !canDelete}
+                            title={
+                                canDelete
+                                    ? undefined
+                                    : 'Это единственная дата события. Перенесите или отмените её — либо удалите событие целиком.'
+                            }
                             onClick={() => {
                                 onDelete(date.id)
                             }}
-                            className="cursor-pointer rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            className="cursor-pointer rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Удалить
                         </button>
@@ -437,6 +448,12 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
     }
 
     const handleDelete = async (id: string) => {
+        // Страховка на случай устаревшего состояния кнопки: последнюю дату не удаляем.
+        if (dates.length <= 1) {
+            setError('У события должна остаться хотя бы одна дата. Перенесите или отмените её либо удалите событие.')
+            setConfirmDelete(null)
+            return
+        }
         setBusy(true)
         setError(null)
         try {
@@ -483,6 +500,7 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
                             busy={busy}
                             nowTs={nowTs}
                             announced={announcedDateIds.has(d.id)}
+                            canDelete={dates.length > 1}
                             onSave={handleSave}
                             onDelete={(id) => {
                                 setConfirmDelete(dates.find((item) => item.id === id) ?? null)
@@ -508,8 +526,11 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
 
             <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-neutral-100 pt-3">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Новая дата и время</label>
+                    <label htmlFor="new-event-date" className="mb-1 block text-xs font-medium text-neutral-700">
+                        Новая дата и время
+                    </label>
                     <input
+                        id="new-event-date"
                         type="datetime-local"
                         value={newDate}
                         onChange={(e) => {
@@ -520,8 +541,11 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
                     />
                 </div>
                 <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Заметка (необязательно)</label>
+                    <label htmlFor="new-event-note" className="mb-1 block text-xs font-medium text-neutral-700">
+                        Заметка (необязательно)
+                    </label>
                     <input
+                        id="new-event-note"
                         value={newNote}
                         onChange={(e) => {
                             setNewNote(e.target.value)

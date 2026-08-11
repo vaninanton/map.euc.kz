@@ -16,6 +16,9 @@ export default defineConfig([
         'test-results',
         // Временные бандлы wrangler (pages dev, functions build) — не наш код.
         '.wrangler',
+        // Временные файлы supabase CLI (start/stop): служебный код edge-рантайма,
+        // которого нет ни в одном tsconfig — иначе линтер падает при поднятом локальном стеке.
+        'supabase/.temp',
     ]),
     {
         files: ['public/sw.js'],
