@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode, type SyntheticEvent } from 'react'
 import type { EventType } from '@/types'
-import { listPoints, type EventInput } from '@/admin/lib/adminApi'
+import { listPoints, type EventDateInput, type EventInput } from '@/admin/lib/adminApi'
 import { AdminPointLocationMap } from '@/admin/components/AdminPointLocationMap'
+import { fromDatetimeLocal, nextDefaultEventDate, toDatetimeLocal } from '@/admin/utils/eventDates'
 import { MAP_CENTER } from '@/constants'
 
 export type EventFormValue = EventInput
@@ -9,7 +10,13 @@ export type EventFormValue = EventInput
 interface EventFormProps {
     initial: EventFormValue
     submitLabel: string
-    onSubmit: (value: EventFormValue) => Promise<void>
+    /**
+     * Показать блок первой даты проведения (режим создания). Дата обязательна: событие без дат
+     * не попадает в ленту и не анонсируется. В режиме редактирования блока нет — там датами
+     * управляет `EventDatesManager`.
+     */
+    withFirstDate?: boolean
+    onSubmit: (value: EventFormValue, firstDate: EventDateInput | null) => Promise<void>
     onCancel?: () => void
     children?: ReactNode
 }
@@ -156,7 +163,14 @@ function EndpointPicker({
     )
 }
 
-export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }: EventFormProps) {
+export function EventForm({
+    initial,
+    submitLabel,
+    withFirstDate = false,
+    onSubmit,
+    onCancel,
+    children,
+}: EventFormProps) {
     const [type, setType] = useState<EventType>(initial.type)
     const [title, setTitle] = useState(initial.title)
     const [description, setDescription] = useState(initial.description ?? '')
@@ -171,6 +185,14 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
     const [flagDisabled, setFlagDisabled] = useState(initial.flag_disabled)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    // Первая дата проведения — только в режиме создания. Предзаполнена ближайшим вечерним слотом.
+    const [firstDateAt, setFirstDateAt] = useState(() => toDatetimeLocal(nextDefaultEventDate(new Date())))
+    const [firstDateNote, setFirstDateNote] = useState('')
+    // Снимок «сейчас» на момент монтирования — чтобы предупредить о дате в прошлом без Date.now() в JSX.
+    const [mountedTs] = useState(() => Date.now())
+    const parsedFirstDate = fromDatetimeLocal(firstDateAt)
+    const firstDateInPast = parsedFirstDate !== null && parsedFirstDate.getTime() < mountedTs
 
     const [points, setPoints] = useState<EndpointOption[]>([])
     const [pointsLoading, setPointsLoading] = useState(true)
@@ -206,21 +228,33 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
             return
         }
 
+        let firstDate: EventDateInput | null = null
+        if (withFirstDate) {
+            if (parsedFirstDate === null) {
+                setError('Укажите дату и время проведения.')
+                return
+            }
+            firstDate = { starts_at: parsedFirstDate.toISOString(), note: firstDateNote.trim() || null }
+        }
+
         setSubmitting(true)
         try {
-            await onSubmit({
-                type,
-                title: titleTrimmed,
-                description: description.trim() || null,
-                duration_minutes: durationNum,
-                location_text: locationText.trim() || null,
-                // Точка приоритетнее координат: при выбранной точке координаты не пишем.
-                start_coordinates: startPointId !== null ? null : startCoordinates,
-                finish_coordinates: finishPointId !== null ? null : finishCoordinates,
-                start_point_id: startPointId,
-                finish_point_id: finishPointId,
-                flag_disabled: flagDisabled,
-            })
+            await onSubmit(
+                {
+                    type,
+                    title: titleTrimmed,
+                    description: description.trim() || null,
+                    duration_minutes: durationNum,
+                    location_text: locationText.trim() || null,
+                    // Точка приоритетнее координат: при выбранной точке координаты не пишем.
+                    start_coordinates: startPointId !== null ? null : startCoordinates,
+                    finish_coordinates: finishPointId !== null ? null : finishCoordinates,
+                    start_point_id: startPointId,
+                    finish_point_id: finishPointId,
+                    flag_disabled: flagDisabled,
+                },
+                firstDate,
+            )
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
         } finally {
@@ -237,8 +271,11 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
         >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Тип</label>
+                    <label htmlFor="event-type" className="mb-1 block text-xs font-medium text-neutral-700">
+                        Тип
+                    </label>
                     <select
+                        id="event-type"
                         value={type}
                         onChange={(e) => {
                             setType(e.target.value as EventType)
@@ -253,8 +290,11 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                     </select>
                 </div>
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Название</label>
+                    <label htmlFor="event-title" className="mb-1 block text-xs font-medium text-neutral-700">
+                        Название
+                    </label>
                     <input
+                        id="event-title"
                         value={title}
                         onChange={(e) => {
                             setTitle(e.target.value)
@@ -266,8 +306,11 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
             </div>
 
             <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-700">Описание</label>
+                <label htmlFor="event-description" className="mb-1 block text-xs font-medium text-neutral-700">
+                    Описание
+                </label>
                 <textarea
+                    id="event-description"
                     value={description}
                     onChange={(e) => {
                         setDescription(e.target.value)
@@ -277,12 +320,60 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                 />
             </div>
 
+            {withFirstDate && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                    <div className="mb-2 text-sm font-medium text-neutral-800">Дата проведения</div>
+                    <div className="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label
+                                htmlFor="event-first-date"
+                                className="mb-1 block text-xs font-medium text-neutral-700"
+                            >
+                                Когда
+                            </label>
+                            <input
+                                id="event-first-date"
+                                type="datetime-local"
+                                value={firstDateAt}
+                                onChange={(e) => {
+                                    setFirstDateAt(e.target.value)
+                                }}
+                                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                            />
+                        </div>
+                        <div className="min-w-40 flex-1">
+                            <label
+                                htmlFor="event-first-note"
+                                className="mb-1 block text-xs font-medium text-neutral-700"
+                            >
+                                Заметка (необязательно)
+                            </label>
+                            <input
+                                id="event-first-note"
+                                value={firstDateNote}
+                                onChange={(e) => {
+                                    setFirstDateNote(e.target.value)
+                                }}
+                                placeholder="Например, езда спиной вперёд"
+                                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                            />
+                        </div>
+                    </div>
+                    <p className="mt-2 text-xs text-neutral-500">
+                        {firstDateInPast
+                            ? '⚠️ Дата в прошлом — событие сразу попадёт в «Прошедшие».'
+                            : 'Повторы и дополнительные даты добавляются после создания.'}
+                    </p>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">
+                    <label htmlFor="event-duration" className="mb-1 block text-xs font-medium text-neutral-700">
                         Длительность, мин (необязательно)
                     </label>
                     <input
+                        id="event-duration"
                         type="number"
                         min={1}
                         value={durationMinutes}
@@ -293,8 +384,11 @@ export function EventForm({ initial, submitLabel, onSubmit, onCancel, children }
                     />
                 </div>
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Место (текстом)</label>
+                    <label htmlFor="event-location" className="mb-1 block text-xs font-medium text-neutral-700">
+                        Место (текстом)
+                    </label>
                     <input
+                        id="event-location"
                         value={locationText}
                         onChange={(e) => {
                             setLocationText(e.target.value)

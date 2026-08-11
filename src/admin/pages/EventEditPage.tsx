@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { createEvent, deleteEvent, getEvent, updateEvent, type AdminEvent } from '@/admin/lib/adminApi'
+import {
+    createEvent,
+    deleteEvent,
+    getEvent,
+    updateEvent,
+    type AdminEvent,
+    type EventDateInput,
+} from '@/admin/lib/adminApi'
 import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
 import { EventForm, type EventFormValue } from '@/admin/components/EventForm'
 import { EventPhotoManager } from '@/admin/components/EventPhotoManager'
@@ -68,9 +75,12 @@ export function EventEditPage({ mode }: EventEditPageProps) {
         }
     }, [mode, eventId])
 
-    const handleSubmit = async (value: EventFormValue) => {
+    const handleSubmit = async (value: EventFormValue, firstDate: EventDateInput | null) => {
         if (mode === 'create') {
-            const created = await createEvent(value)
+            if (firstDate === null) throw new Error('Укажите дату и время проведения.')
+            // Событие создаётся сразу с датой; при ошибке даты createEvent откатывает событие
+            // и бросает наружу — форма покажет ошибку с сохранёнными полями.
+            const created = await createEvent(value, firstDate)
             await navigate(`/admin/event/${String(created.id)}`, { replace: true })
         } else if (eventId !== null) {
             await updateEvent(eventId, value)
@@ -122,6 +132,7 @@ export function EventEditPage({ mode }: EventEditPageProps) {
                         key={mode === 'edit' && eventId !== null ? String(eventId) : 'create'}
                         initial={initial}
                         submitLabel={mode === 'create' ? 'Создать' : 'Сохранить'}
+                        withFirstDate={mode === 'create'}
                         onSubmit={handleSubmit}
                         onCancel={() => {
                             void navigate('/admin/event')

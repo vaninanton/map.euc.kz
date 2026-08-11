@@ -113,15 +113,21 @@ pg_dump \
 ### 5. Verify the dump
 
 ```bash
-# Check file size (should be > 0, full dump ~70+ MB)
+# Check file size (~150 MB as of 2026-08-11; telegram_locations is almost all of it)
 ls -lh "/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql"
 
 # Check it starts with expected SQL header
 head -5 "/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql"
 
-# Count table dumps (expect ~14: 13 project tables + spatial_ref_sys from PostGIS)
+# Count table dumps — expect 13, one per project table (no PostGIS in this project)
 grep -c "^COPY " "/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql" || true
+
+# Row count per table — the quickest way to spot a truncated dump
+awk '/^COPY /{t=$2; c=0; next} t && /^\\\.$/{printf "%-45s %s\n", t, c; t=""; next} t{c++}' \
+    "/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql"
 ```
+
+The dump should also carry the schema: 13 `CREATE TABLE`, 43 `CREATE POLICY` and 4 functions (`get_admin_dashboard_stats`, `get_latest_telegram_locations`, and the two `set_*_updated_at` triggers).
 
 ### 6. Report
 

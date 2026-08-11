@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
     parseAdminEvent,
     parseAdminEventAnnouncement,
     parseAdminEventDate,
+    parseAdminEventListItem,
     parseAdminEventParticipant,
     parseAdminDashboardStats,
     parseAdminMapPoint,
@@ -477,5 +478,45 @@ describe('parseAdminDashboardStats', () => {
         expect(() =>
             parseAdminDashboardStats({ ...DASHBOARD_STATS, daily_activity: [{ day: 5, riders: 1, locations: 1 }] }),
         ).toThrow('daily_activity[0]')
+    })
+})
+
+describe('parseAdminEventListItem', () => {
+    function eventRow(overrides: Record<string, unknown> = {}) {
+        return {
+            id: 5,
+            created_at: '2026-06-01T00:00:00Z',
+            type: 'group_ride',
+            title: 'Покатушка',
+            flag_disabled: false,
+            ...overrides,
+        }
+    }
+
+    const validDate = { id: 'd1', starts_at: '2026-07-01T14:00:00Z', note: null, cancelled: false }
+
+    it('нормализует вложенные даты', () => {
+        const item = parseAdminEventListItem(eventRow({ dates: [validDate] }))
+        expect(item.id).toBe(5)
+        expect(item.dates).toEqual([validDate])
+    })
+
+    it('без вложенных дат отдаёт пустой массив, а не undefined', () => {
+        expect(parseAdminEventListItem(eventRow()).dates).toEqual([])
+        expect(parseAdminEventListItem(eventRow({ dates: null })).dates).toEqual([])
+    })
+
+    it('битую дату пропускает, не роняя всё событие', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+        const item = parseAdminEventListItem(eventRow({ dates: [{ id: 42 }, validDate] }))
+
+        expect(item.dates).toEqual([validDate])
+        expect(warnSpy).toHaveBeenCalled()
+        warnSpy.mockRestore()
+    })
+
+    it('битое само событие — ошибка, как и в parseAdminEvent', () => {
+        expect(() => parseAdminEventListItem(eventRow({ id: 'x' }))).toThrow('id')
     })
 })
