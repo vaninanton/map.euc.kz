@@ -124,9 +124,11 @@ test.describe('Лента событий — карточка ведёт на с
         await expect(page).toHaveURL('/events/evt-training')
 
         // На странице события привязанная точка-старт рендерится ссылкой на карточку точки.
-        // У этого события есть и точка-старт, и текстовое место — на кнопке показывается место.
-        const startLink = detail.getByRole('link', { name: /Площадь Республики/ })
+        // У этого события есть и точка-старт, и текстовое место: «Старт» показывает точку,
+        // а текстовое место остаётся отдельной строкой.
+        const startLink = detail.getByRole('link', { name: /Парк Горького/ })
         await expect(startLink).toHaveAttribute('href', /\/m\/point\/1$/)
+        await expect(detail.getByText('Площадь Республики')).toBeVisible()
     })
 
     test('страница события с ручными координатами старта показывает «Показать на карте»', async ({ page }) => {

@@ -71,4 +71,21 @@ describe('EventCard', () => {
 
         expect(screen.getByText('У главного входа')).toBeInTheDocument()
     })
+
+    it('показывает текстовое место и при привязанной точке-старте', () => {
+        renderCard(
+            cardEvent({
+                location_text: 'БАО',
+                start_point: { id: 'p19', title: 'Визит-центр Аюсай', coordinates: [76.98, 43.13] },
+            }),
+        )
+
+        expect(screen.getByText('БАО')).toBeInTheDocument()
+    })
+
+    it('без текстового места показывает название точки-старта', () => {
+        renderCard(cardEvent({ start_point: { id: 'p19', title: 'Визит-центр Аюсай', coordinates: [76.98, 43.13] } }))
+
+        expect(screen.getByText('Визит-центр Аюсай')).toBeInTheDocument()
+    })
 })

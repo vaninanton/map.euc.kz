@@ -33,8 +33,6 @@ interface EndpointRowProps {
     fallbackLabel: string
     point: EventLinkedPoint | null
     coordinates: [number, number] | null
-    /** Переопределяет подпись точки (например, текстовым местом события). */
-    labelOverride?: string | null
     onShowCoordinates?: (coordinates: [number, number]) => void
 }
 
@@ -46,7 +44,6 @@ function EndpointRow({
     fallbackLabel,
     point,
     coordinates,
-    labelOverride,
     onShowCoordinates,
 }: EndpointRowProps) {
     const className =
@@ -57,7 +54,7 @@ function EndpointRow({
         control = (
             <Link to={`/${buildMapDeepLinkPath('point', point.id)}`} className={className}>
                 <FontAwesomeIcon icon={icon} className={iconClassName} aria-hidden />
-                {labelOverride ?? point.title}
+                {point.title}
             </Link>
         )
     } else if (coordinates) {
@@ -81,7 +78,8 @@ function EndpointRow({
 
 /** Полноэкранная страница одного события: фото, тип, расписание, даты, место, шаринг. */
 export function EventDetailScreen({ event, loading, error, onClose, onShowOnMap }: EventDetailScreenProps) {
-    const startLabelOverride = event?.start_point ? event.location_text : null
+    // Текстовое место — самостоятельная строка; прячем её, только если она дословно повторяет точку старта.
+    const showLocationText = Boolean(event?.location_text) && event?.location_text !== event?.start_point?.title
     const { ongoing } = useMemo(() => (event ? summarizeEvent(event) : { ongoing: null }), [event])
     const upcoming = useMemo(() => (event ? getUpcomingOccurrences(event, new Date(), 10) : []), [event])
 
@@ -195,7 +193,7 @@ export function EventDetailScreen({ event, loading, error, onClose, onShowOnMap 
                             </div>
 
                             {/* Место */}
-                            {event.location_text && !startLabelOverride && (
+                            {event.location_text && showLocationText && (
                                 <div className="mt-4 flex items-center gap-2 text-sm text-neutral-700">
                                     <FontAwesomeIcon
                                         icon={faLocationDot}
@@ -215,7 +213,6 @@ export function EventDetailScreen({ event, loading, error, onClose, onShowOnMap 
                                     fallbackLabel="Показать на карте"
                                     point={event.start_point}
                                     coordinates={event.start_coordinates}
-                                    labelOverride={startLabelOverride}
                                     onShowCoordinates={onShowOnMap}
                                 />
                                 <EndpointRow
