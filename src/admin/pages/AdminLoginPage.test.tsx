@@ -4,6 +4,8 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { AdminLoginPage } from '@/admin/pages/AdminLoginPage'
 import { isPasskeySupported, signInWithPasskey } from '@/admin/lib/passkeys'
 import { requireSupabase } from '@/lib/supabase'
+import { signInWithTelegram } from '@/admin/lib/telegramIdentity'
+import { sendPasswordReset } from '@/admin/lib/passwordReset'
 
 vi.mock('@/admin/lib/passkeys', () => ({
     isPasskeySupported: vi.fn(),
@@ -12,6 +14,14 @@ vi.mock('@/admin/lib/passkeys', () => ({
 
 vi.mock('@/lib/supabase', () => ({
     requireSupabase: vi.fn(),
+}))
+
+vi.mock('@/admin/lib/telegramIdentity', () => ({
+    signInWithTelegram: vi.fn(),
+}))
+
+vi.mock('@/admin/lib/passwordReset', () => ({
+    sendPasswordReset: vi.fn(),
 }))
 
 const signInWithPassword = vi.fn()
@@ -27,6 +37,8 @@ function setup() {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(isPasskeySupported).mockReturnValue(true)
+    vi.mocked(signInWithTelegram).mockResolvedValue(undefined)
+    vi.mocked(sendPasswordReset).mockResolvedValue(undefined)
     // Моку клиента не нужен полный тип SupabaseClient — страница вызывает только signInWithPassword.
     vi.mocked(requireSupabase).mockReturnValue({
         auth: { signInWithPassword },
@@ -40,9 +52,23 @@ describe('AdminLoginPage', () => {
         expect(screen.queryByLabelText('Пароль')).not.toBeInTheDocument()
     })
 
-    it('кнопки входа через Telegram нет', () => {
+    it('запускает вход через Telegram', async () => {
         setup()
-        expect(screen.queryByText(/Telegram/)).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Войти через Telegram' }))
+
+        await waitFor(() => {
+            expect(signInWithTelegram).toHaveBeenCalled()
+        })
+    })
+
+    it('показывает ошибку входа через Telegram', async () => {
+        vi.mocked(signInWithTelegram).mockRejectedValue(new Error('Provider telegram could not be found'))
+        setup()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Войти через Telegram' }))
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Provider telegram could not be found')
     })
 
     it('вызывает вход по пасскею', async () => {
@@ -84,5 +110,26 @@ describe('AdminLoginPage', () => {
         await waitFor(() => {
             expect(signInWithPassword).toHaveBeenCalledWith({ email: 'admin@example.com', password: 'secret123' })
         })
+    })
+
+    it('отправляет ссылку восстановления на введённый email', async () => {
+        setup()
+        fireEvent.click(screen.getByRole('button', { name: 'Войти по email и паролю' }))
+        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'admin@example.com' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Забыли пароль?' }))
+
+        await waitFor(() => {
+            expect(sendPasswordReset).toHaveBeenCalledWith('admin@example.com')
+        })
+        expect(await screen.findByText(/Письмо со ссылкой отправлено/)).toBeInTheDocument()
+    })
+
+    it('без корректного email письмо не отправляет', () => {
+        setup()
+        fireEvent.click(screen.getByRole('button', { name: 'Войти по email и паролю' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Забыли пароль?' }))
+
+        expect(sendPasswordReset).not.toHaveBeenCalled()
+        expect(screen.getByText('Введите корректный email')).toBeInTheDocument()
     })
 })

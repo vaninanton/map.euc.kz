@@ -3,6 +3,8 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { SettingsPage } from '@/admin/pages/SettingsPage'
 import { deletePasskey, isPasskeySupported, registerPasskey, renamePasskey } from '@/admin/lib/passkeys'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
+import { fetchTelegramIdentity, linkTelegram, unlinkTelegram } from '@/admin/lib/telegramIdentity'
+import type { UserIdentity } from '@supabase/supabase-js'
 
 vi.mock('@/admin/lib/passkeys', () => ({
     isPasskeySupported: vi.fn(),
@@ -15,6 +17,19 @@ vi.mock('@/admin/lib/passkeys', () => ({
 vi.mock('@/admin/hooks/useAdminListLoader', () => ({
     useAdminListLoader: vi.fn(),
 }))
+
+vi.mock('@/admin/lib/telegramIdentity', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/admin/lib/telegramIdentity')>()),
+    fetchTelegramIdentity: vi.fn(),
+    linkTelegram: vi.fn(),
+    unlinkTelegram: vi.fn(),
+}))
+
+const TELEGRAM_IDENTITY = {
+    id: 'i1',
+    provider: 'custom:telegram',
+    identity_data: { user_name: 'vanton' },
+} as unknown as UserIdentity
 
 const PASSKEY = {
     id: 'p1',
@@ -39,6 +54,9 @@ function setupLoader(items = [PASSKEY]) {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(isPasskeySupported).mockReturnValue(true)
+    vi.mocked(fetchTelegramIdentity).mockResolvedValue(null)
+    vi.mocked(linkTelegram).mockResolvedValue(undefined)
+    vi.mocked(unlinkTelegram).mockResolvedValue(undefined)
 })
 
 describe('SettingsPage', () => {
@@ -135,5 +153,32 @@ describe('SettingsPage', () => {
 
         expect(screen.queryByRole('button', { name: 'Добавить пасскей' })).not.toBeInTheDocument()
         expect(screen.getByText(/не поддерживает пасскеи/)).toBeInTheDocument()
+    })
+
+    it('без привязки предлагает привязать Telegram', async () => {
+        setupLoader()
+        render(<SettingsPage />)
+
+        const button = await screen.findByRole('button', { name: /Привязать Telegram/ })
+        fireEvent.click(button)
+
+        await waitFor(() => {
+            expect(linkTelegram).toHaveBeenCalled()
+        })
+    })
+
+    it('показывает привязанный аккаунт и отвязывает его', async () => {
+        vi.mocked(fetchTelegramIdentity).mockResolvedValue(TELEGRAM_IDENTITY)
+        vi.spyOn(window, 'confirm').mockReturnValue(true)
+        setupLoader()
+        render(<SettingsPage />)
+
+        expect(await screen.findByText('@vanton')).toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: 'Отвязать' }))
+
+        await waitFor(() => {
+            expect(unlinkTelegram).toHaveBeenCalledWith(TELEGRAM_IDENTITY)
+        })
+        expect(await screen.findByRole('button', { name: /Привязать Telegram/ })).toBeInTheDocument()
     })
 })

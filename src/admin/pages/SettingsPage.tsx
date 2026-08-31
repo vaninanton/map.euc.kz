@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAdminListLoader } from '@/admin/hooks/useAdminListLoader'
 import {
     deletePasskey,
@@ -8,7 +8,15 @@ import {
     renamePasskey,
     type AdminPasskey,
 } from '@/admin/lib/passkeys'
+import {
+    describeTelegramIdentity,
+    fetchTelegramIdentity,
+    linkTelegram,
+    unlinkTelegram,
+} from '@/admin/lib/telegramIdentity'
 import { formatAdminDate } from '@/admin/utils/formatAdminDate'
+import { IconTelegram } from '@/components/icons/IconTelegram'
+import type { UserIdentity } from '@supabase/supabase-js'
 
 function defaultPasskeyName(): string {
     // Подсказываем понятное имя: пасскеев может быть несколько (телефон, ноутбук, ключ).
@@ -30,6 +38,54 @@ export function SettingsPage() {
     const [busyId, setBusyId] = useState<string | null>(null)
     const [formError, setFormError] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
+
+    const [telegram, setTelegram] = useState<UserIdentity | null>(null)
+    const [telegramLoading, setTelegramLoading] = useState(true)
+    const [telegramBusy, setTelegramBusy] = useState(false)
+    const [telegramError, setTelegramError] = useState<string | null>(null)
+
+    useEffect(() => {
+        let cancelled = false
+        fetchTelegramIdentity()
+            .then((identity) => {
+                if (!cancelled) setTelegram(identity)
+            })
+            .catch((err: unknown) => {
+                if (!cancelled) setTelegramError(err instanceof Error ? err.message : String(err))
+            })
+            .finally(() => {
+                if (!cancelled) setTelegramLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+    const handleTelegramLink = async () => {
+        setTelegramBusy(true)
+        setTelegramError(null)
+        try {
+            // При успехе браузер уходит на oauth.telegram.org и возвращается уже на /admin.
+            await linkTelegram()
+        } catch (err) {
+            setTelegramError(err instanceof Error ? err.message : String(err))
+            setTelegramBusy(false)
+        }
+    }
+
+    const handleTelegramUnlink = async (identity: UserIdentity) => {
+        if (!window.confirm('Отвязать Telegram? Войти через него в этот аккаунт больше не получится.')) return
+        setTelegramBusy(true)
+        setTelegramError(null)
+        try {
+            await unlinkTelegram(identity)
+            setTelegram(null)
+        } catch (err) {
+            setTelegramError(err instanceof Error ? err.message : String(err))
+        } finally {
+            setTelegramBusy(false)
+        }
+    }
 
     const handleAdd = async () => {
         setAdding(true)
@@ -190,6 +246,52 @@ export function SettingsPage() {
                         Этот браузер не поддерживает пасскеи (WebAuthn). Добавить пасскей можно из Safari, Chrome или
                         Firefox на устройстве с Face ID / Touch ID / Windows Hello.
                     </p>
+                )}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-neutral-200 bg-white p-4">
+                <h2 className="text-sm font-semibold text-neutral-800">Вход через Telegram</h2>
+                <p className="mt-1 text-sm text-neutral-600">
+                    Telegram не отдаёт email, поэтому сам по себе вход через него создаёт отдельного пользователя.
+                    Привязка добавляет Telegram к этому аккаунту — после неё кнопка на странице входа пускает сюда же.
+                </p>
+
+                {telegramError && (
+                    <div role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {telegramError}
+                    </div>
+                )}
+
+                {telegramLoading ? (
+                    <p className="mt-3 text-sm text-neutral-500">Загрузка…</p>
+                ) : telegram ? (
+                    <div className="mt-3 flex items-center justify-between gap-4">
+                        <p className="min-w-0 truncate text-sm text-neutral-900">
+                            Привязан: <span className="font-medium">{describeTelegramIdentity(telegram)}</span>
+                        </p>
+                        <button
+                            type="button"
+                            disabled={telegramBusy}
+                            onClick={() => {
+                                void handleTelegramUnlink(telegram)
+                            }}
+                            className="shrink-0 cursor-pointer rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Отвязать
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        disabled={telegramBusy}
+                        onClick={() => {
+                            void handleTelegramLink()
+                        }}
+                        className="mt-3 flex cursor-pointer items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-300"
+                    >
+                        <IconTelegram size={16} />
+                        {telegramBusy ? 'Перенаправление…' : 'Привязать Telegram'}
+                    </button>
                 )}
             </div>
         </section>

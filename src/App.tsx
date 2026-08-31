@@ -18,6 +18,7 @@ import {
     AdminNewsPage,
     AdminNewsEditPage,
     AdminSettingsPage,
+    AdminResetPasswordPage,
 } from '@/admin/lazyAdminPages'
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
                     <Route path="telegram-chats" element={<AdminTelegramChatsPage />} />
                     <Route path="geo" element={<AdminGeoPage />} />
                     <Route path="settings" element={<AdminSettingsPage />} />
+                    <Route path="reset-password" element={<AdminResetPasswordPage />} />
                     <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
