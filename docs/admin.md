@@ -26,17 +26,17 @@ Passkey management lives at `/admin/settings` (`SettingsPage`): the list (name, 
 
 ## Routes
 
-| Path                           | Page                          | Purpose                                                                                                                                |
-| ------------------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `/admin`                       | `DashboardPage`               | Dashboard: riders per period, a 30-day sparkline, content (+ route kilometers), alerts (pending, broadcast errors, bot webhook health) |
-| `/admin/submissions`           | `SubmissionsPage`             | Submission moderation (status filter, approve → creates a point, reject)                                                               |
-| `/admin/point`, `/new`, `/:id` | `PointsPage`, `PointEditPage` | Point CRUD: map + form + `PhotoManager`; disabled toggle                                                                               |
-| `/admin/route`, `/new`, `/:id` | `RoutesPage`, `RouteEditPage` | Route CRUD: polyline + vertex list + elevations                                                                                        |
-| `/admin/event`, `/new`, `/:id` | `EventsPage`, `EventEditPage` | Events + dates + announcements (see [events-news.md](events-news.md))                                                                  |
-| `/admin/news`, `/new`, `/:id`  | `NewsPage`, `NewsEditPage`    | News + broadcast                                                                                                                       |
-| `/admin/telegram-chats`        | `TelegramChatsPage`           | Broadcast chats/topics (enabled, sort_order, thread)                                                                                   |
-| `/admin/geo`                   | `GeoPage`                     | Rider tracks over a period (30 min … all), `AdminGeoMap`                                                                               |
-| `/admin/settings`              | `SettingsPage`                | The current admin's passkeys: list, add, rename, delete                                                                                |
+| Path                           | Page                          | Purpose                                                                                                                                               |
+| ------------------------------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/admin`                       | `DashboardPage`               | Dashboard: riders per period, a 30-day sparkline, content (+ route kilometers), alerts (pending, broadcast errors, bot webhook health)                |
+| `/admin/submissions`           | `SubmissionsPage`             | Submission moderation (status filter, approve → creates a point, reject)                                                                              |
+| `/admin/point`, `/new`, `/:id` | `PointsPage`, `PointEditPage` | Point CRUD: map + form + `PhotoManager`; disabled toggle                                                                                              |
+| `/admin/route`, `/new`, `/:id` | `RoutesPage`, `RouteEditPage` | Route CRUD: polyline + vertex list + elevations                                                                                                       |
+| `/admin/event`, `/new`, `/:id` | `EventsPage`, `EventEditPage` | Events + dates + announcements; the list filters and sorts by the nearest date, creation requires a first date (see [events-news.md](events-news.md)) |
+| `/admin/news`, `/new`, `/:id`  | `NewsPage`, `NewsEditPage`    | News + broadcast                                                                                                                                      |
+| `/admin/telegram-chats`        | `TelegramChatsPage`           | Broadcast chats/topics (enabled, sort_order, thread)                                                                                                  |
+| `/admin/geo`                   | `GeoPage`                     | Rider tracks over a period (30 min … all), `AdminGeoMap`                                                                                              |
+| `/admin/settings`              | `SettingsPage`                | The current admin's passkeys: list, add, rename, delete                                                                                               |
 
 The «Открыть на сайте» button on edit pages uses `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}`.
 
@@ -59,20 +59,20 @@ Infrastructure:
 
 Domains:
 
-| Module                  | Functions                                                                                                                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `points.ts`             | `listPoints/getPoint/createPoint/updatePoint/togglePointDisabled/deletePoint` (cleaning up photos)                                                                                   |
-| `routes.ts`             | the equivalent CRUD for routes                                                                                                                                                       |
-| `submissions.ts`        | `listSubmissions(status?)`, `approveSubmission` (creates a `map_points` row), `rejectSubmission`, `countPendingSubmissions`                                                          |
-| `photos.ts`             | `listPhotos/uploadPhoto/updatePhoto/deletePhoto` (Storage + DB with rollback on failure)                                                                                             |
-| `events.ts`             | CRUD over events, dates (`listEventDates/addEventDate/updateEventDate/deleteEventDate`) and photos                                                                                   |
-| `eventAnnouncements.ts` | `announceEventDate/editEventDateAnnouncements/cancelEventDateAnnouncements/deleteEventDateAnnouncements/pinEventAnnouncement/listEventParticipants/listEventAnnouncements(ForDates)` |
-| `news.ts`               | CRUD over news (soft delete) and photos                                                                                                                                              |
-| `newsAnnouncements.ts`  | `announceNews/editNewsAnnouncements/deleteNewsAnnouncements/listNewsAnnouncements`                                                                                                   |
-| `telegramChats.ts`      | CRUD over broadcast destinations                                                                                                                                                     |
-| `dashboard.ts`          | `getDashboardStats` — the `get_admin_dashboard_stats` RPC (dashboard aggregates)                                                                                                     |
-| `geo.ts`                | `fetchTelegramLocations(periodMinutes)` (paginated by 1000), `buildRiderTracks` (grouped per rider, 10 colors)                                                                       |
-| `aiAssist.ts`           | `improveWithAi` — calls the `ai-assist` edge function                                                                                                                                |
+| Module                  | Functions                                                                                                                                                                                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `points.ts`             | `listPoints/getPoint/createPoint/updatePoint/togglePointDisabled/deletePoint` (cleaning up photos)                                                                                                                                                                |
+| `routes.ts`             | the equivalent CRUD for routes                                                                                                                                                                                                                                    |
+| `submissions.ts`        | `listSubmissions(status?)`, `approveSubmission` (creates a `map_points` row), `rejectSubmission`, `countPendingSubmissions`                                                                                                                                       |
+| `photos.ts`             | `listPhotos/uploadPhoto/updatePhoto/deletePhoto` (Storage + DB with rollback on failure)                                                                                                                                                                          |
+| `events.ts`             | CRUD over events, dates (`listEventDates/addEventDate/updateEventDate/deleteEventDate`) and photos. `listEvents` returns nested dates (`AdminEventListItem`); `createEvent(input, firstDate)` requires a first date and rolls the event back if that insert fails |
+| `eventAnnouncements.ts` | `announceEventDate/editEventDateAnnouncements/cancelEventDateAnnouncements/deleteEventDateAnnouncements/pinEventAnnouncement/listEventParticipants/listEventAnnouncements(ForDates)`                                                                              |
+| `news.ts`               | CRUD over news (soft delete) and photos                                                                                                                                                                                                                           |
+| `newsAnnouncements.ts`  | `announceNews/editNewsAnnouncements/deleteNewsAnnouncements/listNewsAnnouncements`                                                                                                                                                                                |
+| `telegramChats.ts`      | CRUD over broadcast destinations                                                                                                                                                                                                                                  |
+| `dashboard.ts`          | `getDashboardStats` — the `get_admin_dashboard_stats` RPC (dashboard aggregates)                                                                                                                                                                                  |
+| `geo.ts`                | `fetchTelegramLocations(periodMinutes)` (paginated by 1000), `buildRiderTracks` (grouped per rider, 10 colors)                                                                                                                                                    |
+| `aiAssist.ts`           | `improveWithAi` — calls the `ai-assist` edge function                                                                                                                                                                                                             |
 
 ## Route editor (`src/admin/route-editor/`)
 
@@ -80,6 +80,10 @@ Domains:
 - `routeValidation.ts` — a 4–99 character title and at least 2 vertices.
 
 `RouteEditPage` combines `AdminRoutePolylineMap` (vertex dragging, click-to-insert, hover highlighting) + `RouteVertexEditorList` (vertex table, `simplifyRouteCollinear` simplification, elevation filling via `fetchMissingRouteElevations`) + undo/redo.
+
+## Admin utilities (`src/admin/utils/`)
+
+Pure, fully tested helpers used by the pages: `adminTime` (`formatAgo`, `isBotStale`), `formatAdminDate`, `routeDistance` (route kilometers), `aiAssistPrompt` (the AI prompt builder, mirrored in the edge function) and `eventDates` — the default slot for a new event date (`nextDefaultEventDate`, `DEFAULT_EVENT_HOUR` = 19:00), `plusWeek`, datetime-local conversion, the per-event date summary (`summarizeEventDates`) and the list filter/sort rules (`matchesEventFilter`, `matchesEventQuery`, `compareEventsForList`).
 
 ## Coordinate undo/redo
 

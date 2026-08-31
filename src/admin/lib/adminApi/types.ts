@@ -93,6 +93,14 @@ export interface AdminEvent {
     flag_disabled: boolean
 }
 
+/**
+ * Событие в списке админки — с вложенными датами, чтобы показать ближайшую дату
+ * без N+1 запросов. Возвращается только из `listEvents`.
+ */
+export interface AdminEventListItem extends AdminEvent {
+    dates: AdminEventDate[]
+}
+
 export interface EventInput {
     type: EventType
     title: string

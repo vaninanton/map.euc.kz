@@ -5,6 +5,7 @@ import type {
     AdminEvent,
     AdminEventAnnouncement,
     AdminEventDate,
+    AdminEventListItem,
     AdminEventParticipant,
     AdminMapPoint,
     AdminMapRoute,
@@ -270,6 +271,26 @@ export function parseAdminEvent(raw: unknown): AdminEvent {
         finish_point_id: asNullableNumber(raw.finish_point_id),
         flag_disabled,
     }
+}
+
+/**
+ * Строка `map_events` с вложенными датами (для списка админки). Битую дату пропускаем,
+ * а не роняем всё событие: список важнее одной некорректной строки.
+ */
+export function parseAdminEventListItem(raw: unknown): AdminEventListItem {
+    const event = parseAdminEvent(raw)
+    const nested = isRecord(raw) ? raw.dates : null
+    const dates: AdminEventDate[] = []
+    if (Array.isArray(nested)) {
+        for (const item of nested) {
+            try {
+                dates.push(parseAdminEventDate(item))
+            } catch (err) {
+                console.warn('parseAdminEventListItem: пропущена дата', err)
+            }
+        }
+    }
+    return { ...event, dates }
 }
 
 /**

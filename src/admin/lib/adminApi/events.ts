@@ -1,17 +1,32 @@
-import type { AdminEvent, AdminEventDate, EventDateInput, EventDatePatch, EventInput } from '@/admin/lib/adminApi/types'
+import type {
+    AdminEvent,
+    AdminEventDate,
+    AdminEventListItem,
+    EventDateInput,
+    EventDatePatch,
+    EventInput,
+} from '@/admin/lib/adminApi/types'
 import { EVENT_PHOTOS_BUCKET } from '@/admin/lib/adminApi/constants'
 import { db, runManyParsed, runOneParsed } from '@/admin/lib/adminApi/query'
-import { parseAdminEvent, parseAdminEventDate } from '@/admin/lib/adminApi/parsers'
+import { parseAdminEvent, parseAdminEventDate, parseAdminEventListItem } from '@/admin/lib/adminApi/parsers'
 
 const EVENT_COLUMNS =
     'id, created_at, type, title, description, photo_path, duration_minutes, location_text, start_coordinates, finish_coordinates, start_point_id, finish_point_id, flag_disabled'
 
-/** Список событий, отсортированный по дате создания (новые сверху). */
-export async function listEvents(): Promise<AdminEvent[]> {
+/**
+ * Список событий вместе с датами — список в админке сортируется и фильтруется по ближайшей дате,
+ * поэтому даты забираются тем же запросом (иначе N+1 на каждое событие).
+ * Порядок здесь — по дате создания; итоговую сортировку по датам делает страница
+ * (`compareEventsForList`), она зависит от выбранного фильтра.
+ */
+export async function listEvents(): Promise<AdminEventListItem[]> {
     return runManyParsed(
         'listEvents',
-        db().from('map_events').select(EVENT_COLUMNS).order('created_at', { ascending: false }),
-        (raw) => parseAdminEvent(raw),
+        db()
+            .from('map_events')
+            .select(`${EVENT_COLUMNS}, dates:map_event_dates(id, starts_at, note, cancelled)`)
+            .order('created_at', { ascending: false }),
+        (raw) => parseAdminEventListItem(raw),
     )
 }
 
@@ -23,12 +38,33 @@ export async function getEvent(id: number): Promise<AdminEvent> {
     )
 }
 
-export async function createEvent(input: EventInput): Promise<AdminEvent> {
-    return runOneParsed(
+/**
+ * Создаёт событие вместе с первой датой проведения.
+ *
+ * Дата обязательна: событие без дат не попадает в ленту и не анонсируется — в админке это
+ * мёртвая строка, которую легко забыть. Транзакции на две таблицы из браузера нет, поэтому при
+ * ошибке вставки даты созданное событие удаляется, и наружу уходит исходная ошибка: пользователь
+ * видит её в форме с сохранёнными полями и повторяет отправку.
+ */
+export async function createEvent(input: EventInput, firstDate: EventDateInput): Promise<AdminEvent> {
+    const created = await runOneParsed(
         'createEvent',
         db().from('map_events').insert(input).select(EVENT_COLUMNS).single(),
         parseAdminEvent,
     )
+
+    try {
+        await addEventDate(created.id, firstDate)
+    } catch (err) {
+        const { error: rollbackError } = await db().from('map_events').delete().eq('id', created.id)
+        if (rollbackError) {
+            // Откат не удался — событие осталось без даты. Не молчим: его придётся починить руками.
+            console.error('createEvent:rollback', rollbackError)
+        }
+        throw err
+    }
+
+    return created
 }
 
 export async function updateEvent(id: number, input: Partial<EventInput>): Promise<AdminEvent> {
