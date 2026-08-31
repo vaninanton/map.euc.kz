@@ -8,5 +8,7 @@ package-lock.json
 composer.lock
 .claude
 supabase/.temp
+# Снапшоты страниц от Playwright MCP — временные артефакты отладки.
+.playwright-mcp
 # Большой сгенерированный GeoJSON велодорожек — не форматируем (огромный шумный дифф).
 src/data/almaty.json

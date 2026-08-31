@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useAdminAuth } from '@/admin/hooks/useAdminAuth'
+import { useAuthRedirectError } from '@/admin/hooks/useAuthRedirectError'
 import { AdminLoginPage } from '@/admin/pages/AdminLoginPage'
 import { supabase } from '@/lib/supabase'
 
@@ -9,6 +10,14 @@ interface AdminAuthGateProps {
 
 export function AdminAuthGate({ children }: AdminAuthGateProps) {
     const auth = useAdminAuth()
+    // Supabase возвращает нас после Telegram с ошибкой прямо в адресе — иначе она бы просто пропала.
+    const redirectError = useAuthRedirectError()
+
+    const banner = redirectError ? (
+        <div role="alert" className="bg-red-50 px-4 py-3 text-sm text-red-700">
+            {redirectError}
+        </div>
+    ) : null
 
     if (auth.status === 'loading') {
         return (
@@ -27,7 +36,12 @@ export function AdminAuthGate({ children }: AdminAuthGateProps) {
     }
 
     if (auth.status === 'unauthenticated') {
-        return <AdminLoginPage />
+        return (
+            <>
+                {banner}
+                <AdminLoginPage />
+            </>
+        )
     }
 
     if (auth.status === 'forbidden') {
@@ -53,5 +67,10 @@ export function AdminAuthGate({ children }: AdminAuthGateProps) {
         )
     }
 
-    return <>{children}</>
+    return (
+        <>
+            {banner}
+            {children}
+        </>
+    )
 }

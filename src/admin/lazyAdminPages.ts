@@ -65,3 +65,8 @@ export const AdminDashboardPage = lazy(async () => {
     const m = await import('@/admin/pages/DashboardPage')
     return { default: m.DashboardPage }
 })
+
+export const AdminResetPasswordPage = lazy(async () => {
+    const m = await import('@/admin/pages/ResetPasswordPage')
+    return { default: m.ResetPasswordPage }
+})
