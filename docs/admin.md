@@ -20,9 +20,30 @@ The primary sign-in method. The client is created with the opt-in `auth.experime
 - `isPasskeySupported()` — checks `PublicKeyCredential` + `navigator.credentials`; without support the UI shows a hint instead of the buttons;
 - `passkeyErrorMessage()` — Russian messages keyed by `WebAuthnError` codes (`ERROR_CEREMONY_ABORTED` and similar).
 
-The login page (`AdminLoginPage`) shows «Войти по пасскею» as the default action; the email+password form expands from the «Войти по email и паролю» link. The Telegram sign-in button is temporarily removed — the provider does not work; bring it back together with a working Supabase Auth configuration.
+The login page (`AdminLoginPage`) shows «Войти по пасскею» as the default action; the email+password form expands from the «Войти по email и паролю» link.
 
-Passkey management lives at `/admin/settings` (`SettingsPage`): the list (name, created, last used), plus add, rename and delete.
+### Password reset
+
+`src/admin/lib/passwordReset.ts`: `sendPasswordReset(email)` → `auth.resetPasswordForEmail` with `redirectTo` = `/admin/reset-password`, and `updatePassword(password)` → `auth.updateUser`. The link in the email does **not** change anything by itself — it opens a recovery session, so without a form the user simply lands signed in and nothing happens.
+
+- «Забыли пароль?» sits in the email+password form of `AdminLoginPage` and reuses the email already typed there;
+- `/admin/reset-password` (`ResetPasswordPage`) asks for the new password twice (min 6, same as `minimum_password_length`) and returns to `/admin`;
+- `usePasswordRecovery` (mounted in `AdminShell`) listens for `PASSWORD_RECOVERY` and redirects to that page — this catches links sent from the Supabase Dashboard, which use the project's Site URL instead of our `redirectTo`.
+
+`/admin/reset-password` must be present in Authentication → URL Configuration → Redirect URLs, otherwise GoTrue falls back to the Site URL.
+
+### Telegram sign-in
+
+`src/admin/lib/telegramIdentity.ts` is the only place that knows the provider name. Telegram is wired up in Supabase Auth as a **Custom OAuth/OIDC provider**, so it is addressed as `custom:telegram` — GoTrue has no built-in `telegram` provider and a bare name returns 400 «Provider telegram could not be found». The bot must keep **RS256** as its ID-token signing algorithm: Supabase does not support ES256K (secp256k1), which is what broke this flow between May and August 2026 (supabase/auth#2534, fixed in auth v2.196.0).
+
+- `signInWithTelegram()` — the «Войти через Telegram» button on the login page;
+- `linkTelegram()` / `fetchTelegramIdentity()` / `unlinkTelegram()` — the «Вход через Telegram» card in `SettingsPage`.
+
+GoTrue reports a failed sign-in or linking by sending the browser back to `/admin?error=…#error=…` (the same payload twice, in the query and in the fragment). `useAuthRedirectError` reads it once on mount, `AdminAuthGate` shows it as a banner, and the parameters are dropped from history so the message does not resurface on reload; `authRedirectError.ts` translates the codes we actually hit (`identity_already_exists`, `manual_linking_disabled`).
+
+Telegram returns **no email**, so Supabase cannot auto-link accounts by address: signing in with Telegram from a fresh account always creates a _separate_ `auth.users` row that has no `map_admin_users` grant. The supported way to join them is manual linking — sign in with the main account and press «Привязать Telegram». It requires **Allow manual linking** enabled in Authentication → Sign In / Providers (`SECURITY_MANUAL_LINKING_ENABLED`), and the Telegram identity must not already belong to another user — delete that user first (`map_admin_users` is cleaned up by `ON DELETE CASCADE`).
+
+Passkey management lives at `/admin/settings` (`SettingsPage`): the list (name, created, last used), plus add, rename and delete. The same page carries the «Вход через Telegram» card — link or unlink the current account.
 
 ## Routes
 
@@ -36,7 +57,7 @@ Passkey management lives at `/admin/settings` (`SettingsPage`): the list (name, 
 | `/admin/news`, `/new`, `/:id`  | `NewsPage`, `NewsEditPage`    | News + broadcast                                                                                                                                      |
 | `/admin/telegram-chats`        | `TelegramChatsPage`           | Broadcast chats/topics (enabled, sort_order, thread)                                                                                                  |
 | `/admin/geo`                   | `GeoPage`                     | Rider tracks over a period (30 min … all), `AdminGeoMap`                                                                                              |
-| `/admin/settings`              | `SettingsPage`                | The current admin's passkeys: list, add, rename, delete                                                                                               |
+| `/admin/settings`              | `SettingsPage`                | The current admin's passkeys (list, add, rename, delete) and Telegram linking                                                                         |
 
 The «Открыть на сайте» button on edit pages uses `${import.meta.env.BASE_URL}${buildMapDeepLinkPath(...)}`.
 

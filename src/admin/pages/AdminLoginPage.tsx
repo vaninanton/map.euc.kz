@@ -2,9 +2,9 @@ import { useState, useId, type SyntheticEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { requireSupabase } from '@/lib/supabase'
 import { isPasskeySupported, signInWithPasskey } from '@/admin/lib/passkeys'
-
-// Вход через Telegram временно убран: провайдер не работает. Возвращать вместе с
-// рабочей настройкой провайдера в Supabase Auth.
+import { sendPasswordReset } from '@/admin/lib/passwordReset'
+import { signInWithTelegram } from '@/admin/lib/telegramIdentity'
+import { IconTelegram } from '@/components/icons/IconTelegram'
 
 function isValidEmail(value: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
@@ -22,8 +22,11 @@ export function AdminLoginPage() {
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const [passkeyLoading, setPasskeyLoading] = useState(false)
+    const [telegramLoading, setTelegramLoading] = useState(false)
     // Пасскей — способ по умолчанию; форма email+пароль остаётся резервной и разворачивается по ссылке.
     const [passwordFormOpen, setPasswordFormOpen] = useState(false)
+    const [resetSent, setResetSent] = useState(false)
+    const [resetting, setResetting] = useState(false)
     const passkeySupported = isPasskeySupported()
 
     const handlePasskeyLogin = async () => {
@@ -36,6 +39,34 @@ export function AdminLoginPage() {
             setError(err instanceof Error ? err.message : String(err))
         } finally {
             setPasskeyLoading(false)
+        }
+    }
+
+    const handleTelegramLogin = async () => {
+        setError(null)
+        setTelegramLoading(true)
+        try {
+            // При успехе браузер уходит на oauth.telegram.org — сбрасывать загрузку не нужно.
+            await signInWithTelegram()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+            setTelegramLoading(false)
+        }
+    }
+
+    const handlePasswordReset = async () => {
+        setEmailTouched(true)
+        if (!isValidEmail(email)) return
+
+        setError(null)
+        setResetting(true)
+        try {
+            await sendPasswordReset(email)
+            setResetSent(true)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+        } finally {
+            setResetting(false)
         }
     }
 
@@ -96,6 +127,24 @@ export function AdminLoginPage() {
                         Этот браузер не поддерживает пасскеи — войдите по email и паролю.
                     </p>
                 )}
+
+                <div className="mt-3 flex items-center gap-3 text-xs text-neutral-400">
+                    <span className="h-px flex-1 bg-neutral-200" />
+                    <span>или</span>
+                    <span className="h-px flex-1 bg-neutral-200" />
+                </div>
+
+                <button
+                    type="button"
+                    disabled={telegramLoading}
+                    onClick={() => {
+                        void handleTelegramLogin()
+                    }}
+                    className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-300"
+                >
+                    <IconTelegram size={16} />
+                    {telegramLoading ? 'Перенаправление…' : 'Войти через Telegram'}
+                </button>
 
                 {error && (
                     <div role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -231,6 +280,23 @@ export function AdminLoginPage() {
                         >
                             {loading ? 'Вход…' : 'Войти'}
                         </button>
+
+                        {resetSent ? (
+                            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                Письмо со ссылкой отправлено на {email}. Ссылка откроет форму нового пароля.
+                            </p>
+                        ) : (
+                            <button
+                                type="button"
+                                disabled={resetting}
+                                onClick={() => {
+                                    void handlePasswordReset()
+                                }}
+                                className="cursor-pointer self-start text-xs font-medium text-neutral-500 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {resetting ? 'Отправляем…' : 'Забыли пароль?'}
+                            </button>
+                        )}
                     </form>
                 )}
             </div>
