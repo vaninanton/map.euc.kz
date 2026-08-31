@@ -14,8 +14,8 @@ interface EventCardProps {
 
 /** Карточка-превью события в ленте: фото, тип, расписание, место. Ведёт на страницу события. */
 export function EventCard({ event }: EventCardProps) {
-    // Если у старта есть и точка, и текстовое место — отдельной строкой место не дублируем.
-    const startLabelOverride = event.start_point ? event.location_text : null
+    // В превью — одна строка места: текстовое место приоритетнее, иначе название точки старта.
+    const placeLabel = event.location_text ?? event.start_point?.title ?? null
     // Сводка расписания — один проход по датам события.
     const { next, ongoing, schedule } = useMemo(() => summarizeEvent(event), [event])
     const typeLabel = EVENT_TYPE_LABELS[event.type]
@@ -70,10 +70,10 @@ export function EventCard({ event }: EventCardProps) {
                             </span>
                         </div>
                     )}
-                    {event.location_text && !startLabelOverride && (
+                    {placeLabel && (
                         <div className="flex items-center gap-2">
                             <FontAwesomeIcon icon={faLocationDot} className="w-4 text-neutral-400" aria-hidden />
-                            <span>{event.location_text}</span>
+                            <span>{placeLabel}</span>
                         </div>
                     )}
                 </div>

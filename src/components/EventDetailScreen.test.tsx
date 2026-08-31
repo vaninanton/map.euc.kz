@@ -119,6 +119,31 @@ describe('EventDetailScreen', () => {
         expect(link).toHaveAttribute('href', expect.stringContaining('/m/point/p7'))
     })
 
+    it('не подменяет название точки-старта текстовым местом события', () => {
+        renderDetail({
+            event: detailEvent({
+                location_text: 'БАО',
+                start_point: { id: 'p19', title: 'Визит-центр Аюсай', coordinates: [76.98, 43.13] },
+            }),
+        })
+
+        // В строке «Старт» — название точки, текстовое место остаётся отдельной строкой.
+        expect(screen.getByRole('link', { name: /Визит-центр Аюсай/ })).toBeInTheDocument()
+        expect(screen.queryByRole('link', { name: /БАО/ })).not.toBeInTheDocument()
+        expect(screen.getByText('БАО')).toBeInTheDocument()
+    })
+
+    it('не дублирует текстовое место, если оно совпадает с названием точки-старта', () => {
+        renderDetail({
+            event: detailEvent({
+                location_text: 'Парк Горького',
+                start_point: { id: 'p7', title: 'Парк Горького', coordinates: [76.95, 43.25] },
+            }),
+        })
+
+        expect(screen.getAllByText('Парк Горького')).toHaveLength(1)
+    })
+
     it('показывает состояние загрузки, когда события ещё нет', () => {
         renderDetail({ event: null, loading: true })
 
