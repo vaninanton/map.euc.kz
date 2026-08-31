@@ -4,6 +4,7 @@ export type {
     AdminPhoto,
     AdminSubmission,
     AdminEvent,
+    AdminEventListItem,
     AdminEventDate,
     AdminEventParticipant,
     AdminEventAnnouncement,
