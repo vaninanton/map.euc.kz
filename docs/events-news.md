@@ -31,13 +31,18 @@ unread = an event that has a future occurrence AND `created_at > lastReadAt`. Fu
 
 Routes: `/admin/event`, `/admin/event/new`, `/admin/event/:id`.
 
-- `EventsPage` — the list, with a `flag_disabled` toggle.
+- `EventsPage` — the list: nearest date, date counter, `flag_disabled` toggle, filter chips (Предстоящие / Прошедшие / Без даты / Все, with counts) and title search. Sorting follows the group — upcoming by the nearest date ascending, past by the most recent descending, dateless by creation date. The pure logic lives in `src/admin/utils/eventDates.ts`; the page only renders it.
 - `EventEditPage` — `EventForm` (type, title, description, duration, place: a point or raw coordinates) + `EventPhotoManager` (bucket `map-event-photos`) + `EventDatesManager`.
-- `EventDatesManager` — CRUD over dates (starts_at, note, cancelled), an expandable RSVP participant list, and a «Telegram» button opening `EventAnnounceModal`.
+- `EventForm` — in create mode it also renders a **required** first date (`withFirstDate`), prefilled with the next `DEFAULT_EVENT_HOUR` slot in the future. A date in the past is allowed but flagged with a warning. In edit mode the block is absent: dates belong to `EventDatesManager`.
+- `EventDatesManager` — CRUD over dates (starts_at, note, cancelled), an expandable RSVP participant list, and a «Telegram» button opening `EventAnnounceModal`. Past dates are collapsed behind a toggle, «+1 неделя» clones the last date one week later (carrying its note), and deletion goes through `ConfirmDialog`. **The last remaining date cannot be deleted** — the button is disabled with an explanation, and `handleDelete` guards against a stale UI state. To retire an event, move or cancel the date, or delete the event itself.
 - `EventAnnounceModal` — mode `send` (header preview + body textarea + chat checkboxes from `pendingAnnouncementChats()` + a «Закрепить» flag) and mode `edit` (edit / send to remaining chats / delete).
 - `AnnouncementMessagesList` — delivery history with status indicators (sent / error / cancelled / deleted) and pin/unpin.
 
 adminApi: `events.ts` (CRUD over events/dates/photos), `eventAnnouncements.ts` (announce/edit/cancel/delete/pin, participants); edge function calls go through `announceClient.ts` → the `announce*` subroutes (see [telegram-bot.md](telegram-bot.md)).
+
+`listEvents()` returns `AdminEventListItem` — the event plus its nested dates, fetched in the same query so the list can sort by the nearest date without an N+1.
+
+`createEvent(input, firstDate)` takes the first date as a **required** second argument and inserts it right after the event. There is no cross-table transaction from the browser, so a failed date insert rolls the event back and rethrows the original error — the form shows it with the fields intact. If the rollback itself fails, it is logged to the console and the event stays dateless (visible in the list under «Без даты»).
 
 Deleting an event is a **hard delete** (cascading to dates, participants and outbound messages); the photo is removed from Storage before the row is deleted.
 
@@ -87,4 +92,5 @@ Deleting a news item is a **soft delete** (`deleted_at`); the photo is removed f
 3. A "live" message = sent, no error, not cancelled, not deleted — only those get edited or deleted.
 4. `body_text` (events) and `map_news.body` (news) are the raw bodies used for re-editing; the row's `message_text` and `photo_path` are a snapshot of what was sent (`photo_path` changes only on an actual photo replacement through `editMessageMedia`).
 5. The announcement header is built both in the bot's `_pure.ts` and in the frontend's `eventAnnounce.ts` — change them together.
-6. A cancelled date (`cancelled`) is excluded from the schedule (`validOccurrences`) and rejects RSVP.
+6. A cancelled date (`cancelled`) is excluded from the schedule (`validOccurrences`) and rejects RSVP. In the admin list it is also excluded from "nearest date", so an event whose every date is cancelled shows up as «Без даты» rather than silently looking scheduled.
+7. An event always has at least one date: `createEvent` requires one and the admin panel refuses to delete the last remaining date. This is enforced in the UI only — there is no DB constraint — so a dateless event can still appear from a failed create rollback or a direct SQL edit. The «Без даты» filter in the list exists to surface those.

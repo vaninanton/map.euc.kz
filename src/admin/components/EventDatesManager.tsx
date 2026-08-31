@@ -12,6 +12,8 @@ import {
     type AdminEventParticipant,
 } from '@/admin/lib/adminApi'
 import { EventAnnounceModal } from '@/admin/components/EventAnnounceModal'
+import { ConfirmDialog } from '@/admin/components/ConfirmDialog'
+import { fromDatetimeLocal, nextDefaultEventDate, plusWeek, toDatetimeLocal } from '@/admin/utils/eventDates'
 import { formatDate, formatTime } from '@/utils/eventSchedule'
 
 interface EventDatesManagerProps {
@@ -134,17 +136,13 @@ function ParticipantsBlock({ eventDateId }: { eventDateId: string }) {
     )
 }
 
-function toDatetimeLocal(iso: string): string {
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return ''
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${String(d.getFullYear())}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+/** Значение datetime-local из ISO-строки даты события. */
+function isoToDatetimeLocal(iso: string): string {
+    return toDatetimeLocal(new Date(iso))
 }
 
 function defaultNewDate(): string {
-    const d = new Date()
-    d.setHours(21, 0, 0, 0)
-    return toDatetimeLocal(d.toISOString())
+    return toDatetimeLocal(nextDefaultEventDate(new Date()))
 }
 
 interface DateRowProps {
@@ -153,29 +151,40 @@ interface DateRowProps {
     nowTs: number
     announced: boolean
     onSave: (id: string, patch: { starts_at: string; note: string | null; cancelled: boolean }) => Promise<void>
-    onDelete: (id: string) => Promise<void>
+    /** Запрашивает удаление — подтверждение показывает родитель. */
+    onDelete: (id: string) => void
+    /**
+     * Можно ли удалять эту дату. У события всегда должна оставаться хотя бы одна дата:
+     * без дат оно пропадает из ленты и не анонсируется. Единственную дату не удаляем —
+     * вместо этого её переносят, отменяют или удаляют событие целиком.
+     */
+    canDelete: boolean
     /** Открыть модалку Telegram: отправка (если ещё не анонсировано) или управление отправленным. */
     onTelegram: (date: AdminEventDate) => void
 }
 
 /** Строка даты: просмотр и встроенное редактирование (время, заметка, отмена). */
-function DateRow({ date, busy, nowTs, announced, onSave, onDelete, onTelegram }: DateRowProps) {
+function DateRow({ date, busy, nowTs, announced, onSave, onDelete, canDelete, onTelegram }: DateRowProps) {
     const [editing, setEditing] = useState(false)
-    const [editAt, setEditAt] = useState(() => toDatetimeLocal(date.starts_at))
+    const [editAt, setEditAt] = useState(() => isoToDatetimeLocal(date.starts_at))
     const [editNote, setEditNote] = useState(date.note ?? '')
     const [editCancelled, setEditCancelled] = useState(date.cancelled)
 
     const startEditing = () => {
-        setEditAt(toDatetimeLocal(date.starts_at))
+        setEditAt(isoToDatetimeLocal(date.starts_at))
         setEditNote(date.note ?? '')
         setEditCancelled(date.cancelled)
         setEditing(true)
     }
 
     const save = async () => {
-        const iso = new Date(editAt).toISOString()
-        if (Number.isNaN(new Date(iso).getTime())) return
-        await onSave(date.id, { starts_at: iso, note: editNote.trim() || null, cancelled: editCancelled })
+        const parsed = fromDatetimeLocal(editAt)
+        if (parsed === null) return
+        await onSave(date.id, {
+            starts_at: parsed.toISOString(),
+            note: editNote.trim() || null,
+            cancelled: editCancelled,
+        })
         setEditing(false)
     }
 
@@ -277,11 +286,16 @@ function DateRow({ date, busy, nowTs, announced, onSave, onDelete, onTelegram }:
                         </button>
                         <button
                             type="button"
-                            disabled={busy}
+                            disabled={busy || !canDelete}
+                            title={
+                                canDelete
+                                    ? undefined
+                                    : 'Это единственная дата события. Перенесите или отмените её — либо удалите событие целиком.'
+                            }
                             onClick={() => {
-                                void onDelete(date.id)
+                                onDelete(date.id)
                             }}
-                            className="cursor-pointer rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            className="cursor-pointer rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Удалить
                         </button>
@@ -310,6 +324,10 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
         mode: 'send' | 'edit'
         initialBody?: string
     } | null>(null)
+    // Дата, для которой открыт диалог подтверждения удаления.
+    const [confirmDelete, setConfirmDelete] = useState<AdminEventDate | null>(null)
+    // Прошедшие даты по умолчанию свёрнуты: у еженедельного события их со временем десятки.
+    const [showPast, setShowPast] = useState(false)
     // Снимок «сейчас» на момент рендера — чтобы пометить прошедшие даты без вызова Date.now() в JSX.
     const [nowTs] = useState(() => Date.now())
 
@@ -344,17 +362,50 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
         void Promise.resolve().then(() => reload())
     }, [reload])
 
+    // Прошедшие даты (неотменённые тоже) прячем за раскрывашкой — в списке важны предстоящие.
+    // Отменённую будущую дату оставляем на виду: с ней ещё предстоит что-то решить.
+    const pastDates = dates.filter((d) => {
+        const ts = new Date(d.starts_at).getTime()
+        return !Number.isNaN(ts) && ts < nowTs
+    })
+    const visibleDates = showPast ? dates : dates.filter((d) => !pastDates.includes(d))
+
     const handleAdd = async () => {
-        const iso = new Date(newDate).toISOString()
-        if (Number.isNaN(new Date(iso).getTime())) {
+        const parsed = fromDatetimeLocal(newDate)
+        if (parsed === null) {
             setError('Укажите корректную дату и время.')
             return
         }
         setBusy(true)
         setError(null)
         try {
-            await addEventDate(eventId, { starts_at: iso, note: newNote.trim() || null })
+            await addEventDate(eventId, { starts_at: parsed.toISOString(), note: newNote.trim() || null })
             setNewNote('')
+            await reload()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    /**
+     * Быстрый повтор: та же дата и время неделей позже последней даты в списке.
+     * Для еженедельных покатушек это основной способ набрать расписание — клик на каждую неделю
+     * вместо ручного ввода даты. Заметку копируем с последней даты: у повторов она обычно та же.
+     */
+    const handleAddWeek = async () => {
+        const last = dates.at(-1)
+        if (last === undefined) return
+        const base = new Date(last.starts_at)
+        if (Number.isNaN(base.getTime())) {
+            setError('У последней даты некорректное время — добавьте дату вручную.')
+            return
+        }
+        setBusy(true)
+        setError(null)
+        try {
+            await addEventDate(eventId, { starts_at: plusWeek(base).toISOString(), note: last.note })
             await reload()
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
@@ -397,6 +448,12 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
     }
 
     const handleDelete = async (id: string) => {
+        // Страховка на случай устаревшего состояния кнопки: последнюю дату не удаляем.
+        if (dates.length <= 1) {
+            setError('У события должна остаться хотя бы одна дата. Перенесите или отмените её либо удалите событие.')
+            setConfirmDelete(null)
+            return
+        }
         setBusy(true)
         setError(null)
         try {
@@ -406,6 +463,7 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
             setError(err instanceof Error ? err.message : String(err))
         } finally {
             setBusy(false)
+            setConfirmDelete(null)
         }
     }
 
@@ -419,17 +477,34 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
             {error && <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
             {loading && <p className="mt-3 text-sm text-neutral-500">Загрузка…</p>}
 
+            {!loading && pastDates.length > 0 && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        setShowPast((prev) => !prev)
+                    }}
+                    className="mt-3 cursor-pointer text-xs font-medium text-neutral-500 hover:text-neutral-700 hover:underline"
+                >
+                    {showPast
+                        ? `Скрыть прошедшие (${String(pastDates.length)})`
+                        : `Показать прошедшие (${String(pastDates.length)})`}
+                </button>
+            )}
+
             {!loading && (
                 <ul className="mt-3 divide-y divide-neutral-100">
-                    {dates.map((d) => (
+                    {visibleDates.map((d) => (
                         <DateRow
                             key={d.id}
                             date={d}
                             busy={busy}
                             nowTs={nowTs}
                             announced={announcedDateIds.has(d.id)}
+                            canDelete={dates.length > 1}
                             onSave={handleSave}
-                            onDelete={handleDelete}
+                            onDelete={(id) => {
+                                setConfirmDelete(dates.find((item) => item.id === id) ?? null)
+                            }}
                             onTelegram={(date) => {
                                 // Анонсировано → режим управления (правка/удаление); иначе — отправка.
                                 setAnnounce(
@@ -441,13 +516,21 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
                         />
                     ))}
                     {dates.length === 0 && <li className="py-2 text-sm text-neutral-400">Дат пока нет.</li>}
+                    {dates.length > 0 && visibleDates.length === 0 && (
+                        <li className="py-2 text-sm text-neutral-400">
+                            Все даты уже прошли — раскройте список выше или добавьте новую.
+                        </li>
+                    )}
                 </ul>
             )}
 
             <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-neutral-100 pt-3">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Новая дата и время</label>
+                    <label htmlFor="new-event-date" className="mb-1 block text-xs font-medium text-neutral-700">
+                        Новая дата и время
+                    </label>
                     <input
+                        id="new-event-date"
                         type="datetime-local"
                         value={newDate}
                         onChange={(e) => {
@@ -458,8 +541,11 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
                     />
                 </div>
                 <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">Заметка (необязательно)</label>
+                    <label htmlFor="new-event-note" className="mb-1 block text-xs font-medium text-neutral-700">
+                        Заметка (необязательно)
+                    </label>
                     <input
+                        id="new-event-note"
                         value={newNote}
                         onChange={(e) => {
                             setNewNote(e.target.value)
@@ -475,11 +561,42 @@ export function EventDatesManager({ event }: EventDatesManagerProps) {
                     onClick={() => {
                         void handleAdd()
                     }}
-                    className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+                    className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                 >
                     Добавить дату
                 </button>
+                {dates.length > 0 && (
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                            void handleAddWeek()
+                        }}
+                        title="Добавить дату на неделю позже последней в списке"
+                        className="cursor-pointer rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        +1 неделя
+                    </button>
+                )}
             </div>
+
+            <ConfirmDialog
+                open={confirmDelete !== null}
+                title="Удалить дату?"
+                description={
+                    confirmDelete
+                        ? `${formatDate(new Date(confirmDelete.starts_at))} ${formatTime(new Date(confirmDelete.starts_at))}. Вместе с датой удалятся её участники и история анонсов. Отправленные сообщения в Telegram останутся — удалите их заранее через «Анонс в Telegram».`
+                        : ''
+                }
+                confirmLabel="Удалить"
+                danger
+                onCancel={() => {
+                    if (!busy) setConfirmDelete(null)
+                }}
+                onConfirm={() => {
+                    if (confirmDelete) void handleDelete(confirmDelete.id)
+                }}
+            />
 
             {announce && (
                 <EventAnnounceModal
