@@ -113,8 +113,8 @@ src/
 ├── utils/         # pure functions, no React/Mapbox (all covered by tests)
 ├── constants/     # index.ts (LAYER_IDS, SOURCE_IDS, COLORS, MAP_CENTER, labels),
 │                  # mapLayerRegistry.ts (layer descriptors), layerVisibility.ts
-├── types/         # geojson.ts, supabase.ts, velojol.ts — re-exported via index.ts
-├── data/          # almaty.json — static bike-lane GeoJSON (Velojol)
+├── types/         # geojson.ts, supabase.ts, bikeLane.ts — re-exported via index.ts
+├── data/          # almaty.json — static bike lanes built from OpenStreetMap
 ├── test/          # setup.ts for Vitest + jsdom
 └── admin/         # lazy-loaded at /admin; Supabase Auth (password or passkey) + map_admin_users
     ├── pages/         # DashboardPage, PointsPage/PointEditPage, RoutesPage/RouteEditPage,
@@ -138,7 +138,7 @@ supabase/
 ├── functions/     # telegram-location-bot (bot webhook), ai-assist (OpenAI helper for admin)
 ├── config.toml    # local stack config
 └── seed.sql       # curated local DB seed, tracked and PII-free (points + routes only)
-scripts/           # fetch-velojol-bike-lanes.js (bike lanes), set-supabase-secrets.sh
+scripts/           # fetch-osm-bike-lanes.js (bike lanes), set-supabase-secrets.sh
 tests/
 ├── e2e/           # Playwright specs + fixtures.ts (Mapbox/Supabase mocks)
 └── config/        # deployConfig.test.ts — env parity between CI and .env.example
@@ -151,7 +151,7 @@ public/            # sw.js, _redirects, _headers, robots.txt, manifest.webmanife
 useMapData.ts
   ├─ fetchMapPoints()      → mapPointsToFeatureCollection()    → pointsGeo
   ├─ fetchMapRoutes()      → mapRoutesToFeatureCollection()    → routesGeo
-  ├─ import('@/data/almaty.json') → velojolToFeatureCollection() → bikeLanesGeo
+  ├─ import('@/data/almaty.json') → bikeLanesToFeatureCollection() → bikeLanesGeo
   └─ fetchTelegramLocations()
        ├─ telegramLocationsToUsersFeatureCollection()          → telegramUsersGeo
        └─ telegramLocationsToRecentTracksFeatureCollection()   → telegramTracksGeo
@@ -317,5 +317,5 @@ All analytics is centralized in `src/lib/analytics.ts`. Never call `ym()` from `
 | `git-feature-workflow` | branch → commit → push → PR → merge into `main`                         |
 | `supabase-backup`      | dumping/restoring the production database                               |
 | `supabase-clone-prod`  | refresh the local stack: schema from migrations + data seeded from prod |
-| `update-bike-paths`    | rebuild `src/data/almaty.json` from velojol.kz                          |
+| `update-bike-paths`    | rebuild `src/data/almaty.json` from OpenStreetMap                       |
 | `update-deps`          | npm dependency updates (minor/patch automatic, major with analysis)     |

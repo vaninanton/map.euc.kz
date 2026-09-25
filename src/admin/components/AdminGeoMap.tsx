@@ -112,7 +112,7 @@ export function AdminGeoMap({ tracks, selectedRiderId, onRiderClick, fitKey }: A
         })
         mapRef.current = map
 
-        map.addControl(new mapboxgl.AttributionControl({ customAttribution: 'velojol.kz' }), 'bottom-right')
+        map.addControl(new mapboxgl.AttributionControl(), 'bottom-right')
         map.addControl(new mapboxgl.NavigationControl({ showCompass: false, visualizePitch: false }), 'bottom-right')
 
         const ensureAll = () => {

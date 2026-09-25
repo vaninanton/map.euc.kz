@@ -80,12 +80,8 @@ export function useMapbox(containerRef: React.RefObject<HTMLDivElement | null>) 
         }
 
         setMap(mapInstance)
-        mapInstance.addControl(
-            new mapboxgl.AttributionControl({
-                customAttribution: 'velojol.kz',
-            }),
-            'bottom-right',
-        )
+        // Атрибуция OpenStreetMap (данные велодорожек) уже есть в стандартной подписи Mapbox.
+        mapInstance.addControl(new mapboxgl.AttributionControl(), 'bottom-right')
 
         const onLoad = () => {
             setIsMapReady(true)

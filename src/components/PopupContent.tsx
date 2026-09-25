@@ -99,15 +99,10 @@ export function PopupContent({ feature, onCopied, relatedEvents, onOpenEvents }:
         stats = { distanceKm, ascentM: s.ascentM, descentM: s.descentM }
     }
 
-    // Велодорожка: тип полосы и оценка покрытия из velojol.kz, длина — оттуда же
-    // (в геометрии velojol нет высот, поэтому набор/сброс не считаем).
+    // Велодорожка: тип полосы и длина из src/data/almaty.json (в геометрии
+    // велодорожек нет высот, поэтому набор/сброс не считаем).
     const bikeLane = feature.properties.type === 'bikeLane' ? feature.properties : null
-    const bikeLaneDetails =
-        bikeLane === null
-            ? null
-            : [bikeLane.laneTypeLabel, bikeLane.qualityLabel && `покрытие: ${bikeLane.qualityLabel.toLowerCase()}`]
-                  .filter((part) => typeof part === 'string' && part.length > 0)
-                  .join(' · ')
+    const bikeLaneDetails = bikeLane?.laneTypeLabel
     const distanceKm =
         stats?.distanceKm ??
         (bikeLane?.distance != null && Number.isFinite(bikeLane.distance) ? bikeLane.distance : null)

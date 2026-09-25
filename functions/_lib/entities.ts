@@ -1,4 +1,4 @@
-import type { VelojolSegment } from '../../src/types/velojol'
+import type { BikeLaneSegment } from '../../src/types/bikeLane'
 import bikeLanesData from '../../src/data/almaty.json'
 import { storagePublicUrl, type MapEntity } from './ogMeta'
 
@@ -30,7 +30,7 @@ const MISS_CACHE_TTL_SECONDS = 300
 
 const CACHE_ORIGIN = 'https://og-cache.map.euc.kz'
 
-const bikeLanes = bikeLanesData as VelojolSegment[]
+const bikeLanes = bikeLanesData as BikeLaneSegment[]
 
 interface PointRow {
     id?: number | string
@@ -113,7 +113,6 @@ function bikeLaneEntity(id: string): MapEntity | null {
     const lane = bikeLanes.find((segment) => String(segment.id) === id)
     if (!lane) return null
     const details = [lane.laneTypeLabel, `${String(lane.distance)} км`]
-    if (lane.qualityLabel) details.push(`покрытие: ${lane.qualityLabel.toLowerCase()}`)
     return { type: 'bikeLane', name: lane.name, description: lane.description, details }
 }
 
@@ -210,7 +209,7 @@ async function resolveMissed(type: string, id: string, env: OgEnv): Promise<MapE
 
 /**
  * Данные сущности для метатегов. Точки и маршруты — из часового дампа Supabase
- * (RLS сам отсекает скрытые), велодорожки — из статического датасета velojol,
+ * (RLS сам отсекает скрытые), велодорожки — из статического датасета OSM (almaty.json),
  * вшитого в бандл. Для райдеров (`telegramUser`) метатеги не строим: это
  * персональные данные.
  */

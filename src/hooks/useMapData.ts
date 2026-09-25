@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import type { Feature, FeatureCollection } from '@/types/geojson'
 import type { TelegramLocationRow } from '@/types/supabase'
-import type { VelojolSegment } from '@/types/velojol'
+import type { BikeLaneSegment } from '@/types/bikeLane'
 import {
     fetchMapPoints,
     fetchMapRoutes,
@@ -18,7 +18,7 @@ import {
 import type { LayerKey } from '@/constants'
 import { useFeatureIndexes } from '@/hooks/useFeatureIndexes'
 import { useTelegramRealtime } from '@/hooks/useTelegramRealtime'
-import { velojolToFeatureCollection } from '@/utils/velojolToGeojson'
+import { bikeLanesToFeatureCollection } from '@/utils/bikeLanesToGeojson'
 
 function buildUsersAndTracksGeo(latestRows: TelegramLocationRow[], allRows: TelegramLocationRow[]): FeatureCollection {
     const usersGeo = telegramLocationsToUsersFeatureCollection(latestRows)
@@ -115,7 +115,7 @@ export function useMapData() {
                 if (bikeLanesModule.status === 'fulfilled') {
                     const raw = bikeLanesModule.value.default
                     if (Array.isArray(raw) && raw.length > 0) {
-                        setBikeLanesGeo(velojolToFeatureCollection(raw as VelojolSegment[]))
+                        setBikeLanesGeo(bikeLanesToFeatureCollection(raw as BikeLaneSegment[]))
                     } else {
                         setBikeLanesGeo(null)
                     }
