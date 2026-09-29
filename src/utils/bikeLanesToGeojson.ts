@@ -1,5 +1,5 @@
 import type { BikeLaneFeature, FeatureCollection } from '@/types/geojson'
-import type { VelojolSegment } from '@/types/velojol'
+import type { BikeLaneSegment } from '@/types/bikeLane'
 
 function isLineCoordinates(value: unknown): value is [number, number][] {
     if (!Array.isArray(value) || value.length < 2) return false
@@ -9,11 +9,11 @@ function isLineCoordinates(value: unknown): value is [number, number][] {
 }
 
 /**
- * Превращает датасет velojol.kz (`src/data/almaty.json`) в GeoJSON слоя
+ * Превращает датасет велодорожек (`src/data/almaty.json`) в GeoJSON слоя
  * велодорожек. Сегменты с битой геометрией отбрасываются, id приводится к
  * строке — под `promoteId: 'id'` в Mapbox и deep-link `/m/bikelane/:id`.
  */
-export function velojolToFeatureCollection(segments: VelojolSegment[]): FeatureCollection {
+export function bikeLanesToFeatureCollection(segments: BikeLaneSegment[]): FeatureCollection {
     const features: BikeLaneFeature[] = segments
         .filter((segment) => isLineCoordinates(segment.coordinates))
         .map((segment) => ({
@@ -29,10 +29,6 @@ export function velojolToFeatureCollection(segments: VelojolSegment[]): FeatureC
                 type: 'bikeLane',
                 distance: segment.distance,
                 ...(segment.laneTypeLabel && { laneTypeLabel: segment.laneTypeLabel }),
-                ...(segment.quality !== undefined && {
-                    quality: segment.quality,
-                    qualityLabel: segment.qualityLabel,
-                }),
             },
         }))
     return { type: 'FeatureCollection', features }

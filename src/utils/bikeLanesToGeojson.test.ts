@@ -1,17 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { velojolToFeatureCollection } from './velojolToGeojson'
-import type { VelojolSegment } from '@/types/velojol'
+import { bikeLanesToFeatureCollection } from './bikeLanesToGeojson'
+import type { BikeLaneSegment } from '@/types/bikeLane'
 
-function makeSegment(overrides: Partial<VelojolSegment> = {}): VelojolSegment {
+function makeSegment(overrides: Partial<BikeLaneSegment> = {}): BikeLaneSegment {
     return {
         id: 58,
-        name: 'Манас көшесі',
+        name: 'улица Манаса',
         laneType: 'separated',
         laneTypeLabel: 'Обособленная велодорожка',
         distance: 0.42,
         description: 'Двухполосная велосипедная дорожка с разметкой',
-        quality: 3,
-        qualityLabel: 'Средне',
         coordinates: [
             [76.908566, 43.239716],
             [76.909093, 43.235942],
@@ -20,9 +18,9 @@ function makeSegment(overrides: Partial<VelojolSegment> = {}): VelojolSegment {
     }
 }
 
-describe('velojolToFeatureCollection', () => {
+describe('bikeLanesToFeatureCollection', () => {
     it('превращает сегменты в LineString-фичи велодорожек', () => {
-        const result = velojolToFeatureCollection([makeSegment()])
+        const result = bikeLanesToFeatureCollection([makeSegment()])
 
         expect(result.type).toBe('FeatureCollection')
         expect(result.features).toHaveLength(1)
@@ -36,32 +34,22 @@ describe('velojolToFeatureCollection', () => {
         })
         expect(feature.properties).toEqual({
             id: '58',
-            name: 'Манас көшесі',
+            name: 'улица Манаса',
             description: 'Двухполосная велосипедная дорожка с разметкой',
             type: 'bikeLane',
             distance: 0.42,
             laneTypeLabel: 'Обособленная велодорожка',
-            quality: 3,
-            qualityLabel: 'Средне',
         })
     })
 
     it('приводит числовой id к строке — под promoteId и deep-link /m/bikelane/:id', () => {
-        const [feature] = velojolToFeatureCollection([makeSegment({ id: 7589 })]).features
+        const [feature] = bikeLanesToFeatureCollection([makeSegment({ id: 7589 })]).features
         expect(feature.properties.id).toBe('7589')
     })
 
     it('без описания кладёт null, чтобы карточка не показывала пустой абзац', () => {
-        const [feature] = velojolToFeatureCollection([makeSegment({ description: undefined })]).features
+        const [feature] = bikeLanesToFeatureCollection([makeSegment({ description: undefined })]).features
         expect(feature.properties.description).toBeNull()
-    })
-
-    it('не проставляет оценку покрытия, если её нет в velojol', () => {
-        const [feature] = velojolToFeatureCollection([
-            makeSegment({ quality: undefined, qualityLabel: undefined }),
-        ]).features
-        expect(feature.properties).not.toHaveProperty('quality')
-        expect(feature.properties).not.toHaveProperty('qualityLabel')
     })
 
     it('отбрасывает сегменты с битой геометрией', () => {
@@ -76,11 +64,11 @@ describe('velojolToFeatureCollection', () => {
                 ],
             }),
         ]
-        const result = velojolToFeatureCollection(segments)
+        const result = bikeLanesToFeatureCollection(segments)
         expect(result.features.map((feature) => feature.properties.id)).toEqual(['3'])
     })
 
     it('на пустом датасете возвращает пустую коллекцию', () => {
-        expect(velojolToFeatureCollection([])).toEqual({ type: 'FeatureCollection', features: [] })
+        expect(bikeLanesToFeatureCollection([])).toEqual({ type: 'FeatureCollection', features: [] })
     })
 })

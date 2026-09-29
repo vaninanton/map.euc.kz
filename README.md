@@ -15,7 +15,7 @@
 - **Точки** — места встреч, парковки, точки интереса (модерируются администратором).
 - **Розетки** — публичные точки подзарядки моноколёс.
 - **Маршруты** — заранее проложенные треки для покатушек (с опциональными высотами).
-- **Велодорожки** — сеть велоинфраструктуры Алматы (статический датасет Velojol).
+- **Велодорожки** — сеть велоинфраструктуры Алматы (статическая выгрузка из OpenStreetMap).
 - **Геопозиции Telegram** — живые геопозиции райдеров из подключённых чатов + недавние треки (TTL-фильтр, точность фильтр).
 
 ### Интерфейс
@@ -75,7 +75,7 @@ src/
 │   └── mapLayers.ts  # Определения слоёв, paint expressions, feature-state
 ├── utils/             # Геометрия, hash-навигация, типовые гварды, GeoJSON нормализация
 ├── constants/         # LAYER_IDS, SOURCE_IDS, COLORS
-├── types/             # GeoJSON Features, Supabase rows, Velojol
+├── types/             # GeoJSON Features, Supabase rows, велодорожки
 ├── data/              # almaty.json (велодорожки)
 └── main.tsx, App.tsx
 
@@ -109,7 +109,7 @@ public/
 ```
 Пользователь открывает карту
   → EucMap монтируется
-  → useMapData параллельно фетчит из Supabase (points, routes, telegram, velojol)
+  → useMapData параллельно фетчит из Supabase (points, routes, telegram) и подгружает велодорожки
   → useLayers добавляет GeoJSON sources + layers в Mapbox
   → useTelegramRealtime подписывается на изменения
   → Карта готова к взаимодействию

@@ -75,8 +75,6 @@ function makeBikeLane(overrides: Record<string, unknown> = {}): Feature {
             description: null,
             distance: 3.18,
             laneTypeLabel: 'Обособленная велодорожка',
-            quality: 4,
-            qualityLabel: 'Хорошо',
             ...overrides,
         },
     }
@@ -143,15 +141,10 @@ describe('PopupContent', () => {
         expect(screen.getByText(/5\.2 км/i)).toBeInTheDocument()
     })
 
-    it('показывает тип полосы, покрытие и длину для велодорожки', () => {
+    it('показывает тип полосы и длину для велодорожки', () => {
         render(<PopupContent feature={makeBikeLane()} />)
-        expect(screen.getByText('Обособленная велодорожка · покрытие: хорошо')).toBeInTheDocument()
-        expect(screen.getByText(/3\.2 км/i)).toBeInTheDocument()
-    })
-
-    it('для велодорожки без оценки покрытия показывает только тип полосы', () => {
-        render(<PopupContent feature={makeBikeLane({ quality: undefined, qualityLabel: undefined })} />)
         expect(screen.getByText('Обособленная велодорожка')).toBeInTheDocument()
+        expect(screen.getByText(/3\.2 км/i)).toBeInTheDocument()
     })
 
     it('не показывает набор и сброс высоты для велодорожки', () => {

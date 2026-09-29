@@ -53,14 +53,10 @@ export interface RouteProperties extends BaseFeatureProperties {
 
 export interface BikeLaneProperties extends BaseFeatureProperties {
     type: 'bikeLane'
-    /** Длина в километрах (из velojol.kz). */
+    /** Длина в километрах (из src/data/almaty.json). */
     distance?: number
     /** Русская подпись типа полосы, напр. «Обособленная велодорожка». */
     laneTypeLabel?: string
-    /** Оценка покрытия 1–5 (velojol.kz); отсутствует, если не указана. */
-    quality?: number
-    /** Русская подпись оценки покрытия, напр. «Хорошо». */
-    qualityLabel?: string
 }
 
 export interface TelegramUserProperties extends BaseFeatureProperties {

@@ -29,7 +29,7 @@ Cloudflare Pages Functions (`functions/`) sit in front of the static bundle and 
 
 ## System domains
 
-1. **Map** — points (`map_points`), routes (`map_routes`), bike lanes (a static velojol.kz dataset in `src/data/almaty.json`), live Telegram geolocations. Details: [frontend.md](frontend.md).
+1. **Map** — points (`map_points`), routes (`map_routes`), bike lanes (a static OpenStreetMap build in `src/data/almaty.json`), live Telegram geolocations. Details: [frontend.md](frontend.md).
 2. **User submissions** — the anonymous «Добавить точку» form → `map_points_submissions` → moderation in the admin panel.
 3. **Events** — `map_events` + dates (`map_event_dates`) + RSVP participants (`map_event_participants`), public feed at `/events`. Details: [events-news.md](events-news.md).
 4. **News** — `map_news`, admin-only plus Telegram broadcast.
@@ -42,7 +42,7 @@ Cloudflare Pages Functions (`functions/`) sit in front of the static bundle and 
 useMapData.ts
   ├─ fetchMapPoints()      → mapPointsToFeatureCollection()    → pointsGeo
   ├─ fetchMapRoutes()      → mapRoutesToFeatureCollection()    → routesGeo
-  ├─ velojolToFeatureCollection(almaty.json)                   → bikeLanesGeo
+  ├─ bikeLanesToFeatureCollection(almaty.json)                 → bikeLanesGeo
   └─ fetchTelegramLocations()  (RPC get_latest_telegram_locations)
        ├─ telegramLocationsToUsersFeatureCollection()          → telegramUsersGeo
        └─ telegramLocationsToRecentTracksFeatureCollection()   → telegramTracksGeo
@@ -87,7 +87,7 @@ hooks/       state, effects, data loading
 lib/         clients and configuration (supabase, mapLayers, env, analytics)
 utils/       pure functions without React/Mapbox — all covered by tests
 constants/   IDs, colors, labels, layer registry
-types/       shared types (GeoJSON, Supabase rows, Velojol)
+types/       shared types (GeoJSON, Supabase rows, bike lanes)
 admin/       isolated lazy-loaded admin panel with its own API layer (adminApi)
 ```
 
@@ -113,7 +113,7 @@ supabase/
 ├── seed.sql          curated local DB seed (tracked, PII-free: points + routes)
 └── config.toml       local stack + function declarations (verify_jwt = false)
 public/               PWA: sw.js, manifest, icons/splash screens, robots.txt, _redirects, _headers
-scripts/              fetch-velojol-bike-lanes.js, set-supabase-secrets.sh
+scripts/              fetch-osm-bike-lanes.js, set-supabase-secrets.sh
 tests/e2e/            Playwright tests with full Mapbox/Supabase mocks
 tests/config/         deployConfig.test.ts — env parity between CI and .env.example
 docs/                 this documentation
