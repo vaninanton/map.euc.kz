@@ -8,6 +8,11 @@
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180.png" />
         <link rel="manifest" href="/manifest.webmanifest" />
+        <!-- Соединения к Mapbox (стиль, тайлы) и Supabase (данные карты) открываем сразу,
+             не дожидаясь загрузки JS: на мобильном интернете это 100–300 мс до первых тайлов.
+             crossorigin обязателен — оба ходят через CORS-fetch, иначе соединение не переиспользуется. -->
+        <link rel="preconnect" href="https://api.mapbox.com" crossorigin />
+        <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
         <!-- rel=canonical намеренно НЕ задан статически: index.html отдаётся на любой путь
              (SPA-фолбэк), и один зашитый href объявил бы главную канонической для всех
              страниц сразу — Google выкинул бы их из индекса. Для /m/... канонический адрес
@@ -21,6 +26,7 @@
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="map.euc.kz" />
+        <meta name="application-name" content="map.euc.kz" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="map.euc.kz" />
         <meta property="og:title" content="Карта моноколесных маршрутов" />
@@ -44,11 +50,31 @@
         <meta name="twitter:title" content="Карта моноколесных маршрутов" />
         <meta name="twitter:description" content="Планируй поездки, смотри маршруты и розетки" />
         <meta name="twitter:image" content="https://map.euc.kz/og-image.png" />
+        <meta name="twitter:image:alt" content="Мономаршруты — карта маршрутов на моноколёсах" />
         <meta name="description" content="Планируй поездки, смотри маршруты и розетки" />
         <!-- Дубль файловой верификации /yandex_*.html: Cloudflare Pages редиректит .html-адреса
              (308 на путь без расширения), поэтому файл боту Яндекса может не открыться. -->
         <meta name="yandex-verification" content="df0c02936f865b5a" />
         <title>map.euc.kz</title>
+        <!-- Описание сайта целиком для поисковиков. На страницах /m/... Pages Function
+             дописывает рядом собственный JSON-LD сущности — одно другому не мешает. -->
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "WebApplication",
+                "name": "map.euc.kz",
+                "alternateName": "Карта моноколёсных маршрутов",
+                "url": "https://map.euc.kz/",
+                "description": "Карта для моноколёсников Алматы: места встреч, розетки, маршруты, велодорожки и живые геопозиции райдеров",
+                "image": "https://map.euc.kz/og-image.png",
+                "inLanguage": "ru",
+                "applicationCategory": "TravelApplication",
+                "operatingSystem": "Web",
+                "isAccessibleForFree": true,
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KZT" },
+                "areaServed": { "@type": "City", "name": "Алматы" }
+            }
+        </script>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <link
             rel="apple-touch-startup-image"
