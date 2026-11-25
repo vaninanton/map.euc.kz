@@ -13,10 +13,10 @@ npm run test:functions                  # deno test --allow-net supabase/functio
 npm run lint && npm run format:check    # code quality
 ```
 
-## Unit (Vitest 4)
+## Unit (Vitest 5)
 
 - The config is embedded in `vite.config.ts`: `environment: jsdom`, `globals: true`, `setupFiles: src/test/setup.ts`, excluding `supabase/functions/**` (those run under Deno).
-- `src/test/setup.ts` — polyfills for `localStorage`/`sessionStorage`/`matchMedia` plus `@testing-library/jest-dom`.
+- `src/test/setup.ts` — polyfills for `localStorage`/`sessionStorage`/`matchMedia` plus `@testing-library/jest-dom/vitest` (since jest-dom 8 the bare entry is typed for Jest only).
 - `src/test/eventFactories.ts` — factories for test events and event dates.
 - Everything in `src/utils/*` is covered by tests; components and hooks are tested through RTL 16.
 - Analytics: mock `react-metrika`/`@/lib/analytics` with `vi.hoisted`; for the env-dependent `metrikaCounterId` use `vi.stubEnv` + `vi.resetModules` + a dynamic import.

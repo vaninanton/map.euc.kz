@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-25 (обновление зависимостей)
+
+### Changed
+
+- Обновлены зависимости в пределах мажорных версий: React 19.3, mapbox-gl 3.35, supabase-js 2.119, Vite 8.3, Playwright 1.65, ESLint 10.15, typescript-eslint 8.74 и другие. Заменяет открытые PR Dependabot #237–#256
+- Мажорные обновления тестового стека: Vitest 5, @testing-library/jest-dom 8, jsdom 31. Матчеры jest-dom подключаются через `@testing-library/jest-dom/vitest`
+- Passkey-вход в админку больше не требует опт-ина `auth.experimental.passkey`: в supabase-js 2.119 он включён по умолчанию
+
 ## 2026-09-25 (велодорожки из OpenStreetMap)
 
 ### Changed

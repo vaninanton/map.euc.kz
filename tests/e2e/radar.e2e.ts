@@ -89,7 +89,10 @@ test.describe('радар — с геолокацией', () => {
         await expect(page.getByRole('button', { name: 'Переключить на линейную шкалу' })).toBeVisible()
     })
 
-    test('кнопка АВТОВРАЩАТЬ меняет aria-label при нажатии', async ({ page }) => {
+    test('кнопка АВТОВРАЩАТЬ меняет aria-label при нажатии', async ({ page, context }) => {
+        // С Chromium 159 есть стандартный DeviceOrientationEvent.requestPermission(): без разрешений
+        // датчиков он отвечает 'denied', поэтому выдаём их явно, как это делает браузер по умолчанию.
+        await context.grantPermissions(['geolocation', 'accelerometer', 'gyroscope', 'magnetometer'])
         await mockExternalServices(page)
         await page.goto('/radar')
 
@@ -98,7 +101,6 @@ test.describe('радар — с геолокацией', () => {
 
         await compassBtn.click()
 
-        // В desktop Chromium DeviceOrientationEvent.requestPermission отсутствует — компас включается сразу
         await expect(page.getByRole('button', { name: 'Выключить вращение по компасу' })).toBeVisible()
     })
 
