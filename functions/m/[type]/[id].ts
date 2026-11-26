@@ -100,6 +100,7 @@ export const onRequestGet: PagesFunction<OgEnv> = async (context) => {
                 },
             })
             .on('meta[property="og:image:alt"]', setContent(meta.title))
+            .on('meta[name="twitter:image:alt"]', setContent(meta.title))
     }
 
     return rewriter.transform(response)

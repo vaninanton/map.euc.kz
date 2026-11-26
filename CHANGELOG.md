@@ -15,6 +15,14 @@
 - Мажорные обновления тестового стека: Vitest 5, @testing-library/jest-dom 8, jsdom 31. Матчеры jest-dom подключаются через `@testing-library/jest-dom/vitest`
 - Passkey-вход в админку больше не требует опт-ина `auth.experimental.passkey`: в supabase-js 2.119 он включён по умолчанию
 
+## 2026-09-29 (метатеги)
+
+### Added
+
+- `preconnect` к Mapbox и Supabase в `index.html`: соединения открываются сразу, не дожидаясь загрузки JS, — на мобильном интернете первые тайлы и данные приходят на 100–300 мс раньше
+- JSON-LD `WebApplication` для главной: название, описание, регион (Алматы), бесплатное веб-приложение — для поисковиков. Страницы `/m/...` по-прежнему получают свой JSON-LD от Pages Function
+- `twitter:image:alt` (на страницах с фото точки подменяется вместе с `og:image:alt`) и `application-name`
+
 ## 2026-09-25 (велодорожки из OpenStreetMap)
 
 ### Changed

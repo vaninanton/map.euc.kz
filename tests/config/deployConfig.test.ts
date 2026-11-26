@@ -70,10 +70,29 @@ describe('index.html — метатеги по умолчанию', () => {
         for (const key of ['og:title', 'og:description', 'og:url', 'og:type', 'og:image', 'og:image:alt']) {
             expect(metaContent('property', key), `нет тега ${key}`).toBeDefined()
         }
-        for (const key of ['twitter:title', 'twitter:description', 'twitter:image']) {
+        for (const key of ['twitter:title', 'twitter:description', 'twitter:image', 'twitter:image:alt']) {
             expect(metaContent('name', key), `нет тега ${key}`).toBeDefined()
         }
         expect(html).toMatch(/<title>[^<]+<\/title>/)
+    })
+
+    it('twitter:image:alt совпадает с og:image:alt', () => {
+        expect(metaContent('name', 'twitter:image:alt')).toBe(metaContent('property', 'og:image:alt'))
+    })
+
+    it('preconnect к Mapbox и Supabase — с crossorigin, иначе CORS-fetch откроет второе соединение', () => {
+        expect(html).toMatch(/<link rel="preconnect" href="https:\/\/api\.mapbox\.com" crossorigin \/>/)
+        // Адрес Supabase подставляет Vite из VITE_SUPABASE_URL при сборке.
+        expect(html).toMatch(/<link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin \/>/)
+    })
+
+    it('JSON-LD главной — валидный WebApplication с абсолютным url', () => {
+        const script = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)?.[1]
+        expect(script).toBeDefined()
+        const data = JSON.parse(script ?? '') as { '@type': string; url: string; name: string }
+        expect(data['@type']).toBe('WebApplication')
+        expect(data.url).toBe('https://map.euc.kz/')
+        expect(data.name).toBe('map.euc.kz')
     })
 
     it('плейсхолдера %BASE_URL% не осталось — плагин base-url-meta удалён', () => {
