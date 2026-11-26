@@ -67,7 +67,7 @@ Follow the upgrade guide for each package. Common patterns in this project:
 - **Tailwind CSS major** — check the config format (v4 uses CSS-based config, not `tailwind.config.js`)
 - **TypeScript major** — check the four `tsconfig.*.json` project files for removed/changed compiler options; run `npx tsc -b --noEmit` after
 - **ESLint major** — check the `eslint.config.js` flat config format; check plugin compatibility
-- **@supabase/supabase-js major** — check RLS/client API changes; see `src/lib/supabase.ts` (note the `auth.experimental.passkey` opt-in used by the admin panel)
+- **@supabase/supabase-js major** — check RLS/client API changes; see `src/lib/supabase.ts` (passkeys for the admin panel are on by default since 2.119 — no `experimental` opt-in)
 - **mapbox-gl major** — check layer paint/layout expression syntax; see `src/lib/mapLayers.ts`
 - **react-router-dom major** — check the route definition API; see `src/App.tsx`
 - **@cloudflare/workers-types major** — affects `functions/` and `tsconfig.functions.json`
@@ -103,13 +103,13 @@ Summarize:
 - Any packages skipped (with reason)
 - Test results
 
-## Verification baseline (as of 2026-08-10)
+## Verification baseline (as of 2026-11-25)
 
 All green on this project before any dependency changes:
 
-- `npm test`: 86 test files, 631 tests pass in ~25 s
+- `npm test`: 93 test files, 767 tests pass in ~10 s (Vitest 5)
 - `npm run build`: succeeds cleanly (a mapbox-gl chunk size warning is expected and harmless)
-- `npm run test:e2e`: 50 tests across 8 spec files in ~2.6 min; the run includes a production build first
+- `npm run test:e2e`: 50 tests in ~40 s (Playwright 1.65 / Chromium 159); the run includes a production build first
 
 Refresh these numbers when they drift — a stale baseline is worse than none.
 
@@ -120,6 +120,8 @@ Refresh these numbers when they drift — a stale baseline is worse than none.
 - **TypeScript uses a tilde range (`~6.0.x`)** — `tsconfig` `target`/`lib` values may change between patch releases; check `tsc --version` after an upgrade.
 - **`npm outdated` exits with code 1** when anything is outdated — that is normal, not an error. Use `|| true` in scripts.
 - **E2E runs against a preview server on port 4174** (`PLAYWRIGHT_PORT` overrides it) — kill a stale `vite preview` on that port before running, or set a different port.
+- **Chromium 159+ has `DeviceOrientationEvent.requestPermission()`** — without sensor permissions it resolves `denied`; e2e tests that toggle the radar compass must `grantPermissions(['accelerometer', 'gyroscope', 'magnetometer'])`.
+- **jest-dom 8+ under Vitest** — import/type `@testing-library/jest-dom/vitest`, not the bare entry (that one is typed for Jest only).
 - **`wrangler` is intentionally absent from devDependencies** — don't "helpfully" add it; it pulls ~40–50 MB of workerd binaries for one CI command.
 
 ## Troubleshooting

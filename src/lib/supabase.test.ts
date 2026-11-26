@@ -130,9 +130,7 @@ describe('lib/supabase data access', () => {
         const { fetchTelegramLocations } = await import('@/lib/supabase')
         const rows = await fetchTelegramLocations()
 
-        expect(createClient).toHaveBeenCalledWith('https://project.supabase.co', 'anon-key', {
-            auth: { experimental: { passkey: true } },
-        })
+        expect(createClient).toHaveBeenCalledWith('https://project.supabase.co', 'anon-key')
         expect(calls).toContainEqual({
             table: 'telegram_locations',
             method: 'gte',
