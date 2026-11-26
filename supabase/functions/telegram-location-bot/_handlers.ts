@@ -5,7 +5,7 @@
  * его фейком, а Telegram API мокается через globalThis.fetch.
  * Здесь НЕТ Deno.serve и чтения env на уровне модуля — точка входа в index.ts.
  */
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import {
     ACTIVE_RIDER_WINDOW_MINUTES,
     BACKFILL_ERROR_SAMPLE_LIMIT,
