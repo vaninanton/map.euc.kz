@@ -13,7 +13,7 @@ A lazy-loaded section of the SPA. Access requires Supabase Auth (passkey by defa
 
 ### Passkeys (WebAuthn)
 
-The primary sign-in method. The client is created with the opt-in `auth.experimental.passkey: true` (`src/lib/supabase.ts`) — without it the passkey methods throw. Wrappers live in `src/admin/lib/passkeys.ts`:
+The primary sign-in method. Passkey methods are enabled by default since supabase-js 2.119 (the former `auth.experimental.passkey` opt-in in `src/lib/supabase.ts` was removed as a no-op). Wrappers live in `src/admin/lib/passkeys.ts`:
 
 - `signInWithPasskey()` — `auth.signInWithPasskey()`: challenge → `navigator.credentials.get()` → verify; the SDK persists the session and emits `SIGNED_IN`, so `AdminAuthGate` re-renders on its own (no redirect needed). The passkey is discoverable, so no email is required;
 - `listPasskeys()` / `registerPasskey(name?)` / `renamePasskey(id, name)` / `deletePasskey(id)` — `auth.passkey.*`. The SDK does not accept a name at registration time, so a non-empty name is applied by a second request (`passkey.update`);

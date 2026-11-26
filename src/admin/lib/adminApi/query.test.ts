@@ -1,4 +1,4 @@
-import type { PostgrestError } from '@supabase/supabase-js'
+import { PostgrestError } from '@supabase/supabase-js'
 import { describe, expect, it, vi } from 'vitest'
 import { runManyParsed, runManyRaw, runOneParsed, runOneRaw } from '@/admin/lib/adminApi/query'
 
@@ -9,7 +9,7 @@ function ok(data: unknown) {
 function fail(message: string) {
     return Promise.resolve({
         data: null,
-        error: { message } as PostgrestError,
+        error: new PostgrestError({ message, details: '', hint: '', code: '' }),
     })
 }
 

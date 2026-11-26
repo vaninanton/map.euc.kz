@@ -31,9 +31,9 @@ if (!url || !key) {
 
 export const supabase =
     typeof url === 'string' && typeof key === 'string'
-        ? // experimental.passkey — обязательный опт-ин для auth.signInWithPasskey() /
-          // registerPasskey() / auth.passkey.* (иначе SDK бросает ошибку при вызове).
-          createClient(url, key, { auth: { experimental: { passkey: true } } })
+        ? // Passkey-методы auth (signInWithPasskey, registerPasskey, auth.passkey.*) с supabase-js 2.119
+          // включены по умолчанию — опт-ин auth.experimental.passkey больше не нужен.
+          createClient(url, key)
         : null
 
 /** Клиент с сессией Auth (нужен для админки). */
