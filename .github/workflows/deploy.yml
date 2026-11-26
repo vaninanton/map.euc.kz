@@ -36,11 +36,13 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
         run: |
           supabase link --project-ref "$SUPABASE_PROJECT_REF"
-          supabase db push
+          # Supabase CLI 3: db push по умолчанию бьёт в локальную БД — --remote обязателен;
+          # изменения в проде без --yes молча отменяются (в CI нет TTY для подтверждения).
+          supabase db push --remote --password "$SUPABASE_DB_PASSWORD" --yes
           # --no-verify-jwt: webhook Telegram без заголовка Authorization; --use-api: сборка на стороне API без Docker на раннере
-          supabase functions deploy telegram-location-bot --no-verify-jwt --use-api
+          supabase functions deploy telegram-location-bot --no-verify-jwt --use-api --yes
           # --no-verify-jwt: OPTIONS-preflight браузера идёт без Authorization; авторизация — внутри (JWT + map_admin_users)
-          supabase functions deploy ai-assist --no-verify-jwt --use-api
+          supabase functions deploy ai-assist --no-verify-jwt --use-api --yes
 
   deploy:
     name: Cloudflare Pages

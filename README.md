@@ -185,7 +185,7 @@ supabase stop         # остановить
 supabase db reset
 ```
 
-> На удалённый проект миграции применяются через `supabase db push` или CI — **не** через MCP `apply_migration`, иначе история миграций разойдётся.
+> На удалённый проект миграции применяются через `supabase db push --remote` или CI — **не** через MCP `apply_migration`, иначе история миграций разойдётся.
 
 **Edge Function (Telegram-бот)** — запуск локально с hot-reload:
 
@@ -214,7 +214,7 @@ Telegram-вебхуку нужен публичный HTTPS-URL, поэтому 
 1. В Supabase включите провайдер **Email** (Authentication → Providers → Email).
 2. Создайте пользователя (Authentication → Users → Add user) или зарегистрируйтесь через включённый signup — как удобнее для вашего проекта.
 3. Узнайте `uuid` пользователя в списке Users.
-4. Примените миграции (`supabase db push` или через Dashboard → SQL), затем выдайте права администратора:
+4. Примените миграции (`supabase db push --remote` или через Dashboard → SQL), затем выдайте права администратора:
 
     ```sql
     INSERT INTO public.map_admin_users (user_id)
@@ -449,7 +449,7 @@ CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… \
 Workflow `.github/workflows/deploy.yml` перед сборкой фронтенда:
 
 1. Выполняет **`supabase db push`** к проекту (версия CLI берётся из `package-lock.json`, см. зависимость `supabase`).
-2. Деплоит Edge Function **`telegram-location-bot`** командой `supabase functions deploy telegram-location-bot --no-verify-jwt --use-api` (`--no-verify-jwt` нужен для webhook Telegram без JWT; `--use-api` — сборка функции на стороне Supabase без Docker на раннере).
+2. Деплоит Edge Function **`telegram-location-bot`** командой `supabase functions deploy telegram-location-bot --no-verify-jwt --use-api --yes` (`--no-verify-jwt` нужен для webhook Telegram без JWT; `--use-api` — сборка функции на стороне Supabase без Docker на раннере).
 
 Секреты самой функции (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, …) в CI **не задаются**: их один раз прописывают в проекте через `supabase secrets set` или Dashboard (см. раздел «Telegram-бот» выше). Деплой только обновляет код функции.
 

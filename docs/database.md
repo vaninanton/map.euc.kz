@@ -4,8 +4,8 @@ The schema is managed **exclusively** by the migrations in `supabase/migrations/
 
 ## Migration rules
 
-- New migration: `supabase migration new <name>` → write the SQL file → `supabase db reset` locally → to production via `supabase db push` or CI (deploy.yml).
-- **Never** apply migrations through MCP `apply_migration`/`execute_sql`: MCP writes an auto-generated timestamp into `schema_migrations` that diverges from the file name and breaks deploys. Repair a diverged history with `supabase migration repair` and verify with `supabase migration list`.
+- New migration: `supabase migration new <name>` → write the SQL file → `supabase db reset` locally → to production via `supabase db push --remote` or CI (deploy.yml).
+- **Never** apply migrations through MCP `apply_migration`/`execute_sql`: MCP writes an auto-generated timestamp into `schema_migrations` that diverges from the file name and breaks deploys. Repair a diverged history with `supabase migration repair --remote` and verify with `supabase migration list --remote` (CLI 3 targets the local DB without `--remote`).
 - Every new table must get its RLS policies immediately (`ENABLE ROW LEVEL SECURITY` + policies) — a table without policies is either unreachable or, worse, wide open.
 - Merging to `main` applies migrations to production straight away (deploy.yml).
 
