@@ -63,7 +63,8 @@ jobs:
           EXCLUDE='information_schema|pg_*|_analytics|_realtime|_supavisor|auth|etl|extensions|pgbouncer|realtime|storage|supabase_functions|supabase_migrations|cron|dbdev|graphql|graphql_public|net|pgmq|pgsodium|pgsodium_masks|pgtle|repack|tiger|tiger_data|timescaledb_*|_timescaledb_*|topology|vault'
 
           # Свежие session-credentials для прямого pg_dump (Docker на раннере не нужен).
-          eval "$(supabase db dump --linked --dry-run 2>/dev/null | grep '^export PG')"
+          # CLI 3: db dump по умолчанию смотрит в локальную БД — нужен --remote.
+          eval "$(supabase db dump --remote --password "$SUPABASE_DB_PASSWORD" --dry-run 2>/dev/null | grep '^export PG')"
 
           DB_FILE="db_${TIMESTAMP}.sql.gz"
           echo "DB_FILE=${DB_FILE}" >> "$GITHUB_ENV"

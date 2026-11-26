@@ -10,7 +10,7 @@
 
 ### `deploy.yml` — push to `main` / manual
 
-1. **supabase**: link via `SUPABASE_PROJECT_REF` → `supabase db push` (migrations) → `supabase functions deploy telegram-location-bot --no-verify-jwt --use-api` and the same for `ai-assist`.
+1. **supabase**: link via `SUPABASE_PROJECT_REF` → `supabase db push --remote --yes` (migrations) → `supabase functions deploy telegram-location-bot --no-verify-jwt --use-api --yes` and the same for `ai-assist`. Supabase CLI 3 (version taken from `package-lock.json` by `supabase/setup-cli`): `db push`/`db dump`/`migration list|repair` target the **local** DB unless `--remote` is passed, and hosted changes are cancelled without `--yes` when there is no TTY.
 2. **deploy**: `npm run build` (Vite only — types were checked on the PR) with the `VITE_*` values from repository variables → `wrangler pages deploy dist --project-name=map-euc --branch=main` via `cloudflare/wrangler-action@v3`.
 3. **notify** (`if: always()`): reports the result to Telegram, linking to the specific deployment from `deployment-url`.
 

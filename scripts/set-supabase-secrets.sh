@@ -30,5 +30,6 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-supabase secrets set "$@"
+# --yes: Supabase CLI 3 спрашивает подтверждение на изменения в проде, без TTY ответ — «нет».
+supabase secrets set --yes "$@"
 echo "Обновлено секретов: $#."

@@ -72,7 +72,7 @@ DUMP="supabase/backups/prod-data_${TIMESTAMP}.sql"
 EXCLUDE="information_schema|pg_*|_analytics|_realtime|_supavisor|auth|etl|extensions|pgbouncer|realtime|storage|supabase_functions|supabase_migrations|cron|dbdev|graphql|graphql_public|net|pgmq|pgsodium|pgsodium_masks|pgtle|repack|tiger|tiger_data|timescaledb_*|_timescaledb_*|topology|vault"
 
 # Fresh prod creds into PG* env vars (prod connection, current shell only)
-eval "$(supabase db dump --linked --dry-run 2>/dev/null | grep '^export PG')"
+eval "$(supabase db dump --remote --dry-run 2>/dev/null | grep '^export PG')"
 
 # Data-only dump. --disable-triggers so FK order / triggers don't block the load.
 pg_dump --data-only --disable-triggers --quote-all-identifier --role postgres \

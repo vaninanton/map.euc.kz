@@ -39,10 +39,10 @@ grep -q 'supabase/backups' /private/var/www/map.euc/.gitignore || echo 'supabase
 
 ### 3. Get connection credentials
 
-`supabase db dump --linked` requires Docker and will fail if Docker Desktop is not running. Instead, extract credentials from the dry-run output (no Docker needed):
+`supabase db dump --remote` requires Docker and will fail if Docker Desktop is not running. Instead, extract credentials from the dry-run output (no Docker needed):
 
 ```bash
-supabase db dump --linked --dry-run 2>&1 | grep -E "^export PG"
+supabase db dump --remote --dry-run 2>&1 | grep -E "^export PG"
 ```
 
 This prints the live session credentials:
@@ -65,7 +65,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="/private/var/www/map.euc/supabase/backups/backup_${TIMESTAMP}.sql"
 
 # Read fresh credentials
-eval "$(supabase db dump --linked --dry-run 2>/dev/null | grep "^export PG")"
+eval "$(supabase db dump --remote --dry-run 2>/dev/null | grep "^export PG")"
 
 # Schema
 pg_dump \
@@ -92,7 +92,7 @@ Schema only (no data — good for migration audits):
 
 ```bash
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-eval "$(supabase db dump --linked --dry-run 2>/dev/null | grep "^export PG")"
+eval "$(supabase db dump --remote --dry-run 2>/dev/null | grep "^export PG")"
 pg_dump \
     --schema-only --quote-all-identifier --role "postgres" \
     --exclude-schema "information_schema|pg_*|_analytics|_realtime|_supavisor|auth|etl|extensions|pgbouncer|realtime|storage|supabase_functions|supabase_migrations|cron|dbdev|graphql|graphql_public|net|pgmq|pgsodium|pgsodium_masks|pgtle|repack|tiger|tiger_data|timescaledb_*|_timescaledb_*|topology|vault" \
@@ -103,7 +103,7 @@ Data only (no DDL — useful for seeding):
 
 ```bash
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-eval "$(supabase db dump --linked --dry-run 2>/dev/null | grep "^export PG")"
+eval "$(supabase db dump --remote --dry-run 2>/dev/null | grep "^export PG")"
 pg_dump \
     --data-only --quote-all-identifier --role "postgres" \
     --exclude-schema "information_schema|pg_*|_analytics|_realtime|_supavisor|auth|etl|extensions|pgbouncer|realtime|storage|supabase_functions|supabase_migrations|cron|dbdev|graphql|graphql_public|net|pgmq|pgsodium|pgsodium_masks|pgtle|repack|tiger|tiger_data|timescaledb_*|_timescaledb_*|topology|vault" \
@@ -169,9 +169,9 @@ For remote restores, prefer the Supabase dashboard UI (Database → Backups) to 
 
 ## Troubleshooting
 
-- **`failed to inspect docker image` / Docker error** — `supabase db dump --linked` requires Docker. Use the `pg_dump` approach via `--dry-run` credentials instead (see Step 3).
+- **`failed to inspect docker image` / Docker error** — `supabase db dump --remote` requires Docker. Use the `pg_dump` approach via `--dry-run` credentials instead (see Step 3).
 - **`supabase db dump: error: not logged in`** — run `supabase login` first
 - **`project not linked`** — run `supabase link --project-ref sbfnottcjbbgoucfwbzs`
-- **Empty `--dry-run` output** — check `supabase projects list`; try `supabase db dump --linked --dry-run --debug`
+- **Empty `--dry-run` output** — check `supabase projects list`; try `supabase db dump --remote --dry-run --debug`
 - **`pg_dump: error: query failed`** — session token may have expired; re-run the `--dry-run` step to get fresh credentials
 - **Large dump takes >60s** — `telegram_locations` can have many rows; this is normal
