@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { buildAiAssistPrompt, extractResponsesOutputText, parseAiAssistEntity, parseAiSuggestion } from './_pure.ts'
 
 /** CORS-заголовки: функция вызывается из браузера админки через functions.invoke. */
