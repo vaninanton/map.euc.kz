@@ -14,7 +14,7 @@ PWA map for EUC (electric unicycle) riders in Almaty — live at **map.euc.kz**.
 - **Mapbox GL JS 3** — map; **react-router-dom 7** — SPA routing; **Font Awesome 7** — icons; **typograf** — text typography
 - **Supabase** — PostgreSQL + RLS + Realtime + Storage + Deno Edge Functions
 - **Cloudflare Pages** + Pages Functions (server-side rendering only for meta tags and `sitemap.xml`)
-- **Vitest 4** + **RTL 16** + **jsdom** — unit tests; **Playwright** — e2e; **deno test** — edge functions
+- **Vitest 5** + **RTL 16** + **jsdom** — unit tests; **Playwright** — e2e; **deno test** — edge functions
 - **Husky 9** — pre-commit hook; **ESLint 10** (flat config, `eslint.config.js`) + **Prettier**
 
 ## Commands

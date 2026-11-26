@@ -20,7 +20,7 @@ One Overpass request (bike ways in the Almaty bbox + named roads within 35 m of 
 naming), then the pipeline below, then a **full rewrite** of `src/data/almaty.json` with a
 summary: ways → lines after each merge stage, what was dropped and why, names by source,
 warnings. Reference point on 2026-09-25: 2600 Overpass objects → 440 bike ways → 115
-lanes, 110.8 km.
+lanes, 110.8 km. On 2026-11-25: 2732 objects → 475 bike ways → 117 lanes, 113.1 km.
 
 - `overpass-api.de` often answers 504 under load; the script retries it 3 times with a
   30 s pause and only then falls back to `overpass.private.coffee`. **That mirror returned

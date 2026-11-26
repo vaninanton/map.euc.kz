@@ -892,6 +892,18 @@ describe('HIDDEN_WAY_IDS (ручное исключение)', () => {
         expect(segments.map((s) => s.id)).toEqual([1])
         expect(stats.hiddenMissing).toEqual([...HIDDEN_WAY_IDS].filter((id) => id !== hidden))
     })
+
+    it('горная трасса «Alatau +» скрыта, хотя в имени нет «XCO»', () => {
+        const trail = { highway: 'cycleway', name: 'Alatau +' }
+        expect(classifyWay(trail)).not.toBeNull()
+        const { segments } = buildSegments([
+            osmWay(1576030145, trail, [
+                [76.863, 43.163],
+                [76.863, 43.165],
+            ]),
+        ])
+        expect(segments).toEqual([])
+    })
 })
 
 describe('buildSegments — объезд не мешает склейке', () => {

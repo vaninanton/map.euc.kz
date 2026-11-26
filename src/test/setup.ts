@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 
 // localStorage и sessionStorage не определены в некоторых конфигурациях jsdom — полифиллим
 if (typeof localStorage === 'undefined') {
